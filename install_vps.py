@@ -8,6 +8,7 @@ import os
 import secrets
 import shutil
 import subprocess
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -55,6 +56,15 @@ def run(*args: str) -> None:
     subprocess.run(args, check=True)
 
 
+def wait_for_health(*args: str) -> None:
+    for _ in range(20):
+        result = subprocess.run(args, capture_output=True, check=False)
+        if result.returncode == 0:
+            return
+        time.sleep(0.25)
+    raise RuntimeError(f"Health check failed: {args[-1]}")
+
+
 def main() -> None:
     if os.geteuid() != 0:
         raise SystemExit("Run as root")
@@ -82,7 +92,7 @@ def main() -> None:
     run("systemctl", "daemon-reload")
     run("systemctl", "enable", "--now", "nexus-backup.service")
     run("systemctl", "restart", "nexus-backup.service")
-    run("curl", "--fail", "--silent", "--show-error", "--noproxy", "*", "http://127.0.0.1:18743/health")
+    wait_for_health("curl", "--fail", "--silent", "--show-error", "--noproxy", "*", "http://127.0.0.1:18743/health")
 
     if LOCATION not in site_text:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -92,7 +102,7 @@ def main() -> None:
             SITE.write_text(site_text.replace(marker, marker + LOCATION, 1), "utf-8")
             run("nginx", "-t")
             run("systemctl", "reload", "nginx")
-            run("curl", "--fail", "--silent", "--show-error", "--noproxy", "*", "--resolve", f"{HOST}:443:127.0.0.1", f"https://{HOST}/nexus-api/health")
+            wait_for_health("curl", "--fail", "--silent", "--show-error", "--noproxy", "*", "--resolve", f"{HOST}:443:127.0.0.1", f"https://{HOST}/nexus-api/health")
         except BaseException:
             shutil.copy2(backup, SITE)
             run("nginx", "-t")
