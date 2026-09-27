@@ -69,6 +69,7 @@ def main() -> None:
         raise SystemExit("Another nexus-api route exists; inspect it before installation")
 
     APP_DIR.mkdir(mode=0o755, parents=True, exist_ok=True)
+    os.chmod(APP_DIR, 0o755)
     shutil.copy2(source, APP_DIR / "nexus_backup.py")
     os.chmod(APP_DIR / "nexus_backup.py", 0o644)
     if not ENV.exists():
