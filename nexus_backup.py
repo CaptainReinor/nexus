@@ -1,4 +1,4 @@
-"""Single-user encrypted-backup store for NEXUS. Bind only to loopback behind HTTPS nginx."""
+"""Single-user NEXUS sync and encrypted-backup API. Bind only to loopback behind HTTPS nginx."""
 
 import base64
 import binascii
@@ -7,6 +7,7 @@ import json
 import os
 import re
 import tempfile
+import threading
 import uuid
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -17,6 +18,14 @@ TOKEN = os.environ.get("NEXUS_BACKUP_TOKEN", "")
 DATA_DIR = Path(os.environ.get("NEXUS_BACKUP_DIR", "/var/lib/nexus-backup"))
 PORT = int(os.environ.get("NEXUS_BACKUP_PORT", "18743"))
 MAX_BODY = 30_000_000
+MAX_SYNC_BODY = 12_000_000
+SYNC_LOCK = threading.Lock()
+SYNC_TABLES = {
+    "settings", "habits", "habit_logs", "health_daily_entries", "weight_entries", "workouts",
+    "finance_accounts", "finance_categories", "finance_transactions", "finance_budgets",
+    "jobs", "job_status_history", "experience_entries", "experience_cases", "job_experience_links",
+    "job_ai_analyses", "ai_usage", "daily_journals",
+}
 ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 
@@ -59,8 +68,43 @@ def valid_envelope(value: object) -> bool:
     return True
 
 
+def valid_sync_snapshot(value: object) -> bool:
+    if not isinstance(value, dict) or set(value) != {"format", "version", "exportedAt", "tables"}:
+        return False
+    if value["format"] != "nexus-backup" or not isinstance(value["version"], int) or not 1 <= value["version"] <= 100:
+        return False
+    if not isinstance(value["exportedAt"], str) or len(value["exportedAt"]) > 40:
+        return False
+    tables = value["tables"]
+    return isinstance(tables, dict) and set(tables) == SYNC_TABLES and all(
+        isinstance(rows, list) and len(rows) <= 100_000 and all(isinstance(row, dict) for row in rows)
+        for rows in tables.values()
+    )
+
+
+def read_sync_state() -> dict | None:
+    path = DATA_DIR / "sync-state.json"
+    return json.loads(path.read_text("utf-8")) if path.is_file() else None
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+
+    def cors_origin(self) -> str | None:
+        origin = self.headers.get("Origin", "")
+        return origin if origin in {"https://localhost", "http://localhost", "capacitor://localhost"} else None
+
+    def do_OPTIONS(self) -> None:
+        if self.path != "/v1/state" or not self.cors_origin():
+            self.respond(403, {"error": "forbidden"})
+            return
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", self.cors_origin())
+        self.send_header("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Nexus-Revision, Cache-Control")
+        self.send_header("Vary", "Origin")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def respond(self, status: int, payload: object) -> None:
         data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -69,6 +113,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
+        if self.path == "/v1/state" and self.cors_origin():
+            self.send_header("Access-Control-Allow-Origin", self.cors_origin())
+            self.send_header("Vary", "Origin")
         self.end_headers()
         self.wfile.write(data)
 
@@ -85,6 +132,11 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(200, {"status": "ok"})
             return
         if not self.authorized():
+            return
+        if self.path == "/v1/state":
+            with SYNC_LOCK:
+                state = read_sync_state()
+            self.respond(200, state if state is not None else {"revision": 0, "snapshot": None})
             return
         if self.path == "/v1/backups":
             items = []
@@ -117,6 +169,43 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(data)
             return
         self.respond(404, {"error": "not_found"})
+
+    def do_PUT(self) -> None:
+        if not self.authorized():
+            return
+        if self.path != "/v1/state":
+            self.respond(404, {"error": "not_found"})
+            return
+        expected = self.headers.get("X-Nexus-Revision", "")
+        if not expected.isdecimal():
+            self.respond(400, {"error": "revision_required"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            length = 0
+        if not 0 < length <= MAX_SYNC_BODY:
+            self.respond(413, {"error": "invalid_size"})
+            return
+        try:
+            snapshot = json.loads(self.rfile.read(length))
+        except (ValueError, UnicodeDecodeError):
+            self.respond(400, {"error": "invalid_json"})
+            return
+        if not valid_sync_snapshot(snapshot):
+            self.respond(400, {"error": "invalid_snapshot"})
+            return
+        with SYNC_LOCK:
+            current = read_sync_state()
+            revision = current["revision"] if current else 0
+            if str(revision) != expected:
+                self.respond(409, {"error": "revision_conflict", "revision": revision})
+                return
+            if current:
+                atomic_write(DATA_DIR / "sync-state-previous.json", json.dumps(current, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+            state = {"revision": revision + 1, "snapshot": snapshot}
+            atomic_write(DATA_DIR / "sync-state.json", json.dumps(state, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+        self.respond(200, {"revision": state["revision"]})
 
     def do_POST(self) -> None:
         if not self.authorized():
