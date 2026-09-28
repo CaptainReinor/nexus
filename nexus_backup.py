@@ -8,6 +8,8 @@ import os
 import re
 import tempfile
 import threading
+import urllib.error
+import urllib.request
 import uuid
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -27,6 +29,7 @@ SYNC_TABLES = {
     "job_ai_analyses", "ai_usage", "daily_journals",
 }
 ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+AI_KEY_FILE = "openrouter-key"
 
 
 def atomic_write(path: Path, content: bytes) -> None:
@@ -95,12 +98,12 @@ class Handler(BaseHTTPRequestHandler):
         return origin if origin in {"https://localhost", "http://localhost", "capacitor://localhost"} else None
 
     def do_OPTIONS(self) -> None:
-        if self.path != "/v1/state" or not self.cors_origin():
+        if not (self.path == "/v1/state" or self.path.startswith("/v1/ai/")) or not self.cors_origin():
             self.respond(403, {"error": "forbidden"})
             return
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", self.cors_origin())
-        self.send_header("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Nexus-Revision, Cache-Control")
         self.send_header("Vary", "Origin")
         self.send_header("Content-Length", "0")
@@ -113,7 +116,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        if self.path == "/v1/state" and self.cors_origin():
+        if (self.path == "/v1/state" or self.path.startswith("/v1/ai/")) and self.cors_origin():
             self.send_header("Access-Control-Allow-Origin", self.cors_origin())
             self.send_header("Vary", "Origin")
         self.end_headers()
@@ -127,11 +130,66 @@ class Handler(BaseHTTPRequestHandler):
             return False
         return True
 
+    def read_json(self, limit: int) -> object | None:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= limit:
+                self.respond(413, {"error": "invalid_size"})
+                return None
+            value = json.loads(self.rfile.read(length))
+            if value is None:
+                self.respond(400, {"error": "invalid_json"})
+            return value
+        except (ValueError, UnicodeDecodeError):
+            self.respond(400, {"error": "invalid_json"})
+            return None
+
+    def openrouter(self, path: str, payload: dict) -> None:
+        key_path = DATA_DIR / AI_KEY_FILE
+        if not key_path.is_file():
+            self.respond(409, {"error": "ai_key_missing"})
+            return
+        key = key_path.read_text("utf-8").strip()
+        request = urllib.request.Request(
+            "https://openrouter.ai/api/v1/" + path,
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={"Authorization": "Bearer " + key, "Content-Type": "application/json", "X-Title": "NEXUS"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=100) as response:
+                result = json.load(response)
+        except urllib.error.HTTPError as error:
+            self.respond(502, {"error": "openrouter_http", "status": error.code})
+            return
+        except (urllib.error.URLError, TimeoutError, ValueError):
+            self.respond(502, {"error": "openrouter_unavailable"})
+            return
+        if not isinstance(result, dict):
+            self.respond(502, {"error": "openrouter_invalid"})
+            return
+        if path == "chat/completions":
+            content = (result.get("choices") or [{}])[0].get("message", {}).get("content")
+            usage = result.get("usage") or {}
+            input_tokens, output_tokens = usage.get("prompt_tokens"), usage.get("completion_tokens")
+        else:
+            content = result.get("text")
+            usage = result.get("usage") or {}
+            input_tokens, output_tokens = usage.get("input_tokens"), usage.get("output_tokens")
+        if not isinstance(content, str) or not content.strip():
+            self.respond(502, {"error": "openrouter_empty"})
+            return
+        cost = usage.get("cost")
+        self.respond(200, {"content": content, "requestId": result.get("id", ""), "inputTokens": input_tokens, "outputTokens": output_tokens, "costMicrousd": round(cost * 1_000_000) if isinstance(cost, (float, int)) and cost >= 0 else None})
+
     def do_GET(self) -> None:
         if self.path == "/health":
             self.respond(200, {"status": "ok"})
             return
         if not self.authorized():
+            return
+        if self.path == "/v1/ai/status":
+            self.respond(200, {"configured": (DATA_DIR / AI_KEY_FILE).is_file()})
             return
         if self.path == "/v1/state":
             with SYNC_LOCK:
@@ -173,6 +231,17 @@ class Handler(BaseHTTPRequestHandler):
     def do_PUT(self) -> None:
         if not self.authorized():
             return
+        if self.path == "/v1/ai/key":
+            body = self.read_json(1024)
+            if body is None:
+                return
+            key = body.get("key") if isinstance(body, dict) else None
+            if not isinstance(key, str) or not 16 <= len(key.strip()) <= 512:
+                self.respond(400, {"error": "invalid_key"})
+                return
+            atomic_write(DATA_DIR / AI_KEY_FILE, key.strip().encode("utf-8"))
+            self.respond(200, {"configured": True})
+            return
         if self.path != "/v1/state":
             self.respond(404, {"error": "not_found"})
             return
@@ -209,6 +278,30 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         if not self.authorized():
+            return
+        if self.path == "/v1/ai/complete":
+            body = self.read_json(100_000)
+            if body is None:
+                return
+            if not isinstance(body, dict) or not isinstance(body.get("model"), str) or not re.fullmatch(r"[A-Za-z0-9._:/+-]{3,200}", body["model"]) or not isinstance(body.get("system"), str) or len(body["system"]) > 20_000 or not isinstance(body.get("user"), str) or len(body["user"]) > 50_000 or not isinstance(body.get("structured"), bool):
+                self.respond(400, {"error": "invalid_ai_request"})
+                return
+            model = body["model"]
+            gpt6 = re.fullmatch(r"openai/gpt-6-(luna|sol|astra)", model)
+            generation = {"max_completion_tokens": 6000, "reasoning_effort": "low" if gpt6.group(1) == "luna" else "medium"} if gpt6 else {"max_completion_tokens": 6000, "temperature": 0.2}
+            payload = {"model": model, "messages": [{"role": "system", "content": body["system"]}, {"role": "user", "content": body["user"]}], **generation, "stream": False, "usage": {"include": True}}
+            if body["structured"]:
+                payload["response_format"] = {"type": "json_object"}
+            self.openrouter("chat/completions", payload)
+            return
+        if self.path == "/v1/ai/transcribe":
+            body = self.read_json(27_000_000)
+            if body is None:
+                return
+            if not isinstance(body, dict) or not isinstance(body.get("model"), str) or not re.fullmatch(r"[A-Za-z0-9._:/+-]{3,200}", body["model"]) or body.get("format") not in {"webm", "wav", "mp3", "m4a", "ogg", "aac", "flac"} or not isinstance(body.get("base64"), str) or not 1 <= len(body["base64"]) <= 26_000_000:
+                self.respond(400, {"error": "invalid_audio_request"})
+                return
+            self.openrouter("audio/transcriptions", {"model": body["model"], "input_audio": {"data": body["base64"], "format": body["format"]}, "language": "ru"})
             return
         if self.path != "/v1/backups":
             self.respond(404, {"error": "not_found"})
