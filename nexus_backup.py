@@ -30,6 +30,7 @@ SYNC_TABLES = {
 }
 ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 AI_KEY_FILE = "openrouter-key"
+INVESTMENT_TABLES = {"investment_accounts", "investment_entries"}
 
 
 def atomic_write(path: Path, content: bytes) -> None:
@@ -79,7 +80,8 @@ def valid_sync_snapshot(value: object) -> bool:
     if not isinstance(value["exportedAt"], str) or len(value["exportedAt"]) > 40:
         return False
     tables = value["tables"]
-    return isinstance(tables, dict) and set(tables) == SYNC_TABLES and all(
+    expected = SYNC_TABLES | INVESTMENT_TABLES if value['version'] >= 5 else SYNC_TABLES
+    return isinstance(tables, dict) and set(tables) == expected and all(
         isinstance(rows, list) and len(rows) <= 100_000 and all(isinstance(row, dict) for row in rows)
         for rows in tables.values()
     )
@@ -116,7 +118,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        if (self.path == "/v1/state" or self.path.startswith("/v1/ai/")) and self.cors_origin():
+        if self.path != "/v1/ai/device-key" and (self.path == "/v1/state" or self.path.startswith("/v1/ai/")) and self.cors_origin():
             self.send_header("Access-Control-Allow-Origin", self.cors_origin())
             self.send_header("Vary", "Origin")
         self.end_headers()
@@ -153,20 +155,30 @@ class Handler(BaseHTTPRequestHandler):
         request = urllib.request.Request(
             "https://openrouter.ai/api/v1/" + path,
             data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-            headers={"Authorization": "Bearer " + key, "Content-Type": "application/json", "X-Title": "NEXUS"},
+            headers={"Authorization": "Bearer " + key, "Content-Type": "application/json", "X-Title": "NEXUS", "User-Agent": "NEXUS/0.2.2"},
             method="POST",
         )
         try:
             with urllib.request.urlopen(request, timeout=100) as response:
                 result = json.load(response)
         except urllib.error.HTTPError as error:
-            self.respond(502, {"error": "openrouter_http", "status": error.code})
+            try:
+                details = json.loads(error.read(32_000)).get('error', {})
+                message = str(details.get('message', ''))[:500].replace(key, '[redacted]')
+            except (ValueError, AttributeError):
+                message = 'OpenRouter blocked the VPS request.' if error.code == 403 else ''
+            self.log_error('OpenRouter HTTP %s; model=%s', error.code, payload.get('model', ''))
+            self.respond(502, {"error": "openrouter_http", "status": error.code, "message": message})
             return
         except (urllib.error.URLError, TimeoutError, ValueError):
             self.respond(502, {"error": "openrouter_unavailable"})
             return
         if not isinstance(result, dict):
             self.respond(502, {"error": "openrouter_invalid"})
+            return
+        if result.get('error'):
+            details = result['error'] if isinstance(result['error'], dict) else {}
+            self.respond(502, {'error':'openrouter_http','status':details.get('code',502),'message':str(details.get('message',''))[:500].replace(key,'[redacted]')})
             return
         if path == "chat/completions":
             content = (result.get("choices") or [{}])[0].get("message", {}).get("content")
@@ -187,6 +199,17 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(200, {"status": "ok"})
             return
         if not self.authorized():
+            return
+        if self.path == "/v1/ai/device-key":
+            # Native clients use the key in memory; never export it to a browser origin.
+            if self.headers.get('Origin'):
+                self.respond(403, {'error':'native_client_required'})
+                return
+            path = DATA_DIR / AI_KEY_FILE
+            if not path.is_file():
+                self.respond(409, {'error':'ai_key_missing'})
+                return
+            self.respond(200, {'key':path.read_text('utf-8').strip()})
             return
         if self.path == "/v1/ai/status":
             self.respond(200, {"configured": (DATA_DIR / AI_KEY_FILE).is_file()})
@@ -288,7 +311,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             model = body["model"]
             gpt6 = re.fullmatch(r"openai/gpt-6-(luna|sol|astra)", model)
-            generation = {"max_completion_tokens": 6000, "reasoning_effort": "low" if gpt6.group(1) == "luna" else "medium"} if gpt6 else {"max_completion_tokens": 6000, "temperature": 0.2}
+            generation = {"max_tokens": 6000, "reasoning": {"effort": "low" if gpt6.group(1) == "luna" else "medium"}} if gpt6 else {"max_tokens": 6000, "temperature": 0.2}
             payload = {"model": model, "messages": [{"role": "system", "content": body["system"]}, {"role": "user", "content": body["user"]}], **generation, "stream": False, "usage": {"include": True}}
             if body["structured"]:
                 payload["response_format"] = {"type": "json_object"}
@@ -341,4 +364,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
