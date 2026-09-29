@@ -22,6 +22,8 @@ PORT = int(os.environ.get("NEXUS_BACKUP_PORT", "18743"))
 MAX_BODY = 30_000_000
 MAX_SYNC_BODY = 12_000_000
 SYNC_LOCK = threading.Lock()
+BACKUP_LOCK = threading.Lock()
+BACKUP_KEEP = 5
 SYNC_TABLES = {
     "settings", "habits", "habit_logs", "health_daily_entries", "weight_entries", "workouts",
     "finance_accounts", "finance_categories", "finance_transactions", "finance_budgets",
@@ -90,6 +92,24 @@ def valid_sync_snapshot(value: object) -> bool:
 def read_sync_state() -> dict | None:
     path = DATA_DIR / "sync-state.json"
     return json.loads(path.read_text("utf-8")) if path.is_file() else None
+
+
+def prune_backups() -> list[dict]:
+    """Caller holds BACKUP_LOCK. Only remove recognized backup metadata/blob pairs."""
+    items = []
+    for path in DATA_DIR.glob('*.meta'):
+        try:
+            item = json.loads(path.read_text('utf-8'))
+            item_id = item['id']
+            if ID_RE.fullmatch(item_id) and path.name == item_id + '.meta' and isinstance(item['createdAt'], str) and (DATA_DIR / (item_id + '.blob')).is_file():
+                items.append(item)
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    items.sort(key=lambda item: (item['createdAt'], item['id']), reverse=True)
+    for item in items[BACKUP_KEEP:]:
+        (DATA_DIR / (item['id'] + '.meta')).unlink(missing_ok=True)
+        (DATA_DIR / (item['id'] + '.blob')).unlink(missing_ok=True)
+    return items[:BACKUP_KEEP]
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -220,16 +240,9 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(200, state if state is not None else {"revision": 0, "snapshot": None})
             return
         if self.path == "/v1/backups":
-            items = []
-            for path in DATA_DIR.glob("*.meta"):
-                try:
-                    item = json.loads(path.read_text("utf-8"))
-                    if ID_RE.fullmatch(item["id"]) and (DATA_DIR / (item["id"] + ".blob")).is_file():
-                        items.append(item)
-                except (OSError, ValueError, KeyError, TypeError):
-                    continue
-            items.sort(key=lambda item: item["createdAt"], reverse=True)
-            self.respond(200, items[:500])
+            with BACKUP_LOCK:
+                items = prune_backups()
+            self.respond(200, items)
             return
         if self.path.startswith("/v1/backups/"):
             item_id = self.path.rsplit("/", 1)[-1]
@@ -237,10 +250,11 @@ class Handler(BaseHTTPRequestHandler):
                 self.respond(404, {"error": "not_found"})
                 return
             path = DATA_DIR / (item_id + ".blob")
-            if not path.is_file():
-                self.respond(404, {"error": "not_found"})
-                return
-            data = path.read_bytes()
+            with BACKUP_LOCK:
+                if not path.is_file():
+                    self.respond(404, {"error": "not_found"})
+                    return
+                data = path.read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
@@ -348,8 +362,10 @@ class Handler(BaseHTTPRequestHandler):
         item_id = str(uuid.uuid4())
         device = self.headers.get("X-Nexus-Device", "Windows NEXUS")[:100]
         metadata = {"id": item_id, "createdAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "exportedAt": envelope["exportedAt"], "size": len(body), "device": device}
-        atomic_write(DATA_DIR / (item_id + ".blob"), body)
-        atomic_write(DATA_DIR / (item_id + ".meta"), json.dumps(metadata, ensure_ascii=False).encode("utf-8"))
+        with BACKUP_LOCK:
+            atomic_write(DATA_DIR / (item_id + ".blob"), body)
+            atomic_write(DATA_DIR / (item_id + ".meta"), json.dumps(metadata, ensure_ascii=False).encode("utf-8"))
+            prune_backups()
         self.respond(201, metadata)
 
 
@@ -358,9 +374,12 @@ def main() -> None:
         raise SystemExit("NEXUS_BACKUP_TOKEN must contain at least 32 characters")
     DATA_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(DATA_DIR, 0o700)
+    with BACKUP_LOCK:
+        prune_backups()
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.serve_forever()
 
 
 if __name__ == "__main__":
     main()
+
