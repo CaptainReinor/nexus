@@ -22,6 +22,9 @@ PORT = int(os.environ.get("NEXUS_BACKUP_PORT", "18743"))
 MAX_BODY = 30_000_000
 MAX_SYNC_BODY = 12_000_000
 SYNC_LOCK = threading.Lock()
+SYNC_CHANGED = threading.Condition(SYNC_LOCK)
+EVENT_CLIENTS = threading.BoundedSemaphore(8)
+CURRENT_REVISION = None
 BACKUP_LOCK = threading.Lock()
 BACKUP_KEEP = 5
 SYNC_TABLES = {
@@ -120,7 +123,7 @@ class Handler(BaseHTTPRequestHandler):
         return origin if origin in {"https://localhost", "http://localhost", "capacitor://localhost"} else None
 
     def do_OPTIONS(self) -> None:
-        if not (self.path == "/v1/state" or self.path.startswith("/v1/ai/")) or not self.cors_origin():
+        if not (self.path in {"/v1/state", "/v1/events"} or self.path.startswith("/v1/ai/")) or not self.cors_origin():
             self.respond(403, {"error": "forbidden"})
             return
         self.send_response(204)
@@ -220,6 +223,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if not self.authorized():
             return
+        if self.path == '/v1/events':
+            self.events()
+            return
         if self.path == "/v1/ai/device-key":
             # Native clients use the key in memory; never export it to a browser origin.
             if self.headers.get('Origin'):
@@ -266,6 +272,7 @@ class Handler(BaseHTTPRequestHandler):
         self.respond(404, {"error": "not_found"})
 
     def do_PUT(self) -> None:
+        global CURRENT_REVISION
         if not self.authorized():
             return
         if self.path == "/v1/ai/key":
@@ -311,7 +318,44 @@ class Handler(BaseHTTPRequestHandler):
                 atomic_write(DATA_DIR / "sync-state-previous.json", json.dumps(current, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
             state = {"revision": revision + 1, "snapshot": snapshot}
             atomic_write(DATA_DIR / "sync-state.json", json.dumps(state, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+            CURRENT_REVISION = state['revision']
+            SYNC_CHANGED.notify_all()
         self.respond(200, {"revision": state["revision"]})
+
+    def events(self) -> None:
+        global CURRENT_REVISION
+        if not EVENT_CLIENTS.acquire(blocking=False):
+            self.respond(429, {'error':'too_many_event_connections'})
+            return
+        try:
+            self.send_response(200)
+            self.send_header('Content-Type','text/event-stream; charset=utf-8')
+            self.send_header('Cache-Control','no-store')
+            self.send_header('X-Accel-Buffering','no')
+            self.send_header('X-Content-Type-Options','nosniff')
+            if self.cors_origin():
+                self.send_header('Access-Control-Allow-Origin',self.cors_origin())
+                self.send_header('Vary','Origin')
+            self.end_headers()
+            self.close_connection=True
+            self.connection.settimeout(30)
+            last=-1
+            while True:
+                with SYNC_CHANGED:
+                    if CURRENT_REVISION is None:
+                        state=read_sync_state()
+                        CURRENT_REVISION=state['revision'] if state else 0
+                    if last==CURRENT_REVISION:
+                        SYNC_CHANGED.wait(timeout=20)
+                    revision=CURRENT_REVISION
+                data=(f'data: {{"revision":{revision}}}\n\n' if revision!=last else ': keepalive\n\n').encode('utf-8')
+                self.wfile.write(data)
+                self.wfile.flush()
+                last=revision
+        except (BrokenPipeError,ConnectionResetError,TimeoutError,OSError):
+            pass
+        finally:
+            EVENT_CLIENTS.release()
 
     def do_POST(self) -> None:
         if not self.authorized():
