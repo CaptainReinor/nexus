@@ -36,6 +36,7 @@ SYNC_TABLES = {
 ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 AI_KEY_FILE = "openrouter-key"
 INVESTMENT_TABLES = {"investment_accounts", "investment_entries"}
+LIFE_TABLES = {"day_details", "day_tasks", "day_memories", "assistant_reviews"}
 
 
 def atomic_write(path: Path, content: bytes) -> None:
@@ -86,6 +87,8 @@ def valid_sync_snapshot(value: object) -> bool:
         return False
     tables = value["tables"]
     expected = SYNC_TABLES | INVESTMENT_TABLES if value['version'] >= 5 else SYNC_TABLES
+    if value['version'] >= 6:
+        expected |= LIFE_TABLES
     return isinstance(tables, dict) and set(tables) == expected and all(
         isinstance(rows, list) and len(rows) <= 100_000 and all(isinstance(row, dict) for row in rows)
         for rows in tables.values()
@@ -426,4 +429,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
