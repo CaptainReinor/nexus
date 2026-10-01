@@ -44,6 +44,7 @@ docs/             Архитектура и установка сервера
 ```powershell
 cd NEXUS
 npm ci
+npm ci --prefix ../NEXUS-Android --ignore-scripts
 npm run typecheck
 npm run lint
 npm test
@@ -57,10 +58,13 @@ npm run dev
 ```powershell
 cd NEXUS-Android
 npm ci
+npm ci --prefix ../NEXUS --ignore-scripts
 npm run android:apk
 ```
 
 Задайте `JAVA_HOME` и `ANDROID_HOME` либо настройте Android Studio. `android/local.properties` и ключи подписи не включаются в Git. Debug APK предназначен для тестирования; для распространения с постоянной подписью используйте собственный закрытый ключ. Его нельзя публиковать.
+
+Общие компоненты и межплатформенные тесты используют зависимости соседнего приложения. Поэтому в командах выше устанавливаются оба набора; для соседней папки достаточно `--ignore-scripts`, без сборки её нативных модулей.
 
 ### Серверные тесты
 

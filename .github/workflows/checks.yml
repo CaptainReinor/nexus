@@ -23,6 +23,7 @@ jobs:
           cache: npm
           cache-dependency-path: NEXUS/package-lock.json
       - run: npm ci
+      - run: npm ci --prefix ../NEXUS-Android --ignore-scripts
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
@@ -44,6 +45,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci
+      - run: npm ci --prefix ../NEXUS --ignore-scripts
       - run: npm run android:sync
       - run: chmod +x android/gradlew && cd android && ./gradlew assembleDebug
   server:
