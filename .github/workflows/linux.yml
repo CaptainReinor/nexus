@@ -34,6 +34,10 @@ jobs:
           cd release
           chmod +x NEXUS-*-linux-x64.AppImage
           ./NEXUS-*-linux-x64.AppImage --appimage-extract > /dev/null
+          if grep -q -- '--no-sandbox' squashfs-root/AppRun squashfs-root/*.desktop; then
+            echo 'The AppImage launcher must preserve the Chromium sandbox'
+            exit 1
+          fi
           sudo chown root:root squashfs-root/chrome-sandbox
           sudo chmod 4755 squashfs-root/chrome-sandbox
           cd ..
