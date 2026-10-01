@@ -92,7 +92,7 @@
       "icon": "assets/nexus-icon.png",
       "category": "Utility",
       "executableName": "nexus",
-      "artifactName": "NEXUS-${version}-linux-${arch}.${ext}"
+      "artifactName": "NEXUS-${version}-linux-x64.${ext}"
     }
   },
   "license": "MIT"
