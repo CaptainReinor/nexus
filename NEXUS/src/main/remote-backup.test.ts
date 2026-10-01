@@ -3,7 +3,7 @@ import { existsSync,mkdtempSync, rmSync,writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openDatabase, serializeBackup, type DB } from './database';
+import { openDatabase,seedFinance, serializeBackup, type DB } from './database';
 import { RemoteBackupService } from './remote-backup';
 import { stampRecordChanges } from '../shared/record-clocks';
 import { rowKey,type Snapshot } from '../shared/snapshot-sync';
@@ -32,6 +32,13 @@ afterEach(()=>{
   vi.unstubAllGlobals();
   if(!mock.userData.startsWith(testDirPrefix))throw new Error('Неожиданный путь тестовых данных.');
   rmSync(mock.userData,{recursive:true,force:true});
+});
+
+it('allows a new guest to connect with untouched starter finances',async()=>{
+  seedFinance(db);
+  vi.stubGlobal('fetch',vi.fn(async(url:string)=>url.endsWith('/v1/profile')?new Response(JSON.stringify({id:'00000000-0000-4000-8000-000000000001',name:'Friend',role:'guest',active:true})):new Response('[]')));
+  await service.configure({endpoint:'https://example.com/nexus-api',token:'x'.repeat(32),passphrase:''});
+  expect(service.getConfig().configured).toBe(true);
 });
 
 it('refuses attaching another user to a populated local profile without changing credentials',async()=>{

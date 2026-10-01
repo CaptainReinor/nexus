@@ -20,7 +20,7 @@ it('waits for the last edited fact to be saved before requesting a review',async
  const patch=vi.fn(()=>saved),review=vi.fn(async()=>{});
  render(<LifeBoard day="2026-09-30" data={{details:[],tasks:[],memories:[],reviews:[],markers:[]}} onDay={()=>{}} onPatch={patch} onMarkers={async()=>{}} onTask={async()=>{}} onMemory={async()=>{}} onRemove={async()=>{}} onReview={review}/>);
  fireEvent.blur(screen.getByRole('textbox',{name:'Результат дня'}),{target:{value:'Завершил проект'}});
- fireEvent.click(screen.getByRole('button',{name:'Разбор дня с ИИ'}));
+ fireEvent.click(screen.getByRole('button',{name:'Разобрать день'}));
  await waitFor(()=>expect(patch).toHaveBeenCalled());expect(review).not.toHaveBeenCalled();
  release();await waitFor(()=>expect(review).toHaveBeenCalledWith('2026-09-30'));
 });

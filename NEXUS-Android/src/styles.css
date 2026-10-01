@@ -3,3 +3,5 @@
 
 .today-metric strong{display:block;overflow:hidden;text-overflow:ellipsis}.section-view[hidden]{display:none!important}
 .health-views button{font-size:13px;padding:11px 6px;min-width:0;white-space:nowrap}
+
+.section-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.section-title-row h2{margin:0}.section-title-row button{flex:none}.row{gap:10px}

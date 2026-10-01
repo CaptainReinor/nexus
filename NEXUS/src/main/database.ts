@@ -3,9 +3,10 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { z } from 'zod';
 import { randomInt } from 'node:crypto';
+import { defaultDebit, defaultCategories } from '../shared/finance-defaults';
 
 export type DB = Database.Database;
-export const schemaVersion = 6;
+export const schemaVersion = 7;
 export const backupTables = [
   'settings','habits','habit_logs','health_daily_entries','weight_entries','workouts',
   'finance_accounts','finance_categories','finance_transactions','finance_budgets',
@@ -60,10 +61,27 @@ const migrations: string[] = [
   CREATE TABLE day_memories (id TEXT PRIMARY KEY, day TEXT NOT NULL, text TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
   CREATE INDEX idx_day_memories_day ON day_memories(day);
   CREATE TABLE assistant_reviews (id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('day','week')), start TEXT NOT NULL, end TEXT NOT NULL, content_json TEXT NOT NULL, created_at TEXT NOT NULL);
+  `,
+  `
+  CREATE TABLE experience_cases_v7 (id INTEGER PRIMARY KEY, entry_id INTEGER REFERENCES experience_entries(id), title TEXT NOT NULL, situation TEXT NOT NULL DEFAULT '', task TEXT NOT NULL DEFAULT '', actions TEXT NOT NULL DEFAULT '', result TEXT NOT NULL DEFAULT '', skills TEXT NOT NULL DEFAULT '', tools TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT '');
+  INSERT INTO experience_cases_v7 SELECT * FROM experience_cases;
+  CREATE TABLE job_experience_links_v7 (job_id INTEGER NOT NULL REFERENCES jobs(id), case_id INTEGER NOT NULL REFERENCES experience_cases_v7(id), PRIMARY KEY(job_id,case_id));
+  INSERT INTO job_experience_links_v7 SELECT * FROM job_experience_links;
+  DROP TABLE job_experience_links;
+  DROP TABLE experience_cases;
+  ALTER TABLE experience_cases_v7 RENAME TO experience_cases;
+  ALTER TABLE job_experience_links_v7 RENAME TO job_experience_links;
   `
 ];
 
-export function openDatabase(path: string): DB {
+const starterDatabases=new WeakSet<DB>();
+export function seedFinance(db:DB):void {
+  db.transaction(()=>{
+    if(!(db.prepare('SELECT COUNT(*) AS count FROM finance_accounts').get() as {count:number}).count)db.prepare('INSERT INTO finance_accounts(id,name,opening_cents,active) VALUES (@id,@name,@opening_cents,@active)').run(defaultDebit);
+    if(!(db.prepare("SELECT COUNT(*) AS count FROM finance_categories WHERE kind='expense'").get() as {count:number}).count){const insert=db.prepare('INSERT OR IGNORE INTO finance_categories(id,name,kind,active) VALUES (@id,@name,@kind,@active)');for(const row of defaultCategories)insert.run(row);}
+  })();
+}
+export function openDatabase(path: string,options:{seedFinance?:boolean}={}): DB {
   mkdirSync(dirname(path), {recursive:true});
   const db = new Database(path);
   db.pragma('journal_mode = WAL');
@@ -76,6 +94,7 @@ export function openDatabase(path: string): DB {
   for (let v=current+1;v<=schemaVersion;v++) {
     db.transaction(()=>{ db.exec(migrations[v-1]); db.prepare('INSERT INTO schema_migrations(version,applied_at) VALUES (?,?)').run(v,new Date().toISOString()); })();
   }
+  if(options.seedFinance){starterDatabases.add(db);seedFinance(db);}
   return db;
 }
 
@@ -100,6 +119,7 @@ export function importBackupText(db: DB, content: string): void {
     }
     if (parsed.version < 4) db.exec('UPDATE habits SET sort_order=-id');
     db.exec('DELETE FROM daily_journals WHERE id NOT IN (SELECT id FROM daily_journals ORDER BY created_at DESC,id DESC LIMIT 3)');
+    if(starterDatabases.has(db))seedFinance(db);
     const violations = db.pragma('foreign_key_check') as unknown[];
     if (violations.length) throw new Error('Резервная копия содержит нарушенные связи.');
   })();

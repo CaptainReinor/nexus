@@ -30,3 +30,5 @@
 .finance-main-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.finance-overview>.panel:first-child{grid-column:1/-1}.work-statistics{margin:0 0 18px;padding:10px 14px;border:1px solid #3a4850;border-radius:8px}.work-statistics[open] .work-stats{margin-top:14px}
 
 .finance-overview>.panel{grid-column:1/-1}
+
+.settings-grid>.settings-wide{grid-column:1/-1}

@@ -49,6 +49,8 @@ class AccountApiTest(unittest.TestCase):
         self.assertEqual(self.request('/v1/state','PUT',owner,revision=0)[0],200)
         first=self.request('/v1/state',token=one['token'])[1]
         self.assertNotIn('owner-only',json.dumps(first))
+        self.assertEqual(first['snapshot']['tables']['finance_accounts'][0]['name'],'Дебет')
+        self.assertEqual(len(first['snapshot']['tables']['finance_categories']),9)
         first['snapshot']['tables']['weight_entries']=[{'id':1,'day':'2026-09-30','weight_kg':80}]
         self.assertEqual(self.request('/v1/state','PUT',first['snapshot'],one['token'],1)[0],200)
         self.assertEqual(self.request('/v1/state',token=two['token'])[1]['snapshot']['tables']['weight_entries'],[])

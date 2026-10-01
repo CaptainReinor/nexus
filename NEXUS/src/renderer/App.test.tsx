@@ -3,6 +3,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { HashRouter } from 'react-router-dom';
 import { App } from './App';
 
+vi.mock('./connection-gate',()=>({ConnectionGate:()=>null}));
+
 vi.mock('./registry',()=>({moduleRegistry:[
   {id:'today',path:'/',label:'Сегодня',glyph:'◈',component:()=> <div>Главная страница</div>},
   {id:'health',path:'/health',label:'Здоровье',glyph:'✚',component:()=> <div>Страница здоровья</div>}

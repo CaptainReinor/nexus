@@ -82,7 +82,7 @@ def valid_envelope(value: object) -> bool:
 def valid_sync_snapshot(value: object) -> bool:
     if not isinstance(value, dict) or set(value) != {"format", "version", "exportedAt", "tables"}:
         return False
-    if value["format"] != "nexus-backup" or type(value["version"]) is not int or not 1 <= value["version"] <= 6:
+    if value["format"] != "nexus-backup" or type(value["version"]) is not int or not 1 <= value["version"] <= 7:
         return False
     if not isinstance(value["exportedAt"], str) or len(value["exportedAt"]) > 40:
         return False
@@ -193,6 +193,8 @@ class Handler(BaseHTTPRequestHandler):
             user, token = self.accounts.create(body['name'], body['monthlyLimitCents'], models, body.get('aiCredentials'))
             settings = {**models, 'currency':'RUB','aiEnabled':True,'aiBudgetCents':body['monthlyLimitCents'],'weeklyTarget':15}
             snapshot = {'format':'nexus-backup','version':6,'exportedAt':datetime.now(timezone.utc).isoformat(),'tables':{name:[] for name in SYNC_TABLES | INVESTMENT_TABLES | LIFE_TABLES}}
+            snapshot['tables']['finance_accounts'] = [{'id':700000000000,'name':'Дебет','opening_cents':0,'active':1}]
+            snapshot['tables']['finance_categories'] = [{'id':700000000100+i,'name':name,'kind':'expense','active':1} for i,name in enumerate(('Продукты','Кафе и рестораны','Транспорт','Жильё и счета','Здоровье','Покупки','Развлечения','Подписки','Прочее'))]
             snapshot['tables']['settings'] = [{'key':key,'value':json.dumps(value,ensure_ascii=False)} for key,value in settings.items()]
             atomic_write(self.accounts.directory(user) / 'sync-state.json', json.dumps({'revision':1,'snapshot':snapshot},ensure_ascii=False).encode())
             user, code = self.accounts.invitation(user['id'])

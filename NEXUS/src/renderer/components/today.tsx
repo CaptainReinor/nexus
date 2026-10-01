@@ -10,7 +10,7 @@ type Mark={value:number;status:HabitLog['status']};
 const success=(habit:TodayHabit)=>habit.status==='done'&&(habit.kind==='avoid'?habit.value===0:(habit.value??0)>=habit.target);
 
 export function TodayCapture({onOpen}:{onOpen:()=>void}){
-  return <section className="today-capture"><div className="today-capture-icon" aria-hidden="true">✎</div><div><h2>Что было сегодня?</h2><p>Расскажите текстом или голосом. ИИ предложит нужные отметки.</p></div><button className="today-button primary" onClick={onOpen}>Записать день <span aria-hidden="true">→</span></button></section>;
+  return <section className="today-capture"><div className="today-capture-icon" aria-hidden="true">✎</div><div><h2>Что было сегодня?</h2><p>Текстом или голосом.</p></div><button className="today-button primary" onClick={onOpen}>Записать день <span aria-hidden="true">→</span></button></section>;
 }
 
 export function TodayHabits({habits,onMark,onManage}:{habits:TodayHabit[];onMark:(habit:TodayHabit,value:number,status:HabitLog['status'])=>Promise<void|boolean>;onManage:()=>void}){

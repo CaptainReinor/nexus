@@ -52,7 +52,7 @@ const dailySchema=z.object({day, sleep_start:z.string().nullable().optional(),sl
 const transactionSchema=z.object({occurred_at:z.string().min(10).max(30),amount_cents:z.number().int().positive().safe(),type:z.enum(['expense','income','transfer']),account_id:id,target_account_id:id.nullable(),category_id:id.nullable(),note:text});
 const jobSchema=z.object({id:id.optional(),title:nonEmpty,company:nonEmpty,url:z.string().max(2000),source:text,city:text,work_mode:text,salary_from:z.number().int().nonnegative().nullable(),salary_to:z.number().int().nonnegative().nullable(),currency:z.string().min(3).max(3),original_text:text,notes:text,status:z.enum(['saved','planned','applied','viewed','invited','interview','next','offer','rejected','withdrawn','archived'])});
 const entrySchema=z.object({id:id.optional(),organization:nonEmpty,position:nonEmpty,start_date:text,end_date:text,description:text,skills:text,tools:text});
-const caseSchema=z.object({id:id.optional(),entry_id:id,title:nonEmpty,situation:text,task:text,actions:text,result:text,skills:text,tools:text,tags:text});
+const caseSchema=z.object({id:id.optional(),entry_id:id.nullable(),title:nonEmpty,situation:text,task:text,actions:text,result:text,skills:text,tools:text,tags:text});
 const settingsSchema=z.object({autostart:z.boolean().optional(),currency:z.string().length(3).optional(),firstDayOfWeek:z.union([z.literal(0),z.literal(1)]).optional(),primaryAccountId:id.nullable().optional(),weeklyTarget:z.number().int().min(0).max(1000).optional(),aiEnabled:z.boolean().optional(),aiModelMode:z.enum(['preset','custom']).optional(),cheapModel:text.optional(),standardModel:text.optional(),advancedModel:text.optional(),transcriptionModel:text.optional(),aiBudgetCents:z.number().int().min(0).max(10_000_000).optional()});
 
 function createWindow():void {
@@ -75,7 +75,7 @@ void app.whenReady().then(()=>{
   if(process.platform==='win32')app.setAppUserModelId('ru.nexus.desktop');
   Menu.setApplicationMenu(null);
   const dbPath=join(app.getPath('userData'),'nexus.sqlite');
-  const db=openDatabase(dbPath);
+  const db=openDatabase(dbPath,{seedFinance:true});
   const remoteBackup=new RemoteBackupService(db,()=>window?.webContents.reload());
   const settings=new SettingsRepository(db,dbPath,()=>remoteBackup.isGuest()),health=new HealthRepository(db),finance=new FinanceRepository(db,()=>settings.get().firstDayOfWeek),work=new WorkRepository(db,()=>settings.get().firstDayOfWeek),ai=new AIGateway(db,settings,work,new ProfileAIProvider(remoteBackup),()=>settings.get().hasApiKey?settings.getApiKey():''),journal=new JournalService(db,ai,health,finance,work,settings);
   handle('profiles:list',z.undefined(),()=>profiles.list());

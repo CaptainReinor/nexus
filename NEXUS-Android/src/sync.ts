@@ -1,4 +1,5 @@
-import { remoteProfileSchema,normalizeInvitationToken } from '../../NEXUS/src/shared/accounts';
+import { defaultServerEndpoint,remoteProfileSchema,normalizeInvitationToken } from '../../NEXUS/src/shared/accounts';
+import { ensureFinanceDefaults } from '../../NEXUS/src/shared/finance-defaults';
 import { syncStateSchema } from '../../NEXUS/src/shared/sync-state';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { OfflineSync, RevisionConflict, type Snapshot, type State } from './offline-sync';
@@ -10,13 +11,13 @@ const nativeAI=registerPlugin<NativeAI>('NexusAI');
 
 import type { Row } from './offline-sync';
 
-const defaultEndpoint='';
+const defaultEndpoint=defaultServerEndpoint;
 const endpointKey='nexus.server.endpoint';
 const tokenKey='nexus.server.token';
 const roleKey='nexus.server.role';
 export function usesGuestModelPreset(){return !!connection().token&&localStorage.getItem(roleKey)!=='owner';}
 
-export function connection(){return {endpoint:localStorage.getItem(endpointKey)??defaultEndpoint,token:localStorage.getItem(tokenKey)??''};}
+export function connection(){return {endpoint:localStorage.getItem(endpointKey)||defaultEndpoint,token:localStorage.getItem(tokenKey)??''};}
 export async function saveConnection(endpoint:string,token:string){
   if(token.trim().startsWith('{')){
     let invite:unknown;try{invite=JSON.parse(token);}catch{throw new Error('Код приглашения повреждён.');}
@@ -111,7 +112,7 @@ export async function mobileSync(){
   const resume=()=>{if(document.hidden||!navigator.onLine)disconnect();else{void engine.refresh().then(()=>engine.flush());connect();}};
   document.addEventListener('visibilitychange',resume);window.addEventListener('online',resume);window.addEventListener('offline',disconnect);
   const lifecycle=Capacitor.isNativePlatform()?await registerPlugin<{addListener(event:string,listener:(state:{active:boolean})=>void):Promise<{remove():Promise<void>}>}>('NexusLocalStore').addListener('appStateChange',({active})=>{if(!active)disconnect();else resume();}):null;
-  return {engine,start:async()=>{await engine.start();connect();},dispose:()=>{stopped=true;disconnect();engine.stop();document.removeEventListener('visibilitychange',resume);window.removeEventListener('online',resume);window.removeEventListener('offline',disconnect);void lifecycle?.remove();}};
+  return {engine,start:async()=>{await engine.start();if(engine.state.snapshot){await engine.change(snapshot=>{ensureFinanceDefaults(snapshot);});}connect();},dispose:()=>{stopped=true;disconnect();engine.stop();document.removeEventListener('visibilitychange',resume);window.removeEventListener('online',resume);window.removeEventListener('offline',disconnect);void lifecycle?.remove();}};
 }
 
 export function rows(snapshot:Snapshot,name:string):Row[]{return snapshot.tables[name]??[];}

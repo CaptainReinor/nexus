@@ -26,9 +26,9 @@ it('migrates an existing schema 5 database with a recoverable backup and preserv
  let disk:DB|undefined;
  try{
   disk=openDatabase(path);disk.prepare("INSERT INTO finance_accounts(id,name,opening_cents) VALUES (42,'Existing account',12345)").run();
-  disk.exec('DROP TABLE assistant_reviews; DROP TABLE day_memories; DROP TABLE day_tasks; DROP TABLE day_details; DELETE FROM schema_migrations WHERE version=6');disk.close();disk=undefined;
+  disk.exec('DROP TABLE assistant_reviews; DROP TABLE day_memories; DROP TABLE day_tasks; DROP TABLE day_details; DELETE FROM schema_migrations WHERE version>=6');disk.close();disk=undefined;
   disk=openDatabase(path);expect(disk.prepare('SELECT opening_cents FROM finance_accounts WHERE id=42').get()).toEqual({opening_cents:12345});expect(new DayLifeRepository(disk).list().details).toEqual([]);
-  const backup=readdirSync(folder).find(name=>name.includes('.before-v6-'))!;expect(backup).toBeTruthy();
+  const backup=readdirSync(folder).find(name=>name.includes('.before-v7-'))!;expect(backup).toBeTruthy();
   const saved=new Database(join(folder,backup),{readonly:true});try{expect(saved.prepare('SELECT MAX(version) AS v FROM schema_migrations').get()).toEqual({v:5});expect(saved.prepare('SELECT opening_cents FROM finance_accounts WHERE id=42').get()).toEqual({opening_cents:12345});}finally{saved.close();}
  }finally{disk?.close();rmSync(folder,{recursive:true,force:true});}
 });
@@ -72,12 +72,12 @@ it('applies the same selection on Android and rejects disabled markers on both p
  expect(lifeData(mobile).tasks.map(x=>x.title)).toEqual(new DayLifeRepository(db).list().tasks.map(x=>x.title));expect(lifeData(mobile).memories).toHaveLength(1);
  expect(restrictMarkers(value.life!,['tension'])).toMatchObject({appetite:null,sleep_quality:null,tension:'tense'});
 });
-it('keeps three open tasks per date even when moving or reopening a task',()=>{
+it('allows additional tasks, moving and reopening them on the same date',()=>{
  const repo=new DayLifeRepository(db);for(let i=0;i<3;i++)repo.task({day:'2026-09-30',due_day:'2026-10-01',title:`Дело ${i}`});
- expect(()=>repo.task({day:'2026-09-30',due_day:'2026-10-01',title:'Четвёртое'})).toThrow('три главных');
+ expect(()=>repo.task({day:'2026-09-30',due_day:'2026-10-01',title:'Четвёртое'})).not.toThrow();
  repo.task({day:'2026-09-30',due_day:'2026-10-02',title:'Позже'});const snapshot=JSON.parse(serializeBackup(db)) as Snapshot;
- expect(()=>updateTask(snapshot,{...repo.list().tasks.find(x=>x.title==='Позже')!,due_day:'2026-10-01'})).toThrow('три главных');
- expect(repo.list().tasks).toHaveLength(4);
+ expect(()=>updateTask(snapshot,{...repo.list().tasks.find(x=>x.title==='Позже')!,due_day:'2026-10-01'})).not.toThrow();
+ expect(repo.list().tasks).toHaveLength(5);
 });
 it('omits raw diary text from mentor input and preserves unknown sleep duration',()=>{
  service().save('2026-09-30','Приватный текст','text');db.prepare("INSERT INTO health_daily_entries(day,sleep_end) VALUES ('2026-09-30','08:00')").run();

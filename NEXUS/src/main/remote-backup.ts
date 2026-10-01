@@ -1,5 +1,6 @@
 import { requireSecureStorage } from './secure-storage';
 import { app, clipboard, safeStorage } from 'electron';
+import { isStarterFinanceRow } from '../shared/finance-defaults';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync,readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -135,8 +136,8 @@ export class RemoteBackupService {
     const old=existsSync(this.credentialsPath)?this.credentials():null;
     const same=old&&old.endpoint===settings.endpoint&&(old.profileId?old.profileId===identity.id:identity.id==='owner');
     const tables=(JSON.parse(serializeBackup(this.db)) as Snapshot).tables;
-    const hasPersonalData=existsSync(join(app.getPath('userData'),'openrouter-key.bin'))||Object.entries(tables).some(([table,list])=>table!=='settings'&&list.length>0);
-    if(old&&!same||!old&&identity.role==='guest'&&hasPersonalData)throw new Error('Этот профиль содержит данные другого пользователя. Создайте отдельный локальный профиль в настройках.');
+    const hasPersonalData=existsSync(join(app.getPath('userData'),'openrouter-key.bin'))||Object.entries(tables).some(([table,list])=>table!=='settings'&&list.some(row=>!isStarterFinanceRow(table,row)));
+    if(old&&!same||!old&&identity.role==='guest'&&hasPersonalData)throw new Error('Этот профиль содержит данные другого пользователя. Нельзя подключить другой доступ к этой базе. Сначала экспортируйте свои данные.');
     settings=configSchema.parse({...same?old:{},...settings,passphrase:settings.passphrase||(same?old.passphrase:''),profileId:identity.id});
     requireSecureStorage();
     z.array(infoSchema).parse(JSON.parse(await this.request(settings,'/v1/backups',{method:'GET'},1_000_000)));
