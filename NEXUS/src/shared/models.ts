@@ -39,7 +39,7 @@ export type DayFieldInput =
   | { day:string; field:'nutrition'; value:'good'|'normal'|'poor'|null }
   | { day:string; field:'comment'; value:string };
 export type HabitLogInput = {day:string;habit_id:number;value:number;status:'done'|'missed'|'skipped';comment:string};
-export type JournalAnalysis = { life?:LifeSuggestions; summary:string; health:{weightKg:number|null;sleepStart:string|null;sleepEnd:string|null;mood:number|null;energy:number|null;nutrition:'good'|'normal'|'poor'|null;workout:{type:string;minutes:number|null}|null;habits:{habitId:number;value:number;status:'done'|'missed';reason:string}[]}; finance:{type:'expense'|'income';amountCents:number;categoryId:number|null;accountId:number|null;note:string}[]; work:{jobId:number;status:JobStatus;reason:string}[]; uncertain:string[] };
+export type JournalAnalysis = { life?:LifeSuggestions; summary:string; health:{weightKg:number|null;sleepStart:string|null;sleepEnd:string|null;mood:number|null;energy:number|null;nutrition:'good'|'normal'|'poor'|null;workout:{type:string;minutes:number|null}|null;habits:{habitId:number;value:number;status:'done'|'missed';reason:string}[]}; finance:{type:'expense'|'income';amountCents:number|null;categoryId:number|null;accountId:number|null;note:string}[]; work:{jobId:number;status:JobStatus;reason:string}[]; uncertain:string[] };
 export type JournalEntry = {id:number;day:string;raw_text:string;source:'text'|'voice';analysis_json:string|null;applied_json:string;created_at:string};
 export type JobInput = Omit<Job,'id'|'created_at'|'updated_at'>;
 export type VacancyDraft = { title:string|null;company:string|null;url:string|null;source:string|null;city:string|null;work_mode:string|null;salary_from:number|null;salary_to:number|null;currency:string|null };

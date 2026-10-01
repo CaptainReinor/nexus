@@ -1,3 +1,4 @@
+import { hasIncompleteSelectedFinance } from '../../NEXUS/src/shared/journal-schema';
 import { journalTimestamp } from '../../NEXUS/src/shared/life';
 import { JournalReview } from '../../NEXUS/src/renderer/components/journal-review';
 import '../../NEXUS/src/renderer/components/life.css';
@@ -79,7 +80,7 @@ export function JournalPage({snapshot,commit,commitLatest}:Props){
     </section>
     {analysis&&<section className="card"><h2>Предложения AI</h2><p>{analysis.value.summary}</p>{analysis.value.uncertain.length>0&&<div className="notice"><span>Нужно уточнить: {analysis.value.uncertain.join('; ')}</span></div>}
       <JournalReview analysis={analysis.value} accounts={rows(snapshot,'finance_accounts').filter(x=>x.active===1).map(x=>({id:Number(x.id),name:String(x.name)}))} categories={rows(snapshot,'finance_categories').filter(x=>x.active===1).map(x=>({id:Number(x.id),name:String(x.name),kind:String(x.kind)}))} habits={rows(snapshot,'habits').map(x=>({id:Number(x.id),name:String(x.name),kind:String(x.kind)}))} jobs={rows(snapshot,'jobs').map(x=>({id:Number(x.id),title:String(x.title)}))} selected={selected} applied={applied} onSelect={(key,checked)=>setSelected(previous=>{const next=new Set(previous);if(checked)next.add(key);else next.delete(key);return next;})} onChange={editReview} busy={!!busy} day={day} transactions={rows(snapshot,'finance_transactions').map(x=>({day:String(x.occurred_at).slice(0,10),amount:Number(x.amount_cents),type:String(x.type),accountId:Number(x.account_id)}))}/>
-<button disabled={!selected.size||!!busy} onClick={()=>void apply()}>Сохранить выбранное</button>
+<button disabled={!selected.size||!!busy||hasIncompleteSelectedFinance(analysis.value,selected)} onClick={()=>void apply()}>Сохранить выбранное</button>
     </section>}
     <section className="card"><h2>Последние 3 записи</h2>{entries.length?entries.slice(0,3).map(item=><button className="journal-entry-button" key={text(item.id)} onClick={()=>loadEntry(Number(item.id))}><small>{text(item.day)} · {item.analysis_json?'Разобрано':'Текст'}</small><span>{text(item.raw_text).slice(0,120)}</span></button>):<p className="empty">Записей пока нет.</p>}</section>
   </>;

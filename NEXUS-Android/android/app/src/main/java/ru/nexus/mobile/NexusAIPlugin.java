@@ -45,7 +45,7 @@ public class NexusAIPlugin extends Plugin {
         conn.setInstanceFollowRedirects(false);
         conn.setConnectTimeout(20000);conn.setReadTimeout(110000);
         conn.setRequestProperty("Authorization","Bearer "+token);
-        conn.setRequestProperty("User-Agent","NEXUS-Android/0.2.8");
+        conn.setRequestProperty("User-Agent","NEXUS-Android/0.2.9");
         conn.setRequestProperty("X-Title","NEXUS");
         try {
             if(body!=null){

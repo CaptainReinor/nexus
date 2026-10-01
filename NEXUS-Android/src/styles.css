@@ -5,3 +5,7 @@
 .health-views button{font-size:13px;padding:11px 6px;min-width:0;white-space:nowrap}
 
 .section-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.section-title-row h2{margin:0}.section-title-row button{flex:none}.row{gap:10px}
+.app{padding-bottom:calc(86px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))}
+.top{height:calc(70px + var(--safe-area-inset-top,env(safe-area-inset-top,0px)));padding-top:calc(10px + var(--safe-area-inset-top,env(safe-area-inset-top,0px)));padding-left:max(18px,var(--safe-area-inset-left,env(safe-area-inset-left,0px)));padding-right:max(18px,var(--safe-area-inset-right,env(safe-area-inset-right,0px)))}
+.main{padding-left:max(18px,var(--safe-area-inset-left,env(safe-area-inset-left,0px)));padding-right:max(18px,var(--safe-area-inset-right,env(safe-area-inset-right,0px)))}
+.bottom{height:calc(65px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)));padding-bottom:var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px));padding-left:var(--safe-area-inset-left,env(safe-area-inset-left,0px));padding-right:var(--safe-area-inset-right,env(safe-area-inset-right,0px))}

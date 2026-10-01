@@ -20,6 +20,19 @@ let db:DB;
 beforeEach(()=>{db=openDatabase(':memory:');});afterEach(()=>db.close());
 const analysis=():JournalAnalysis=>({summary:'День',health:{weightKg:null,sleepStart:null,sleepEnd:null,mood:7,energy:3,nutrition:null,workout:null,habits:[]},finance:[],work:[],uncertain:[],life:lifeSchema.parse({contexts:['Учёба','Прогулка'],achievement:'Закончил главу',appetite:'low',sleep_quality:'interrupted',tension:'tense',tasks:[{title:'Написать рекрутеру',dueDay:'2026-10-01'}],memories:[{text:'Встреча с друзьями'}]})});
 function service(){return new JournalService(db,null as unknown as AIGateway,new HealthRepository(db),new FinanceRepository(db),new WorkRepository(db));}
+it('keeps an unknown expense editable and requires a positive amount before applying it on PC and Android',()=>{
+ const finance=new FinanceRepository(db);finance.saveAccount({name:'Дебет',opening_cents:100000,active:1});finance.saveCategory({name:'Еда',kind:'expense',active:1});
+ const account=finance.list().accounts[0],category=finance.list().categories[0],journal=service(),entry=journal.save('2026-10-01','Купил продукты, сумму не помню.','text');
+ const value=analysis();value.finance=[{type:'expense',amountCents:null,accountId:account.id,categoryId:category.id,note:'Продукты'}];
+ db.prepare('UPDATE daily_journals SET analysis_json=? WHERE id=?').run(JSON.stringify(value),entry.id);
+ const mobile=JSON.parse(serializeBackup(db)) as Snapshot,before=JSON.stringify(mobile);
+ expect(()=>journal.apply(entry.id,['health.mood','finance.0'])).toThrow('Укажите сумму');
+ expect(db.prepare('SELECT COUNT(*) AS n FROM health_daily_entries').get()).toEqual({n:0});expect(finance.list().transactions).toHaveLength(0);
+ expect(()=>applyJournalSuggestions(mobile,entry.id,value,['health.mood','finance.0'])).toThrow('Укажите сумму');expect(JSON.stringify(mobile)).toBe(before);
+ value.finance[0].amountCents=3575;journal.editAnalysis(entry.id,value);
+ journal.apply(entry.id,['finance.0']);applyJournalSuggestions(mobile,entry.id,value,['finance.0']);
+ expect(finance.list().transactions[0].amount_cents).toBe(3575);expect(mobile.tables.finance_transactions[0].amount_cents).toBe(3575);
+});
 it('migrates an existing schema 5 database with a recoverable backup and preserves old records',()=>{
  const root=resolve(process.cwd()),folder=mkdtempSync(join(root,'.test-life-migration-')),path=join(folder,'nexus.sqlite');
  if(resolve(folder,'..')!==root)throw new Error('Invalid test directory');

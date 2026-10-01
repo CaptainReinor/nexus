@@ -1,3 +1,4 @@
+import { isPositiveJournalAmount,hasIncompleteSelectedFinance } from '../../NEXUS/src/shared/journal-schema';
 import { applyLife,lifeKeys } from '../../NEXUS/src/shared/life';
 import { journalSchema, type JournalAnalysis } from './ai';
 import { nextId, rows, upsert, type Row, type Snapshot } from './sync';
@@ -22,6 +23,7 @@ export function applyJournalSuggestions(snapshot:Snapshot,entryId:number,rawAnal
   const selected=[...new Set(keys)].filter(key=>!already.has(key));
   const valid=new Set(['health.weight','health.sleep_start','health.sleep_end','health.mood','health.energy','health.nutrition',...analysis.health.habits.map(x=>`health.habit.${x.habitId}`),...analysis.finance.map((_,i)=>`finance.${i}`),...analysis.work.map((_,i)=>`work.${i}`),...lifeKeys(analysis.life)]);
   if(selected.some(key=>!valid.has(key)))throw new Error('Неизвестное предложение AI.');
+  if(hasIncompleteSelectedFinance(analysis,selected))throw new Error('Укажите сумму для выбранной операции.');
   for(const key of selected){
     if(key==='health.weight'&&analysis.health.weightKg!==null){const weights=rows(snapshot,'weight_entries');upsert(weights,{id:weights.find(x=>x.day===day)?.id??nextId(weights),day,weight_kg:analysis.health.weightKg});}
     else if(key==='health.sleep_start')saveDaily(snapshot,day,'sleep_start',analysis.health.sleepStart);
@@ -39,6 +41,7 @@ export function applyJournalSuggestions(snapshot:Snapshot,entryId:number,rawAnal
     }else if(key.startsWith('finance.')){
       const item=analysis.finance[Number(key.slice(8))];
       if(!item)throw new Error('Финансовое предложение не найдено.');
+      if(!isPositiveJournalAmount(item.amountCents))throw new Error('Укажите сумму для выбранной операции.');
       const account=rows(snapshot,'finance_accounts').find(x=>x.id===item.accountId&&x.active===1);
       const category=rows(snapshot,'finance_categories').find(x=>x.id===item.categoryId&&x.active===1&&x.kind===item.type);
       if(!account||(item.type==='expense'&&!category))throw new Error('Нужны существующие счёт и категория.');

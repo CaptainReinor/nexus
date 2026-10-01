@@ -15,7 +15,7 @@
 
 ## Установка
 
-Готовые сборки размещаются в [Releases](https://github.com/CaptainReinor/nexus/releases). Windows: запустить установщик. Android: установить APK. Linux: разрешить выполнение файла AppImage и запустить его без установки. Версии: **Windows и Linux 0.4.7**, **Android 0.2.8**. [Запуск на Linux](docs/linux.md).
+Готовые сборки размещаются в [Releases](https://github.com/CaptainReinor/nexus/releases). Windows: запустить установщик. Android: установить APK. Linux: разрешить выполнение файла AppImage и запустить его без установки. Версии: **Windows и Linux 0.4.8**, **Android 0.2.9**. [Запуск на Linux](docs/linux.md).
 
 При первом запуске введите код доступа. Адрес сервера уже настроен; приглашение выдаёт владелец NEXUS. Доступ к чужим данным код не предоставляет. На новом аккаунте сразу есть счёт «Дебет» и девять категорий расходов.
 

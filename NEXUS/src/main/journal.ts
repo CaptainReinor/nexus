@@ -1,3 +1,4 @@
+import { isPositiveJournalAmount,hasIncompleteSelectedFinance } from '../shared/journal-schema';
 import { DayLifeRepository } from './life';
 import { lifeKeys } from '../shared/life';
 import type { DB } from './database';
@@ -58,6 +59,7 @@ export class JournalService {
     const valid=new Set<string>(['health.weight','health.sleep','health.sleep_start','health.sleep_end','health.mood','health.energy','health.nutrition',...analysis.health.habits.map(x=>`health.habit.${x.habitId}`),...analysis.finance.map((_,i)=>`finance.${i}`),...analysis.work.map((_,i)=>`work.${i}`),...lifeKeys(analysis.life)]);
     if(chosen.some(k=>!valid.has(k)))throw new Error('В выборе есть неизвестное предложение.');
     this.db.transaction(()=>{
+      if(hasIncompleteSelectedFinance(analysis,chosen))throw new Error('Укажите сумму для выбранной операции.');
       const healthKeys=chosen.filter(k=>k.startsWith('health.'));
       if(healthKeys.length){
         const current=this.health.getDay(journal.day),d=current.daily,h=analysis.health;
@@ -70,6 +72,7 @@ export class JournalService {
       const f=this.finance.list();
       for(let i=0;i<analysis.finance.length;i++)if(chosen.includes(`finance.${i}`)){
         const x=analysis.finance[i];
+        if(!isPositiveJournalAmount(x.amountCents))throw new Error('Укажите сумму для выбранной операции.');
         if(!x.accountId||(x.type==='expense'&&!x.categoryId))throw new Error('Для финансового предложения нужны существующие счёт и категория.');
         const category=f.categories.find(c=>c.id===x.categoryId);
         if(x.type==='expense'&&(!category||category.kind!=='expense'))throw new Error('Категория не соответствует типу операции.');
