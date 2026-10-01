@@ -1,9 +1,10 @@
 """Install the NEXUS backup API beside the existing VPS sites.
 
-Run as root on the specific VDSina VPS after reviewing this file. Existing site
+Run as root with --host and --nginx-site after reviewing this file. Existing site
 configuration is saved before modification and nginx is tested before reload.
 """
 
+import argparse
 import os
 import secrets
 import shutil
@@ -13,8 +14,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-HOST = "v3233631.hosted-by-vdsina.ru"
-SITE = Path("/etc/nginx/sites-available/vladimir-resume")
 APP_DIR = Path("/opt/nexus-backup")
 UNIT = Path("/etc/systemd/system/nexus-backup.service")
 ENV = Path("/etc/nexus-backup.env")
@@ -66,10 +65,21 @@ def wait_for_health(*args: str) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Install NEXUS alongside an existing HTTPS nginx site")
+    parser.add_argument('--host', required=True, help='Your existing HTTPS hostname')
+    parser.add_argument('--nginx-site', required=True, type=Path, help='Existing nginx site configuration')
+    args = parser.parse_args()
+    HOST, SITE = args.host, args.nginx_site
+    import re
+    if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}', HOST):
+        raise SystemExit('Invalid hostname')
+    if not SITE.is_absolute():
+        raise SystemExit('--nginx-site must be an absolute path')
     if os.geteuid() != 0:
         raise SystemExit("Run as root")
     source = Path(__file__).with_name("nexus_backup.py")
-    if not source.is_file() or not SITE.is_file():
+    account_source = source.with_name('accounts.py')
+    if not source.is_file() or not account_source.is_file() or not SITE.is_file():
         raise SystemExit("NEXUS source or expected nginx site is missing")
     site_text = SITE.read_text("utf-8")
     marker = f"server_name {HOST};"
@@ -82,6 +92,8 @@ def main() -> None:
     os.chmod(APP_DIR, 0o755)
     shutil.copy2(source, APP_DIR / "nexus_backup.py")
     os.chmod(APP_DIR / "nexus_backup.py", 0o644)
+    shutil.copy2(account_source, APP_DIR / 'accounts.py')
+    os.chmod(APP_DIR / 'accounts.py', 0o644)
     if not ENV.exists():
         token = secrets.token_urlsafe(48)
         fd = os.open(ENV, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -113,4 +125,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

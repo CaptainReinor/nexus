@@ -1,0 +1,5 @@
+
+.mobile-fold{margin:14px 0;border:1px solid #38474d;border-radius:12px;background:#1b2429;padding:14px}.mobile-fold>summary{cursor:pointer;color:#d5b574;min-height:24px;font-weight:650;line-height:1.6}.mobile-fold[open]>summary{margin-bottom:12px}.mobile-fold>.card{border:0;padding:4px 0;margin:0;background:transparent;box-shadow:none}.mobile-fold .habit-form{margin-top:12px}.connection-summary{display:flex;align-items:center;gap:8px;color:#a9c0b2;font-size:13px;margin-bottom:14px}.today-metric{background:transparent;min-width:0;border:0;text-align:left}.today-habit-actions .today-choice{padding:6px 8px;min-height:38px}.today-secondary .card{margin-top:14px}
+
+.today-metric strong{display:block;overflow:hidden;text-overflow:ellipsis}.section-view[hidden]{display:none!important}
+.health-views button{font-size:13px;padding:11px 6px;min-width:0;white-space:nowrap}

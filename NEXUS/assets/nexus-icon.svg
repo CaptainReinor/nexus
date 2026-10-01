@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="NEXUS">
+  <path d="M24 2H232L254 24V232L232 254H24L2 232V24Z" fill="#182126" stroke="#738087" stroke-width="4"/>
+  <path d="M24 13H232L243 24V232L232 243H24L13 232V24Z" fill="none" stroke="#39484f" stroke-width="2"/>
+  <path d="M61 48H195L208 61V195L195 208H61L48 195V61Z" fill="#d8ad63"/>
+  <path d="M78 78H104L155 150V78H181V178H155L104 107V178H78Z" fill="#1c2529"/>
+  <path d="M19 36V19H36M220 19H237V36M19 220V237H36M220 237H237V220" fill="none" stroke="#d8ad63" stroke-width="3"/>
+</svg>

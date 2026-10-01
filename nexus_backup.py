@@ -1,4 +1,4 @@
-"""Single-user NEXUS sync and encrypted-backup API. Bind only to loopback behind HTTPS nginx."""
+"""Invitation-only NEXUS sync and encrypted-backup API, behind HTTPS nginx."""
 
 import base64
 import binascii
@@ -11,6 +11,8 @@ import threading
 import urllib.error
 import urllib.request
 import uuid
+import math
+from accounts import accounts, AccountError
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -21,10 +23,6 @@ DATA_DIR = Path(os.environ.get("NEXUS_BACKUP_DIR", "/var/lib/nexus-backup"))
 PORT = int(os.environ.get("NEXUS_BACKUP_PORT", "18743"))
 MAX_BODY = 30_000_000
 MAX_SYNC_BODY = 12_000_000
-SYNC_LOCK = threading.Lock()
-SYNC_CHANGED = threading.Condition(SYNC_LOCK)
-EVENT_CLIENTS = threading.BoundedSemaphore(8)
-CURRENT_REVISION = None
 BACKUP_LOCK = threading.Lock()
 BACKUP_KEEP = 5
 SYNC_TABLES = {
@@ -35,12 +33,15 @@ SYNC_TABLES = {
 }
 ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 AI_KEY_FILE = "openrouter-key"
+API_VERSION = "0.4.1"
+OPENROUTER_BASE = os.environ.get("NEXUS_OPENROUTER_BASE", "https://openrouter.ai/api/v1").rstrip("/")
+RELAY_KEY = os.environ.get("NEXUS_AI_RELAY_KEY", "")
 INVESTMENT_TABLES = {"investment_accounts", "investment_entries"}
 LIFE_TABLES = {"day_details", "day_tasks", "day_memories", "assistant_reviews"}
 
 
 def atomic_write(path: Path, content: bytes) -> None:
-    with tempfile.NamedTemporaryFile(dir=DATA_DIR, prefix=".new-", delete=False) as temp:
+    with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".new-", delete=False) as temp:
         temp_path = Path(temp.name)
         os.chmod(temp_path, 0o600)
         try:
@@ -81,7 +82,7 @@ def valid_envelope(value: object) -> bool:
 def valid_sync_snapshot(value: object) -> bool:
     if not isinstance(value, dict) or set(value) != {"format", "version", "exportedAt", "tables"}:
         return False
-    if value["format"] != "nexus-backup" or not isinstance(value["version"], int) or not 1 <= value["version"] <= 100:
+    if value["format"] != "nexus-backup" or type(value["version"]) is not int or not 1 <= value["version"] <= 6:
         return False
     if not isinstance(value["exportedAt"], str) or len(value["exportedAt"]) > 40:
         return False
@@ -95,26 +96,27 @@ def valid_sync_snapshot(value: object) -> bool:
     )
 
 
-def read_sync_state() -> dict | None:
-    path = DATA_DIR / "sync-state.json"
+def read_sync_state(data_dir=None) -> dict | None:
+    path = (data_dir or DATA_DIR) / "sync-state.json"
     return json.loads(path.read_text("utf-8")) if path.is_file() else None
 
 
-def prune_backups() -> list[dict]:
+def prune_backups(data_dir=None) -> list[dict]:
     """Caller holds BACKUP_LOCK. Only remove recognized backup metadata/blob pairs."""
+    data_dir = data_dir or DATA_DIR
     items = []
-    for path in DATA_DIR.glob('*.meta'):
+    for path in data_dir.glob('*.meta'):
         try:
             item = json.loads(path.read_text('utf-8'))
             item_id = item['id']
-            if ID_RE.fullmatch(item_id) and path.name == item_id + '.meta' and isinstance(item['createdAt'], str) and (DATA_DIR / (item_id + '.blob')).is_file():
+            if ID_RE.fullmatch(item_id) and path.name == item_id + '.meta' and isinstance(item['createdAt'], str) and (data_dir / (item_id + '.blob')).is_file():
                 items.append(item)
         except (OSError, ValueError, KeyError, TypeError):
             continue
     items.sort(key=lambda item: (item['createdAt'], item['id']), reverse=True)
     for item in items[BACKUP_KEEP:]:
-        (DATA_DIR / (item['id'] + '.meta')).unlink(missing_ok=True)
-        (DATA_DIR / (item['id'] + '.blob')).unlink(missing_ok=True)
+        (data_dir / (item['id'] + '.meta')).unlink(missing_ok=True)
+        (data_dir / (item['id'] + '.blob')).unlink(missing_ok=True)
     return items[:BACKUP_KEEP]
 
 
@@ -126,7 +128,7 @@ class Handler(BaseHTTPRequestHandler):
         return origin if origin in {"https://localhost", "http://localhost", "capacitor://localhost"} else None
 
     def do_OPTIONS(self) -> None:
-        if not (self.path in {"/v1/state", "/v1/events"} or self.path.startswith("/v1/ai/")) or not self.cors_origin():
+        if not (self.path in {"/v1/state", "/v1/events", "/v1/profile"} or self.path.startswith("/v1/ai/")) or not self.cors_origin():
             self.respond(403, {"error": "forbidden"})
             return
         self.send_response(204)
@@ -144,19 +146,59 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        if self.path != "/v1/ai/device-key" and (self.path == "/v1/state" or self.path.startswith("/v1/ai/")) and self.cors_origin():
+        if self.path != "/v1/ai/device-key" and (self.path in {"/v1/state", "/v1/profile"} or self.path.startswith("/v1/ai/")) and self.cors_origin():
             self.send_header("Access-Control-Allow-Origin", self.cors_origin())
             self.send_header("Vary", "Origin")
         self.end_headers()
         self.wfile.write(data)
 
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(20)
+
     def authorized(self) -> bool:
         supplied = self.headers.get("Authorization", "")
-        expected = "Bearer " + TOKEN
-        if not TOKEN or not hmac.compare_digest(supplied, expected):
+        token = supplied[7:] if supplied.startswith("Bearer ") else ""
+        self.accounts = accounts(DATA_DIR)
+        self.user = self.accounts.authenticate(token, TOKEN) if 32 <= len(token) <= 512 else None
+        if not self.user:
             self.respond(401, {"error": "unauthorized"})
             return False
+        self.data_dir = self.accounts.directory(self.user)
+        self.signal = self.accounts.signal(self.user)
         return True
+
+    def owner_only(self):
+        if self.user['role'] != 'owner':
+            self.respond(403, {'error': 'owner_required'})
+            return False
+        return True
+
+    def create_user(self):
+        if not self.owner_only(): return
+        body = self.read_json(4096)
+        if body is None: return
+        if not isinstance(body, dict) or not {'name', 'monthlyLimitCents'} <= set(body) or not set(body) <= {'name','monthlyLimitCents','aiCredentials'}:
+            self.respond(400, {'error': 'invalid_user'}); return
+        owner_state = read_sync_state(DATA_DIR)
+        owner_settings = owner_state['snapshot']['tables']['settings'] if owner_state and owner_state.get('snapshot') else []
+        models = {key: '' for key in ('cheapModel','standardModel','advancedModel','transcriptionModel')}
+        for row in owner_settings:
+            if row.get('key') in models:
+                try:
+                    value = json.loads(row['value'])
+                    if isinstance(value, str): models[row['key']] = value
+                except (ValueError, TypeError): pass
+        try:
+            user, token = self.accounts.create(body['name'], body['monthlyLimitCents'], models, body.get('aiCredentials'))
+            settings = {**models, 'currency':'RUB','aiEnabled':True,'aiBudgetCents':body['monthlyLimitCents'],'weeklyTarget':15}
+            snapshot = {'format':'nexus-backup','version':6,'exportedAt':datetime.now(timezone.utc).isoformat(),'tables':{name:[] for name in SYNC_TABLES | INVESTMENT_TABLES | LIFE_TABLES}}
+            snapshot['tables']['settings'] = [{'key':key,'value':json.dumps(value,ensure_ascii=False)} for key,value in settings.items()]
+            atomic_write(self.accounts.directory(user) / 'sync-state.json', json.dumps({'revision':1,'snapshot':snapshot},ensure_ascii=False).encode())
+            user, code = self.accounts.invitation(user['id'])
+            self.respond(201, {'user':self.accounts.public(user),'token':token,'code':code})
+        except AccountError as error:
+            self.respond(error.status, {'error':error.code})
 
     def read_json(self, limit: int) -> object | None:
         try:
@@ -173,20 +215,26 @@ class Handler(BaseHTTPRequestHandler):
             return None
 
     def openrouter(self, path: str, payload: dict) -> None:
+        if self.user['role'] != 'owner':
+            self.respond(403, {'error':'device_ai_required'})
+            return
         key_path = DATA_DIR / AI_KEY_FILE
         if not key_path.is_file():
             self.respond(409, {"error": "ai_key_missing"})
             return
         key = key_path.read_text("utf-8").strip()
         request = urllib.request.Request(
-            "https://openrouter.ai/api/v1/" + path,
+            OPENROUTER_BASE + "/" + path,
             data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-            headers={"Authorization": "Bearer " + key, "Content-Type": "application/json", "X-Title": "NEXUS", "User-Agent": "NEXUS/0.2.2"},
+            headers={"Authorization": "Bearer " + key, "Content-Type": "application/json", "X-Title": "NEXUS", "User-Agent": "NEXUS/0.4.1", "X-Nexus-Relay-Key": RELAY_KEY},
             method="POST",
         )
         try:
             with urllib.request.urlopen(request, timeout=100) as response:
-                result = json.load(response)
+                raw = response.read(1_000_001)
+                if len(raw) > 1_000_000:
+                    raise ValueError('upstream_response_too_large')
+                result = json.loads(raw)
         except urllib.error.HTTPError as error:
             try:
                 details = json.loads(error.read(32_000)).get('error', {})
@@ -207,25 +255,35 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(502, {'error':'openrouter_http','status':details.get('code',502),'message':str(details.get('message',''))[:500].replace(key,'[redacted]')})
             return
         if path == "chat/completions":
-            content = (result.get("choices") or [{}])[0].get("message", {}).get("content")
-            usage = result.get("usage") or {}
+            choices = result.get('choices')
+            first = choices[0] if isinstance(choices,list) and choices and isinstance(choices[0],dict) else {}
+            message = first.get('message')
+            content = message.get('content') if isinstance(message,dict) else None
+            usage = result.get('usage') if isinstance(result.get('usage'),dict) else {}
             input_tokens, output_tokens = usage.get("prompt_tokens"), usage.get("completion_tokens")
         else:
             content = result.get("text")
-            usage = result.get("usage") or {}
+            usage = result.get('usage') if isinstance(result.get('usage'),dict) else {}
             input_tokens, output_tokens = usage.get("input_tokens"), usage.get("output_tokens")
         if not isinstance(content, str) or not content.strip():
             self.respond(502, {"error": "openrouter_empty"})
             return
         cost = usage.get("cost")
-        self.respond(200, {"content": content, "requestId": result.get("id", ""), "inputTokens": input_tokens, "outputTokens": output_tokens, "costMicrousd": round(cost * 1_000_000) if isinstance(cost, (float, int)) and cost >= 0 else None})
+        cost_microusd = math.ceil(cost * 1_000_000) if type(cost) in (float,int) and math.isfinite(cost) and cost >= 0 else None
+        self.respond(200, {"content": content, "requestId": result.get("id", ""), "inputTokens": input_tokens, "outputTokens": output_tokens, "costMicrousd": cost_microusd})
 
     def do_GET(self) -> None:
         if self.path == "/health":
-            self.respond(200, {"status": "ok"})
+            self.respond(200, {"status": "ok", "version": API_VERSION})
             return
         if not self.authorized():
             return
+        if self.path == '/v1/profile':
+            self.respond(200, self.accounts.public(self.user)); return
+        if self.path == '/v1/users':
+            if not self.owner_only(): return
+            users = [dict(u, role='guest') for u in self.accounts.registry()['users']]
+            self.respond(200, [self.accounts.public(u) for u in users]); return
         if self.path == '/v1/events':
             self.events()
             return
@@ -234,23 +292,29 @@ class Handler(BaseHTTPRequestHandler):
             if self.headers.get('Origin'):
                 self.respond(403, {'error':'native_client_required'})
                 return
-            path = DATA_DIR / AI_KEY_FILE
+            if self.user['role'] == 'guest':
+                try:
+                    self.respond(200, {'key':self.accounts.device_key(self.user)})
+                except AccountError as error:
+                    self.respond(error.status, {'error':error.code})
+                return
+            path = self.data_dir / AI_KEY_FILE
             if not path.is_file():
                 self.respond(409, {'error':'ai_key_missing'})
                 return
             self.respond(200, {'key':path.read_text('utf-8').strip()})
             return
         if self.path == "/v1/ai/status":
-            self.respond(200, {"configured": (DATA_DIR / AI_KEY_FILE).is_file()})
+            self.respond(200, {"configured": (self.data_dir / ('ai-device-key.json' if self.user['role']=='guest' else AI_KEY_FILE)).is_file()})
             return
         if self.path == "/v1/state":
-            with SYNC_LOCK:
-                state = read_sync_state()
+            with self.signal.lock:
+                state = read_sync_state(self.data_dir)
             self.respond(200, state if state is not None else {"revision": 0, "snapshot": None})
             return
         if self.path == "/v1/backups":
             with BACKUP_LOCK:
-                items = prune_backups()
+                items = prune_backups(self.data_dir)
             self.respond(200, items)
             return
         if self.path.startswith("/v1/backups/"):
@@ -258,7 +322,7 @@ class Handler(BaseHTTPRequestHandler):
             if not ID_RE.fullmatch(item_id):
                 self.respond(404, {"error": "not_found"})
                 return
-            path = DATA_DIR / (item_id + ".blob")
+            path = self.data_dir / (item_id + ".blob")
             with BACKUP_LOCK:
                 if not path.is_file():
                     self.respond(404, {"error": "not_found"})
@@ -275,10 +339,19 @@ class Handler(BaseHTTPRequestHandler):
         self.respond(404, {"error": "not_found"})
 
     def do_PUT(self) -> None:
-        global CURRENT_REVISION
         if not self.authorized():
             return
+        if self.path.startswith('/v1/users/'):
+            if not self.owner_only(): return
+            body = self.read_json(1024)
+            if body is None: return
+            try:
+                user = self.accounts.update(self.path.rsplit('/',1)[-1],body)
+                self.respond(200,self.accounts.public(user))
+            except AccountError as error: self.respond(error.status,{'error':error.code})
+            return
         if self.path == "/v1/ai/key":
+            if not self.owner_only(): return
             body = self.read_json(1024)
             if body is None:
                 return
@@ -311,23 +384,25 @@ class Handler(BaseHTTPRequestHandler):
         if not valid_sync_snapshot(snapshot):
             self.respond(400, {"error": "invalid_snapshot"})
             return
-        with SYNC_LOCK:
-            current = read_sync_state()
+        with self.signal.lock:
+            current = read_sync_state(self.data_dir)
             revision = current["revision"] if current else 0
+            if current and current.get('snapshot') and snapshot['version'] < current['snapshot']['version']:
+                self.respond(426, {'error':'schema_downgrade','version':current['snapshot']['version']})
+                return
             if str(revision) != expected:
                 self.respond(409, {"error": "revision_conflict", "revision": revision})
                 return
             if current:
-                atomic_write(DATA_DIR / "sync-state-previous.json", json.dumps(current, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+                atomic_write(self.data_dir / "sync-state-previous.json", json.dumps(current, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
             state = {"revision": revision + 1, "snapshot": snapshot}
-            atomic_write(DATA_DIR / "sync-state.json", json.dumps(state, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
-            CURRENT_REVISION = state['revision']
-            SYNC_CHANGED.notify_all()
+            atomic_write(self.data_dir / "sync-state.json", json.dumps(state, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+            self.signal.revision = state['revision']
+            self.signal.changed.notify_all()
         self.respond(200, {"revision": state["revision"]})
 
     def events(self) -> None:
-        global CURRENT_REVISION
-        if not EVENT_CLIENTS.acquire(blocking=False):
+        if not self.signal.events.acquire(blocking=False):
             self.respond(429, {'error':'too_many_event_connections'})
             return
         try:
@@ -343,14 +418,14 @@ class Handler(BaseHTTPRequestHandler):
             self.close_connection=True
             self.connection.settimeout(30)
             last=-1
-            while True:
-                with SYNC_CHANGED:
-                    if CURRENT_REVISION is None:
-                        state=read_sync_state()
-                        CURRENT_REVISION=state['revision'] if state else 0
-                    if last==CURRENT_REVISION:
-                        SYNC_CHANGED.wait(timeout=20)
-                    revision=CURRENT_REVISION
+            while self.accounts.active(self.user):
+                with self.signal.changed:
+                    if self.signal.revision is None:
+                        state=read_sync_state(self.data_dir)
+                        self.signal.revision=state['revision'] if state else 0
+                    if last==self.signal.revision:
+                        self.signal.changed.wait(timeout=20)
+                    revision=self.signal.revision
                 data=(f'data: {{"revision":{revision}}}\n\n' if revision!=last else ': keepalive\n\n').encode('utf-8')
                 self.wfile.write(data)
                 self.wfile.flush()
@@ -358,10 +433,23 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError,ConnectionResetError,TimeoutError,OSError):
             pass
         finally:
-            EVENT_CLIENTS.release()
+            self.signal.events.release()
 
     def do_POST(self) -> None:
         if not self.authorized():
+            return
+        if self.path == "/v1/users":
+            self.create_user(); return
+        if self.path.startswith('/v1/users/') and self.path.endswith('/invitation'):
+            if not self.owner_only(): return
+            identity = self.path[len('/v1/users/'):-len('/invitation')]
+            if not ID_RE.fullmatch(identity):
+                self.respond(400, {'error':'invalid_user'}); return
+            try:
+                user, code = self.accounts.invitation(identity)
+                self.respond(200, {'user':self.accounts.public(user),'code':code})
+            except AccountError as error:
+                self.respond(error.status, {'error':error.code})
             return
         if self.path == "/v1/ai/complete":
             body = self.read_json(100_000)
@@ -410,10 +498,35 @@ class Handler(BaseHTTPRequestHandler):
         device = self.headers.get("X-Nexus-Device", "Windows NEXUS")[:100]
         metadata = {"id": item_id, "createdAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "exportedAt": envelope["exportedAt"], "size": len(body), "device": device}
         with BACKUP_LOCK:
-            atomic_write(DATA_DIR / (item_id + ".blob"), body)
-            atomic_write(DATA_DIR / (item_id + ".meta"), json.dumps(metadata, ensure_ascii=False).encode("utf-8"))
-            prune_backups()
+            atomic_write(self.data_dir / (item_id + ".blob"), body)
+            atomic_write(self.data_dir / (item_id + ".meta"), json.dumps(metadata, ensure_ascii=False).encode("utf-8"))
+            prune_backups(self.data_dir)
         self.respond(201, metadata)
+
+
+class BoundedServer(ThreadingHTTPServer):
+    """Bound threads, including long-lived SSE and unauthenticated idle clients."""
+    daemon_threads = True
+
+    def __init__(self, *args, **kwargs):
+        self.slots = threading.BoundedSemaphore(64)
+        super().__init__(*args, **kwargs)
+
+    def process_request(self, request, address):
+        if not self.slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request,address)
+        except BaseException:
+            self.slots.release()
+            raise
+
+    def process_request_thread(self, request, address):
+        try:
+            super().process_request_thread(request,address)
+        finally:
+            self.slots.release()
 
 
 def main() -> None:
@@ -423,7 +536,7 @@ def main() -> None:
     os.chmod(DATA_DIR, 0o700)
     with BACKUP_LOCK:
         prune_backups()
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    server = BoundedServer(("127.0.0.1", PORT), Handler)
     server.serve_forever()
 
 
