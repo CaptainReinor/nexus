@@ -1,3 +1,4 @@
+import { requireSecureStorage } from './secure-storage';
 import { app, clipboard, safeStorage } from 'electron';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync,readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
@@ -52,7 +53,7 @@ export class RemoteBackupService {
 
   private credentials():z.infer<typeof configSchema> {
     if(!existsSync(this.credentialsPath))throw new Error('Сначала настройте серверные копии.');
-    if(!safeStorage.isEncryptionAvailable())throw new Error('Защищённое хранилище Windows недоступно.');
+    requireSecureStorage();
     return configSchema.parse(JSON.parse(safeStorage.decryptString(readFileSync(this.credentialsPath))));
   }
 
@@ -80,9 +81,10 @@ export class RemoteBackupService {
   }
 
   private saveCredentials(settings:z.infer<typeof configSchema>):void {
+    requireSecureStorage();
     const temporaryPath=`${this.credentialsPath}.tmp`;
     try {
-      writeFileSync(temporaryPath,safeStorage.encryptString(JSON.stringify(settings)));
+      writeFileSync(temporaryPath,safeStorage.encryptString(JSON.stringify(settings)),{mode:0o600});
       renameSync(temporaryPath,this.credentialsPath);
     } finally {rmSync(temporaryPath,{force:true});}
   }
@@ -136,7 +138,7 @@ export class RemoteBackupService {
     const hasPersonalData=existsSync(join(app.getPath('userData'),'openrouter-key.bin'))||Object.entries(tables).some(([table,list])=>table!=='settings'&&list.length>0);
     if(old&&!same||!old&&identity.role==='guest'&&hasPersonalData)throw new Error('Этот профиль содержит данные другого пользователя. Создайте отдельный локальный профиль в настройках.');
     settings=configSchema.parse({...same?old:{},...settings,passphrase:settings.passphrase||(same?old.passphrase:''),profileId:identity.id});
-    if(!safeStorage.isEncryptionAvailable())throw new Error('Защищённое хранилище Windows недоступно.');
+    requireSecureStorage();
     z.array(infoSchema).parse(JSON.parse(await this.request(settings,'/v1/backups',{method:'GET'},1_000_000)));
     this.saveCredentials(settings);
     this.syncError=null;

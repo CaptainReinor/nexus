@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { OpenRouterManagement } from './openrouter-management';
 const state=vi.hoisted(()=>({directory:''}));
-vi.mock('electron',()=>({app:{getPath:()=>state.directory},safeStorage:{isEncryptionAvailable:()=>true,encryptString:(s:string)=>Buffer.from(s),decryptString:(b:Buffer)=>b.toString()}}));
+vi.mock('electron',()=>({app:{getPath:()=>state.directory},safeStorage:{getSelectedStorageBackend:()=>'gnome_libsecret',isEncryptionAvailable:()=>true,encryptString:(s:string)=>Buffer.from(s),decryptString:(b:Buffer)=>b.toString()}}));
 beforeEach(()=>{state.directory=mkdtempSync(join(tmpdir(),'nexus-manager-'));});
 afterEach(()=>{vi.unstubAllGlobals();rmSync(state.directory,{recursive:true,force:true});});
 const managementKey='sk-or-v1-'+ 'a'.repeat(64),childKey='sk-or-v1-'+ 'b'.repeat(64),hash='c'.repeat(64);

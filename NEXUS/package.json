@@ -1,6 +1,9 @@
 {
   "name": "nexus-desktop",
-  "version": "0.4.4",
+  "description": "NEXUS: habits, health, finance and journal",
+  "author": "CaptainReinor",
+  "desktopName": "ru.nexus.desktop.desktop",
+  "version": "0.4.5",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.cjs",
@@ -11,7 +14,8 @@
     "test": "vitest run",
     "build": "node scripts/build.mjs",
     "start": "electron .",
-    "dist:win": "npm run build && electron-builder --win nsis"
+    "dist:win": "npm run build && electron-builder --win nsis",
+    "dist:linux": "npm run build && electron-builder --linux AppImage --x64 --config.npmRebuild=true --publish never"
   },
   "dependencies": {
     "better-sqlite3": "13.0.3"
@@ -55,7 +59,8 @@
       "!node_modules/better-sqlite3/build/Release/obj/**/*",
       "!node_modules/better-sqlite3/build/Release/sqlite3.lib",
       "!node_modules/better-sqlite3/build/Release/test_extension.node",
-      "!**/*.map"
+      "!**/*.map",
+      "assets/nexus-icon.png"
     ],
     "asarUnpack": [
       "**/*.node"
@@ -76,7 +81,17 @@
     "electronLanguages": [
       "en-US",
       "ru"
-    ]
+    ],
+    "linux": {
+      "syncDesktopName": true,
+      "target": [
+        "AppImage"
+      ],
+      "icon": "assets/nexus-icon.png",
+      "category": "Utility",
+      "executableName": "nexus",
+      "artifactName": "NEXUS-${version}-linux-${arch}.${ext}"
+    }
   },
   "license": "MIT"
 }

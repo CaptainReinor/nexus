@@ -44,3 +44,7 @@ NEXUS-Android/android/app/src/main/assets/
 NEXUS-Android/android/capacitor-cordova-android-plugins/
 NEXUS-Android/android/capacitor.settings.gradle
 NEXUS-Android/android/app/capacitor.build.gradle
+
+*.AppImage
+*.AppImage.config/
+*.AppImage.home/

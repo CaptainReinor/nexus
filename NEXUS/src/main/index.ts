@@ -56,7 +56,7 @@ const caseSchema=z.object({id:id.optional(),entry_id:id,title:nonEmpty,situation
 const settingsSchema=z.object({autostart:z.boolean().optional(),currency:z.string().length(3).optional(),firstDayOfWeek:z.union([z.literal(0),z.literal(1)]).optional(),primaryAccountId:id.nullable().optional(),weeklyTarget:z.number().int().min(0).max(1000).optional(),aiEnabled:z.boolean().optional(),aiModelMode:z.enum(['preset','custom']).optional(),cheapModel:text.optional(),standardModel:text.optional(),advancedModel:text.optional(),transcriptionModel:text.optional(),aiBudgetCents:z.number().int().min(0).max(10_000_000).optional()});
 
 function createWindow():void {
-  window=new BrowserWindow({width:1480,height:920,minWidth:980,minHeight:660,backgroundColor:'#14191e',title:'NEXUS',show:false,webPreferences:{preload:join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true}});
+  window=new BrowserWindow({width:1480,height:920,minWidth:980,minHeight:660,backgroundColor:'#14191e',title:'NEXUS',icon:join(app.getAppPath(),'assets/nexus-icon.png'),show:false,webPreferences:{preload:join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true}});
   window.webContents.session.setPermissionRequestHandler((contents,permission,callback,details)=>{const mediaTypes=(details as {mediaTypes?:string[]}).mediaTypes??[];callback(contents===window?.webContents&&permission==='media'&&!mediaTypes.includes('video'));});
   window.webContents.session.setPermissionCheckHandler((contents,permission)=>contents===window?.webContents&&permission==='media');
   window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
@@ -72,7 +72,7 @@ const profiles=new ProfileManager(app.getPath('userData'));
 mkdirSync(profiles.directory(),{recursive:true});app.setPath('userData',profiles.directory());
 app.setPath('sessionData',profiles.directory());
 void app.whenReady().then(()=>{
-  app.setAppUserModelId('ru.nexus.desktop');
+  if(process.platform==='win32')app.setAppUserModelId('ru.nexus.desktop');
   Menu.setApplicationMenu(null);
   const dbPath=join(app.getPath('userData'),'nexus.sqlite');
   const db=openDatabase(dbPath);

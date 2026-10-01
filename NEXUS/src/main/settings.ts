@@ -1,3 +1,5 @@
+import { getAutostart, setAutostart } from './autostart';
+import { requireSecureStorage } from './secure-storage';
 import { app, safeStorage } from 'electron';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -18,21 +20,21 @@ export class SettingsRepository {
   get(): Settings {
     const aiModelMode=!this.isGuest()&&this.value<string>('aiModelMode',defaults.aiModelMode)==='custom'?'custom':'preset';
     const models=resolveAIModels(aiModelMode,{cheapModel:this.value('cheapModel',''),standardModel:this.value('standardModel',''),advancedModel:this.value('advancedModel',''),transcriptionModel:this.value('transcriptionModel','')});
-    return { autostart: app.getLoginItemSettings().openAtLogin, currency:this.value('currency',defaults.currency), firstDayOfWeek:this.value('firstDayOfWeek',defaults.firstDayOfWeek) as 0|1, primaryAccountId:this.value('primaryAccountId',defaults.primaryAccountId) as number|null, weeklyTarget:this.value('weeklyTarget',defaults.weeklyTarget),aiEnabled:this.value('aiEnabled',defaults.aiEnabled),aiModelMode,...models,aiBudgetCents:this.value('aiBudgetCents',defaults.aiBudgetCents),hasApiKey:existsSync(this.keyPath),dbPath:this.dbPath };
+    return { autostart: getAutostart(), currency:this.value('currency',defaults.currency), firstDayOfWeek:this.value('firstDayOfWeek',defaults.firstDayOfWeek) as 0|1, primaryAccountId:this.value('primaryAccountId',defaults.primaryAccountId) as number|null, weeklyTarget:this.value('weeklyTarget',defaults.weeklyTarget),aiEnabled:this.value('aiEnabled',defaults.aiEnabled),aiModelMode,...models,aiBudgetCents:this.value('aiBudgetCents',defaults.aiBudgetCents),hasApiKey:existsSync(this.keyPath),dbPath:this.dbPath };
   }
   save(input: Partial<Omit<Settings,'hasApiKey'|'dbPath'>>): void {
     if(this.isGuest()&&(input.aiModelMode==='custom'||Object.keys(input).some(key=>key in economicalAIModels)))throw new Error('Для этого профиля используется готовый набор моделей.');
-    if (input.autostart !== undefined) app.setLoginItemSettings({openAtLogin:input.autostart});
+    if (input.autostart !== undefined) setAutostart(input.autostart);
     for (const [key,value] of Object.entries(input)) if (key !== 'autostart' && key in defaults) this.db.prepare('INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key,JSON.stringify(value));
   }
   setApiKey(key: string): void {
     if (!key.trim()) { if (existsSync(this.keyPath)) rmSync(this.keyPath); return; }
-    if (!safeStorage.isEncryptionAvailable()) throw new Error('Защищённое хранилище Windows сейчас недоступно.');
-    writeFileSync(this.keyPath,safeStorage.encryptString(key.trim()));
+    requireSecureStorage();
+    writeFileSync(this.keyPath,safeStorage.encryptString(key.trim()),{mode:0o600});
   }
   getApiKey(): string {
     if (!existsSync(this.keyPath)) throw new Error('Укажите API-ключ OpenRouter в настройках.');
-    if (!safeStorage.isEncryptionAvailable()) throw new Error('Защищённое хранилище Windows сейчас недоступно.');
+    requireSecureStorage();
     return safeStorage.decryptString(readFileSync(this.keyPath));
   }
   usage(): AIUsage[] { return this.db.prepare('SELECT * FROM ai_usage ORDER BY timestamp DESC LIMIT 500').all() as AIUsage[]; }

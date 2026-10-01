@@ -12,7 +12,7 @@ import { encryptBackup } from './remote-crypto';
 const mock=vi.hoisted(()=>({userData:''}));
 vi.mock('electron',()=>({
   app:{getPath:()=>mock.userData},
-  safeStorage:{isEncryptionAvailable:()=>true,encryptString:(value:string)=>Buffer.from(value),decryptString:(value:Buffer)=>value.toString('utf8')}
+  safeStorage:{getSelectedStorageBackend:()=>'gnome_libsecret',isEncryptionAvailable:()=>true,encryptString:(value:string)=>Buffer.from(value),decryptString:(value:Buffer)=>value.toString('utf8')}
 }));
 
 let db:DB;

@@ -1,3 +1,4 @@
+import { requireSecureStorage } from './secure-storage';
 import { app,safeStorage } from 'electron';
 import { existsSync,readFileSync,writeFileSync,renameSync,rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -13,7 +14,7 @@ export class OpenRouterManagement {
   private path=join(app.getPath('userData'),'openrouter-management-key.bin');
   status(){return {configured:existsSync(this.path)};}
   private credential(){
-    if(!safeStorage.isEncryptionAvailable())throw new Error('Защищённое хранилище Windows недоступно.');
+    requireSecureStorage();
     if(!existsSync(this.path))throw new Error('Сначала добавьте ключ управления OpenRouter в разделе «Друзья».');
     return safeStorage.decryptString(readFileSync(this.path));
   }
@@ -29,11 +30,11 @@ export class OpenRouterManagement {
   async setCredential(key:string){
     key=key.trim();
     if(!key){rmSync(this.path,{force:true});return;}
-    if(!safeStorage.isEncryptionAvailable())throw new Error('Защищённое хранилище Windows недоступно.');
+    requireSecureStorage();
     if(!/^sk-or-v1-[a-zA-Z0-9_-]{20,480}$/.test(key))throw new Error('Укажите ключ управления OpenRouter.');
     z.object({data:z.array(z.unknown())}).parse(await this.request('?offset=0','GET',undefined,key));
     const temporary=`${this.path}.tmp`;
-    try{writeFileSync(temporary,safeStorage.encryptString(key));renameSync(temporary,this.path);}finally{rmSync(temporary,{force:true});}
+    try{writeFileSync(temporary,safeStorage.encryptString(key),{mode:0o600});renameSync(temporary,this.path);}finally{rmSync(temporary,{force:true});}
   }
   async create(name:string,monthlyLimitCents:number):Promise<UserAIKey>{
     z.number().int().min(0).max(10000).parse(monthlyLimitCents);
