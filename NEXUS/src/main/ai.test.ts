@@ -47,6 +47,11 @@ describe('structured AI output',()=>{
     vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response(JSON.stringify({error:{message:'Unsupported model '+key}}),{status:400})));
     try{await new OpenRouterProvider().complete(key,'test/model','JSON','example',true);}catch(error){expect(String(error)).not.toContain(key);expect(String(error)).toContain('[скрыто]');}
   });
+  it('does not reveal the key budget from a provider quota error',async()=>{
+    vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response(JSON.stringify({error:{message:'Key budget $0.50 exceeded'}}),{status:402})));
+    try{await new OpenRouterProvider().complete('test-key','test/model','JSON','example',true);throw new Error('Expected rejection');}
+    catch(error){expect(String(error)).toContain('лимит');expect(String(error)).not.toContain('0.50');expect(String(error)).not.toContain('Key budget');}
+  });
   it.each([['openai/gpt-6-luna','low'],['openai/gpt-6-sol','medium'],['openai/gpt-6-astra','medium']])('uses compatible reasoning parameters for %s',async(model,effort)=>{
     const fetchMock=vi.fn().mockResolvedValue(new Response(JSON.stringify({choices:[{message:{content:'{}'}}]}),{status:200}));
     vi.stubGlobal('fetch',fetchMock);

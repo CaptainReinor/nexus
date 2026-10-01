@@ -54,7 +54,7 @@ public class NexusAIPlugin extends Plugin {
                 }
                 String description=code==401?"OpenRouter отклонил API-ключ.":code==402?"Не хватает средств на OpenRouter или лимита API-ключа.":code==403?"OpenRouter запретил запрос с этой сети. Проверьте доступ к OpenRouter на телефоне.":code==429?"OpenRouter ограничил запросы. Повторите позже.":code==404?"Выбранная модель OpenRouter недоступна.":code==400?"OpenRouter отклонил параметры выбранной модели.":"OpenRouter ответил с ошибкой "+code+".";
                 // Do not include native headers, key or provider echo in the WebView error.
-                throw new Exception(description+(message.isEmpty()?"":" "+message.replace(token,"[скрыто]").substring(0,Math.min(250,message.replace(token,"[скрыто]").length()))));
+                throw new Exception(description+(code==402||message.isEmpty()?"":" "+message.replace(token,"[скрыто]").substring(0,Math.min(250,message.replace(token,"[скрыто]").length()))));
             }
             return result;
         }finally{conn.disconnect();}

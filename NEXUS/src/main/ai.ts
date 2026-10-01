@@ -18,7 +18,7 @@ export interface AIProvider { test(key:string):Promise<boolean>; complete(key:st
 async function providerFailure(response:Response,key:string):Promise<Error>{
   let detail='';try{const body=await response.json() as {error?:{message?:unknown}};if(typeof body.error?.message==='string')detail=body.error.message.split(key).join('[скрыто]').replace(/sk-or-v1-[a-zA-Z0-9_-]+/g,'[скрыто]').slice(0,250);}catch{/* Provider may return HTML. */}
   const message=response.status===401?'OpenRouter отклонил API-ключ.':response.status===403?'OpenRouter запретил запрос из этой сети. Проверьте VPN.':response.status===402?'Исчерпан лимит API-ключа OpenRouter или баланс аккаунта.':response.status===404?'Выбранная модель OpenRouter недоступна.':response.status===429?'OpenRouter временно ограничил запросы. Повторите позже.':response.status===400?'OpenRouter отклонил параметры модели.':`OpenRouter: ошибка ${response.status}.`;
-  return new Error(message+(detail?' '+detail:''));
+  return new Error(message+(response.status!==402&&detail?' '+detail:''));
 }
 export class OpenRouterProvider implements AIProvider {
   async test(key:string):Promise<boolean> {
