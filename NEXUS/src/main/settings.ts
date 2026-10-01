@@ -1,3 +1,4 @@
+import { deviceAIKeySchema } from './device-ai-cache';
 import { getAutostart, setAutostart } from './autostart';
 import { requireSecureStorage } from './secure-storage';
 import { app, safeStorage } from 'electron';
@@ -20,14 +21,16 @@ export class SettingsRepository {
   get(): Settings {
     const aiModelMode=!this.isGuest()&&this.value<string>('aiModelMode',defaults.aiModelMode)==='custom'?'custom':'preset';
     const models=resolveAIModels(aiModelMode,{cheapModel:this.value('cheapModel',''),standardModel:this.value('standardModel',''),advancedModel:this.value('advancedModel',''),transcriptionModel:this.value('transcriptionModel','')});
-    return { autostart: getAutostart(), currency:this.value('currency',defaults.currency), firstDayOfWeek:this.value('firstDayOfWeek',defaults.firstDayOfWeek) as 0|1, primaryAccountId:this.value('primaryAccountId',defaults.primaryAccountId) as number|null, weeklyTarget:this.value('weeklyTarget',defaults.weeklyTarget),aiEnabled:this.value('aiEnabled',defaults.aiEnabled),aiModelMode,...models,aiBudgetCents:this.value('aiBudgetCents',defaults.aiBudgetCents),hasApiKey:existsSync(this.keyPath),dbPath:this.dbPath };
+    return { autostart: getAutostart(), currency:this.value('currency',defaults.currency), firstDayOfWeek:this.value('firstDayOfWeek',defaults.firstDayOfWeek) as 0|1, primaryAccountId:this.value('primaryAccountId',defaults.primaryAccountId) as number|null, weeklyTarget:this.value('weeklyTarget',defaults.weeklyTarget),aiEnabled:this.value('aiEnabled',defaults.aiEnabled),aiModelMode,...models,aiBudgetCents:this.value('aiBudgetCents',defaults.aiBudgetCents),aiManaged:this.isGuest(),hasApiKey:existsSync(this.keyPath),dbPath:this.dbPath };
   }
-  save(input: Partial<Omit<Settings,'hasApiKey'|'dbPath'>>): void {
+  save(input: Partial<Omit<Settings,'hasApiKey'|'dbPath'|'aiManaged'>>): void {
     if(this.isGuest()&&(input.aiModelMode==='custom'||Object.keys(input).some(key=>key in economicalAIModels)))throw new Error('Для этого профиля используется готовый набор моделей.');
     if (input.autostart !== undefined) setAutostart(input.autostart);
     for (const [key,value] of Object.entries(input)) if (key !== 'autostart' && key in defaults) this.db.prepare('INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key,JSON.stringify(value));
   }
   setApiKey(key: string): void {
+    if(this.isGuest())throw new Error('Персональный ключ выдаёт владелец NEXUS.');
+    if(key.trim()&&!deviceAIKeySchema.safeParse(key.trim()).success)throw new Error('Нужен API-ключ OpenRouter, начинающийся с sk-or-v1-.');
     if (!key.trim()) { if (existsSync(this.keyPath)) rmSync(this.keyPath); return; }
     requireSecureStorage();
     writeFileSync(this.keyPath,safeStorage.encryptString(key.trim()),{mode:0o600});

@@ -77,7 +77,7 @@ void app.whenReady().then(()=>{
   const dbPath=join(app.getPath('userData'),'nexus.sqlite');
   const db=openDatabase(dbPath,{seedFinance:true});
   const remoteBackup=new RemoteBackupService(db,()=>window?.webContents.reload());
-  const settings=new SettingsRepository(db,dbPath,()=>remoteBackup.isGuest()),health=new HealthRepository(db),finance=new FinanceRepository(db,()=>settings.get().firstDayOfWeek),work=new WorkRepository(db,()=>settings.get().firstDayOfWeek),ai=new AIGateway(db,settings,work,new ProfileAIProvider(remoteBackup),()=>settings.get().hasApiKey?settings.getApiKey():''),journal=new JournalService(db,ai,health,finance,work,settings);
+  const settings=new SettingsRepository(db,dbPath,()=>remoteBackup.isGuest()),health=new HealthRepository(db),finance=new FinanceRepository(db,()=>settings.get().firstDayOfWeek),work=new WorkRepository(db,()=>settings.get().firstDayOfWeek),ai=new AIGateway(db,settings,work,new ProfileAIProvider(remoteBackup),()=>!remoteBackup.isGuest()&&settings.get().hasApiKey?settings.getApiKey():''),journal=new JournalService(db,ai,health,finance,work,settings);
   handle('profiles:list',z.undefined(),()=>profiles.list());
   handle('profiles:create',z.string().trim().min(1).max(80),name=>{profiles.create(name);return profiles.list();});
   handle('profiles:select',z.union([z.literal('local'),z.string().uuid()]),identity=>{remoteBackup.stopAutoUpload();profiles.select(identity);setTimeout(()=>{app.relaunch();app.quit();},300);});

@@ -1,3 +1,4 @@
+import { desktopFetch } from './desktop-fetch';
 import { requireSecureStorage } from './secure-storage';
 import { app,safeStorage } from 'electron';
 import { existsSync,readFileSync,writeFileSync,renameSync,rmSync } from 'node:fs';
@@ -20,7 +21,7 @@ export class OpenRouterManagement {
   }
   private async request(path:string,method='GET',body?:unknown,key=this.credential()):Promise<unknown>{
     let response:Response;
-    try{response=await fetch(`https://openrouter.ai/api/v1/keys${path}`,{method,headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)}),redirect:'error',signal:AbortSignal.timeout(20000)});}
+    try{response=await desktopFetch(`https://openrouter.ai/api/v1/keys${path}`,{method,headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)}),redirect:'error',signal:AbortSignal.timeout(20000)});}
     catch{throw new Error('Нет связи с управлением OpenRouter. Проверьте VPN на этом компьютере.');}
     if(response.status===401||response.status===403)throw new Error('OpenRouter отклонил ключ управления или эту сеть. Нужен Management API Key и доступ через VPN.');
     if(!response.ok)throw new Error(`Управление OpenRouter: ошибка ${response.status}.`);

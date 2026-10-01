@@ -17,7 +17,8 @@ it('enforces the guest preset even when synced data contains owner custom settin
  const db=openDatabase(':memory:');try{
   new SettingsRepository(db,':memory:').save({aiModelMode:'custom',cheapModel:'old/expensive'});
   const guest=new SettingsRepository(db,':memory:',()=>true);
-  expect(guest.get()).toMatchObject({aiModelMode:'preset',...economicalAIModels});
+  expect(guest.get()).toMatchObject({aiManaged:true,aiModelMode:'preset',...economicalAIModels});
+  expect(()=>guest.setApiKey('incorrect')).toThrow('выдаёт владелец');
   expect(()=>guest.save({cheapModel:'override/model'})).toThrow('готовый набор');
   expect(()=>guest.save({aiModelMode:'custom'})).toThrow('готовый набор');
   guest.save({aiEnabled:true});expect(guest.get().aiEnabled).toBe(true);

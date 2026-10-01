@@ -1,11 +1,20 @@
+vi.mock('./desktop-fetch',()=>({desktopFetch:(...args:Parameters<typeof fetch>)=>fetch(...args)}));
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AIGateway, analysisSchema, journalAnalysisSchema, vacancyDraftSchema, OpenRouterProvider, type AIProvider } from './ai';
+import { AIGateway, analysisSchema, journalAnalysisSchema, vacancyDraftSchema, OpenRouterProvider, OpenRouterAuthenticationError, type AIProvider } from './ai';
 import { openDatabase } from './database';
 import type { SettingsRepository } from './settings';
 import type { WorkRepository } from './work';
 import { wellbeingInstructions } from '../shared/wellbeing';
 
 afterEach(()=>vi.unstubAllGlobals());
+
+it('distinguishes a network rejection from an invalid key during connection checks',async()=>{
+  const provider=new OpenRouterProvider();
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response('{}',{status:403})));
+  await expect(provider.test('synthetic')).rejects.toThrow('запретил запрос из этой сети');
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response('{}',{status:401})));
+  await expect(provider.test('synthetic')).rejects.toBeInstanceOf(OpenRouterAuthenticationError);
+});
 
 describe('structured AI output',()=>{
   it('uses the default account when daily text omits an account and accepts a single wake time',async()=>{

@@ -1,4 +1,6 @@
+import { desktopFetch } from './desktop-fetch';
 import { requireSecureStorage } from './secure-storage';
+import { DeviceAIKeyCache, deviceAIBinding, deviceAIKeySchema } from './device-ai-cache';
 import { app, clipboard, safeStorage } from 'electron';
 import { isStarterFinanceRow } from '../shared/finance-defaults';
 import { createHash } from 'node:crypto';
@@ -30,6 +32,8 @@ function cleanEndpoint(value:string):string {
 }
 
 export class RemoteBackupService {
+  private deviceKeys=new DeviceAIKeyCache();
+  private keyRequests=new Map<string,Promise<string>>();
   private management=new OpenRouterManagement();
   managementStatus(){return this.management.status();}
   async setManagementKey(key:string){if((await this.profile())?.role!=='owner')throw new Error('Выдавать ключи может только владелец.');await this.management.setCredential(key);}
@@ -123,7 +127,20 @@ export class RemoteBackupService {
     if(user.aiKeyHash)await this.management.update(user.aiKeyHash,changes);
     return remoteProfileSchema.parse(JSON.parse(await this.request(this.credentials(),`/v1/users/${encodeURIComponent(id)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(changes)},10000)));
   }
-  async deviceAIKey():Promise<string>{return z.object({key:z.string().regex(/^sk-or-v1-[a-zA-Z0-9_-]{20,480}$/)}).parse(JSON.parse(await this.request(this.credentials(),'/v1/ai/device-key',{method:'GET'},2048))).key;}
+  clearDeviceAIKey():void {this.deviceKeys.clear();}
+  async deviceAIKey():Promise<string>{
+    const settings=this.credentials(),binding=deviceAIBinding(settings.endpoint,settings.token,settings.profileId);
+    const cached=this.deviceKeys.read(binding);if(cached)return cached;
+    const pending=this.keyRequests.get(binding);if(pending)return pending;
+    const request=(async()=>{
+      const key=z.object({key:deviceAIKeySchema}).parse(JSON.parse(await this.request(settings,'/v1/ai/device-key',{method:'GET'},2048))).key;
+      const current=this.credentials();
+      if(binding!==deviceAIBinding(current.endpoint,current.token,current.profileId))throw new Error('Подключение изменилось. Повторите запрос.');
+      this.deviceKeys.save(binding,key);return key;
+    })();
+    this.keyRequests.set(binding,request);
+    try{return await request;}finally{this.keyRequests.delete(binding);}
+  }
 
   async configure(input:z.infer<typeof configSchema>):Promise<RemoteBackupConfig> {
     if(this.inFlight||this.syncInFlight||this.cycleInFlight)throw new Error('Дождитесь завершения текущей синхронизации.');
@@ -142,6 +159,7 @@ export class RemoteBackupService {
     requireSecureStorage();
     z.array(infoSchema).parse(JSON.parse(await this.request(settings,'/v1/backups',{method:'GET'},1_000_000)));
     this.saveCredentials(settings);
+    if(identity.aiMode==='device')void this.deviceAIKey().catch(()=>{/* The first AI request can retry provisioning. */});
     this.syncError=null;
     this.backupError=null;
     this.retryAfter=0;
@@ -170,7 +188,7 @@ export class RemoteBackupService {
     void watchRevisions({...settings,revision:revision=>{
       this.fallbackPolling=false;
       if(revision>(this.credentials().lastSyncedRevision??0)){this.eventRevision=Math.max(this.eventRevision,revision);void this.runSync();}
-    },fallback:()=>{this.fallbackPolling=true;void this.runSync();}},this.events.signal);
+    },fallback:()=>{this.fallbackPolling=true;void this.runSync();}},this.events.signal,desktopFetch);
   }
 
   private async runSync():Promise<void>{
@@ -196,8 +214,8 @@ export class RemoteBackupService {
   private async request(settings:z.infer<typeof configSchema>,path:string,options:RequestInit,limit=32_000_000,timeout=30_000):Promise<string> {
     let response:Response;
     try {
-      response=await fetch(`${settings.endpoint}${path}`,{...options,headers:{Authorization:`Bearer ${settings.token}`,'Cache-Control':'no-store',...options.headers},redirect:'error',signal:AbortSignal.timeout(timeout)});
-    } catch {throw new Error('Не удалось связаться с сервером копий по HTTPS.');}
+      response=await desktopFetch(`${settings.endpoint}${path}`,{...options,headers:{Authorization:`Bearer ${settings.token}`,'Cache-Control':'no-store',...options.headers},redirect:'error',signal:AbortSignal.timeout(timeout)});
+    } catch {throw new Error('Сервер NEXUS недоступен из этой сети.');}
     if(response.status===401||response.status===403)throw new Error('Сервер не принял ключ доступа.');
     if(path==='/v1/state'&&response.status===409)throw new RemoteRevisionConflict();
     if(!response.ok){

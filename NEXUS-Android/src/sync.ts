@@ -6,7 +6,7 @@ import { OfflineSync, RevisionConflict, type Snapshot, type State } from './offl
 import { localStore } from './local-store';
 import { watchRevisions } from '../../NEXUS/src/shared/revision-events';
 export type { Row, Snapshot, State } from './offline-sync';
-interface NativeAI {run(options:Record<string,unknown>):Promise<AIReply>;check(options:Record<string,unknown>):Promise<{configured:boolean}>;}
+interface NativeAI {prepare(options:Record<string,unknown>):Promise<void>;run(options:Record<string,unknown>):Promise<AIReply>;check(options:Record<string,unknown>):Promise<{configured:boolean}>;}
 const nativeAI=registerPlugin<NativeAI>('NexusAI');
 
 import type { Row } from './offline-sync';
@@ -35,6 +35,7 @@ export async function saveConnection(endpoint:string,token:string){
   localStorage.setItem(roleKey,profile.role);
   localStorage.setItem(endpointKey,`${url.origin}${url.pathname.replace(/\/+$/,'')}`);
   localStorage.setItem(tokenKey,token.trim());
+  if(Capacitor.isNativePlatform()&&profile.aiMode==='device')void nativeAI.prepare({...connection()}).catch(()=>{/* Retry provisioning on first AI use. */});
 }
 
 async function request(path:string,options:RequestInit={},timeout=20_000,config=connection()):Promise<Response>{

@@ -18,6 +18,26 @@ import java.util.concurrent.ExecutorService;
 public class NexusAIPlugin extends Plugin {
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
 
+    private static class AuthenticationException extends Exception {
+        AuthenticationException(String message){super(message);}
+    }
+    private String deviceKey(String endpoint,String token) throws Exception {
+        DeviceAIKeyCache cache=new DeviceAIKeyCache(getContext());
+        String binding=DeviceAIKeyCache.binding(endpoint,token),cached=cache.read(binding);
+        if(cached!=null)return cached;
+        JSONObject credentials;
+        try{credentials=request(endpoint+"/v1/ai/device-key",token,null);}
+        catch(java.io.IOException error){throw new Exception("Сервер NEXUS недоступен из этой сети.");}
+        String key=credentials.getString("key");cache.save(binding,key);return key;
+    }
+    @PluginMethod
+    public void prepare(PluginCall call){
+        worker.execute(()->{
+            try{deviceKey(call.getString("endpoint","").replaceAll("/+$",""),call.getString("token",""));call.resolve();}
+            catch(Exception error){call.reject(error.getMessage());}
+        });
+    }
+
     private JSONObject request(String address, String token, JSONObject body) throws Exception {
         URL url=new URL(address);
         if(!"https".equals(url.getProtocol())||url.getUserInfo()!=null)throw new Exception("Нужен безопасный адрес HTTPS.");
@@ -25,7 +45,7 @@ public class NexusAIPlugin extends Plugin {
         conn.setInstanceFollowRedirects(false);
         conn.setConnectTimeout(20000);conn.setReadTimeout(110000);
         conn.setRequestProperty("Authorization","Bearer "+token);
-        conn.setRequestProperty("User-Agent","NEXUS-Android/0.2.6");
+        conn.setRequestProperty("User-Agent","NEXUS-Android/0.2.8");
         conn.setRequestProperty("X-Title","NEXUS");
         try {
             if(body!=null){
@@ -54,6 +74,7 @@ public class NexusAIPlugin extends Plugin {
                 }
                 String description=code==401?"OpenRouter отклонил API-ключ.":code==402?"Не хватает средств на OpenRouter или лимита API-ключа.":code==403?"OpenRouter запретил запрос с этой сети. Проверьте доступ к OpenRouter на телефоне.":code==429?"OpenRouter ограничил запросы. Повторите позже.":code==404?"Выбранная модель OpenRouter недоступна.":code==400?"OpenRouter отклонил параметры выбранной модели.":"OpenRouter ответил с ошибкой "+code+".";
                 // Do not include native headers, key or provider echo in the WebView error.
+                if(code==401)throw new AuthenticationException(description);
                 throw new Exception(description+(code==402||message.isEmpty()?"":" "+message.replace(token,"[скрыто]").substring(0,Math.min(250,message.replace(token,"[скрыто]").length()))));
             }
             return result;
@@ -65,10 +86,10 @@ public class NexusAIPlugin extends Plugin {
         worker.execute(()->{
             try{
                 String endpoint=call.getString("endpoint","").replaceAll("/+$","");
-                JSONObject credentials=request(endpoint+"/v1/ai/device-key",call.getString("token",""),null);
-                request("https://openrouter.ai/api/v1/key",credentials.getString("key"),null);
+                request("https://openrouter.ai/api/v1/key",deviceKey(endpoint,call.getString("token","")),null);
                 JSObject result=new JSObject();result.put("configured",true);call.resolve(result);
-            }catch(java.io.IOException error){call.reject("Нет связи телефона с OpenRouter. Проверьте доступ к сервису из вашей сети.");}
+            }catch(AuthenticationException error){new DeviceAIKeyCache(getContext()).clear();call.reject(error.getMessage());}
+            catch(java.io.IOException error){call.reject("Нет связи телефона с OpenRouter. Проверьте доступ к сервису из вашей сети.");}
             catch(Exception error){call.reject(error.getMessage());}
         });
     }
@@ -79,8 +100,7 @@ public class NexusAIPlugin extends Plugin {
             try{
                 String endpoint=call.getString("endpoint","").replaceAll("/+$","");
                 String serverToken=call.getString("token","");
-                JSONObject credentials=request(endpoint+"/v1/ai/device-key",serverToken,null);
-                String key=credentials.getString("key");
+                String key=deviceKey(endpoint,serverToken);
                 String mode=call.getString("mode","complete");
                 JSONObject body=new JSONObject();body.put("model",call.getString("model",""));
                 String path;
@@ -112,7 +132,8 @@ public class NexusAIPlugin extends Plugin {
                 reply.put("outputTokens",usage!=null&&usage.has(output)?usage.get(output):JSONObject.NULL);
                 reply.put("costMicrousd",usage!=null&&usage.has("cost")&&!usage.isNull("cost")?Math.round(usage.getDouble("cost")*1000000):JSONObject.NULL);
                 call.resolve(reply);
-            }catch(java.net.SocketTimeoutException error){call.reject("OpenRouter не ответил вовремя. Повторите запрос позже.");}
+            }catch(AuthenticationException error){new DeviceAIKeyCache(getContext()).clear();call.reject(error.getMessage());}
+            catch(java.net.SocketTimeoutException error){call.reject("OpenRouter не ответил вовремя. Повторите запрос позже.");}
             catch(java.io.IOException error){call.reject("Телефон не может подключиться к OpenRouter. Проверьте интернет и доступ к сервису из вашей сети.");}
             catch(Exception error){call.reject(error.getMessage()==null?"Не удалось получить ответ OpenRouter.":error.getMessage());}
         });

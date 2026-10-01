@@ -1,3 +1,4 @@
+import { desktopFetch } from './desktop-fetch';
 import { lifeSchema,lifeInstructions,restrictMarkers,coachInstructions,reviewSchema,type CoachReview } from '../shared/life';
 import { z } from 'zod';
 import { journalAnalysisSchema,journalResponseFormat,parseJournalResponse } from '../shared/journal-schema';
@@ -14,35 +15,36 @@ const interviewSchema = z.object({ questions:z.array(z.object({question:z.string
 const vacancyDraftSchema=z.strictObject({title:z.string().trim().min(1).max(500).nullable(),company:z.string().trim().min(1).max(500).nullable(),url:z.string().url().max(2000).nullable(),source:z.string().trim().min(1).max(500).nullable(),city:z.string().trim().min(1).max(500).nullable(),work_mode:z.string().trim().min(1).max(500).nullable(),salary_from:z.number().int().positive().max(1_000_000_000).nullable(),salary_to:z.number().int().positive().max(1_000_000_000).nullable(),currency:z.string().regex(/^[A-Z]{3}$/).nullable()});
 export { analysisSchema, interviewSchema, journalAnalysisSchema, vacancyDraftSchema };
 type Completion = { content:string; requestId:string; inputTokens:number|null; outputTokens:number|null; costMicrousd:number|null };
+export class OpenRouterAuthenticationError extends Error {}
 export interface AIProvider { test(key:string):Promise<boolean>; complete(key:string,model:string,system:string,user:string,structured:boolean,responseFormat?:Record<string,unknown>):Promise<Completion>; transcribe(key:string,model:string,base64:string,format:string):Promise<Completion> }
 async function providerFailure(response:Response,key:string):Promise<Error>{
   let detail='';try{const body=await response.json() as {error?:{message?:unknown}};if(typeof body.error?.message==='string')detail=body.error.message.split(key).join('[скрыто]').replace(/sk-or-v1-[a-zA-Z0-9_-]+/g,'[скрыто]').slice(0,250);}catch{/* Provider may return HTML. */}
   const message=response.status===401?'OpenRouter отклонил API-ключ.':response.status===403?'OpenRouter запретил запрос из этой сети. Проверьте VPN.':response.status===402?'Исчерпан лимит API-ключа OpenRouter или баланс аккаунта.':response.status===404?'Выбранная модель OpenRouter недоступна.':response.status===429?'OpenRouter временно ограничил запросы. Повторите позже.':response.status===400?'OpenRouter отклонил параметры модели.':`OpenRouter: ошибка ${response.status}.`;
-  return new Error(message+(response.status!==402&&detail?' '+detail:''));
+  const description=message+(response.status!==402&&detail?' '+detail:'');
+  return response.status===401?new OpenRouterAuthenticationError(description):new Error(description);
 }
 export class OpenRouterProvider implements AIProvider {
   async test(key:string):Promise<boolean> {
-    const r=await fetch('https://openrouter.ai/api/v1/key',{headers:{Authorization:`Bearer ${key}`},signal:AbortSignal.timeout(15000)});
-    if (r.status===401 || r.status===403) throw new Error('OpenRouter отклонил API-ключ. Проверьте его в настройках.');
-    if (!r.ok) throw new Error('Не удалось проверить подключение к OpenRouter.');
+    const r=await desktopFetch('https://openrouter.ai/api/v1/key',{headers:{Authorization:`Bearer ${key}`},signal:AbortSignal.timeout(15000)});
+    if (!r.ok) throw await providerFailure(r,key);
     return true;
   }
   async complete(key:string,model:string,system:string,user:string,structured:boolean,responseFormat?:Record<string,unknown>):Promise<Completion> {
     const gpt6=/^openai\/gpt-6-(luna|sol|astra)$/.exec(model.trim());
     const generation=gpt6?{max_completion_tokens:6000,reasoning_effort:gpt6[1]==='luna'?'low':'medium'}:{max_tokens:6000,temperature:0.2,...(model==='deepseek/deepseek-v3.2'?{reasoning:{enabled:false}}:{})};
-    const response=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json','X-Title':'NEXUS'},body:JSON.stringify({model,messages:[{role:'system',content:system},{role:'user',content:user}],...generation,stream:false,usage:{include:true},...(structured?{response_format:responseFormat??{type:'json_object'},...(responseFormat?{provider:{require_parameters:true}}:{})}:{})}),signal:AbortSignal.timeout(90000)});
+    const response=await desktopFetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json','X-Title':'NEXUS'},body:JSON.stringify({model,messages:[{role:'system',content:system},{role:'user',content:user}],...generation,stream:false,usage:{include:true},...(structured?{response_format:responseFormat??{type:'json_object'},...(responseFormat?{provider:{require_parameters:true}}:{})}:{})}),signal:AbortSignal.timeout(90000)});
     if (!response.ok) throw await providerFailure(response,key);
     const data=await response.json() as {id?:string;choices?:{message?:{content?:string}}[];usage?:{prompt_tokens?:number;completion_tokens?:number;cost?:number}};
     const content=data.choices?.[0]?.message?.content;
     if (!content) throw new Error('OpenRouter вернул пустой ответ.');
     let cost=data.usage?.cost;
     if (cost == null && data.id) {
-      try { const r=await fetch(`https://openrouter.ai/api/v1/generation?id=${encodeURIComponent(data.id)}`,{headers:{Authorization:`Bearer ${key}`},signal:AbortSignal.timeout(10000)}); if (r.ok) { const g=await r.json() as {data?:{total_cost?:number}}; cost=g.data?.total_cost; } } catch { /* cost stays unknown */ }
+      try { const r=await desktopFetch(`https://openrouter.ai/api/v1/generation?id=${encodeURIComponent(data.id)}`,{headers:{Authorization:`Bearer ${key}`},signal:AbortSignal.timeout(10000)}); if (r.ok) { const g=await r.json() as {data?:{total_cost?:number}}; cost=g.data?.total_cost; } } catch { /* cost stays unknown */ }
     }
     return {content,requestId:data.id??'',inputTokens:data.usage?.prompt_tokens??null,outputTokens:data.usage?.completion_tokens??null,costMicrousd:typeof cost==='number'&&Number.isFinite(cost)?Math.round(cost*1_000_000):null};
   }
   async transcribe(key:string,model:string,base64:string,format:string):Promise<Completion> {
-    const response=await fetch('https://openrouter.ai/api/v1/audio/transcriptions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model,input_audio:{data:base64,format},language:'ru'}),signal:AbortSignal.timeout(90000)});
+    const response=await desktopFetch('https://openrouter.ai/api/v1/audio/transcriptions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model,input_audio:{data:base64,format},language:'ru'}),signal:AbortSignal.timeout(90000)});
     if(!response.ok)throw await providerFailure(response,key);
     const data=await response.json() as {id?:string;text?:string;usage?:{input_tokens?:number;output_tokens?:number;cost?:number}};
     if(!data.text?.trim())throw new Error('Речь не удалось распознать. Попробуйте запись ещё раз.');

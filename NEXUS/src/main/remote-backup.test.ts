@@ -1,3 +1,4 @@
+vi.mock('./desktop-fetch',()=>({desktopFetch:(...args:Parameters<typeof fetch>)=>fetch(...args)}));
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { existsSync,mkdtempSync, rmSync,writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -8,6 +9,7 @@ import { RemoteBackupService } from './remote-backup';
 import { stampRecordChanges } from '../shared/record-clocks';
 import { rowKey,type Snapshot } from '../shared/snapshot-sync';
 import { encryptBackup } from './remote-crypto';
+import { DeviceAIKeyCache,deviceAIBinding } from './device-ai-cache';
 
 const mock=vi.hoisted(()=>({userData:''}));
 vi.mock('electron',()=>({
@@ -32,6 +34,32 @@ afterEach(()=>{
   vi.unstubAllGlobals();
   if(!mock.userData.startsWith(testDirPrefix))throw new Error('Неожиданный путь тестовых данных.');
   rmSync(mock.userData,{recursive:true,force:true});
+});
+
+it('keeps the issued key available across restarts and server outages without mixing access codes',async()=>{
+  const key='sk-or-v1-'+'a'.repeat(64);
+  const fetchMock=vi.fn(async(url:string)=>url.endsWith('/v1/profile')?new Response(JSON.stringify({id:'00000000-0000-4000-8000-000000000001',name:'Friend',role:'guest',active:true})):url.endsWith('/device-key')?new Response(JSON.stringify({key})):new Response('[]'));
+  vi.stubGlobal('fetch',fetchMock);
+  const config={endpoint:'https://example.com/nexus-api',token:'x'.repeat(32),passphrase:''};
+  await service.configure(config);
+  expect(await Promise.all([service.deviceAIKey(),service.deviceAIKey()])).toEqual([key,key]);
+  expect(fetchMock.mock.calls.filter(([url])=>url.endsWith('/device-key'))).toHaveLength(1);
+  fetchMock.mockRejectedValue(new Error('offline'));
+  expect(await new RemoteBackupService(db).deviceAIKey()).toBe(key);
+  service.clearDeviceAIKey();
+  await expect(service.deviceAIKey()).rejects.toThrow('Сервер NEXUS недоступен');
+  fetchMock.mockImplementation(async(url:string)=>url.endsWith('/v1/profile')?new Response(JSON.stringify({id:'00000000-0000-4000-8000-000000000001',name:'Friend',role:'guest',active:true})):url.endsWith('/device-key')?new Response(JSON.stringify({key})):new Response('[]'));
+  await service.deviceAIKey();
+  await service.configure({...config,token:'y'.repeat(32)});
+  fetchMock.mockRejectedValue(new Error('offline'));
+  await expect(service.deviceAIKey()).rejects.toThrow('Сервер NEXUS недоступен');
+});
+
+it('ignores a damaged protected cache and refuses malformed provider keys',()=>{
+  const cache=new DeviceAIKeyCache(),binding=deviceAIBinding('https://example.com','synthetic');
+  writeFileSync(join(mock.userData,'device-ai-key.bin'),'damaged');
+  expect(cache.read(binding)).toBeUndefined();
+  expect(()=>cache.save(binding,'NEXUS-invitation-is-not-an-AI-key')).toThrow();
 });
 
 it('allows a new guest to connect with untouched starter finances',async()=>{

@@ -1,3 +1,4 @@
+vi.mock('./desktop-fetch',()=>({desktopFetch:(...args:Parameters<typeof fetch>)=>fetch(...args)}));
 import { beforeEach,afterEach,expect,it,vi } from 'vitest';
 import { mkdtempSync,rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
