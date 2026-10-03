@@ -1,15 +1,15 @@
 import {knownMetrics} from '../shared/growth';
-import { isPositiveJournalAmount,hasIncompleteSelectedFinance } from '../shared/journal-schema';
+import { journalAnalysisSchema,isPositiveJournalAmount,hasIncompleteSelectedFinance } from '../shared/journal-schema';
 import { DayLifeRepository } from './life';
 import { lifeKeys } from '../shared/life';
 import type { DB } from './database';
 import type { DailyInput, JournalAnalysis, JournalEntry } from '../shared/models';
 import { sleepDuration } from '../shared/domain';
-import { journalAnalysisSchema, AIGateway } from './ai';
+import type { AIGateway } from './ai';
 import { HealthRepository } from './health';
 import { FinanceRepository } from './finance';
 import { WorkRepository } from './work';
-import { SettingsRepository } from './settings';
+import type { SettingsRepository } from './settings';
 
 export class JournalService {
   constructor(private db:DB,private ai:AIGateway,private health:HealthRepository,private finance:FinanceRepository,private work:WorkRepository,private settings?:SettingsRepository,private life=new DayLifeRepository(db)){}
