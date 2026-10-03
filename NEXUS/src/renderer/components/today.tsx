@@ -1,8 +1,10 @@
+import {CareChecks} from './care-ui';
+import {useDaily} from './daily-context';
 import { useState } from 'react';
 import { askConfirm } from '../confirm';
 import type { Habit, HabitLog } from '../../shared/models';
 import type { DayLifeData, DayTask } from '../../shared/life';
-import { displayDay } from '../../shared/domain';
+import { displayDay,localDay } from '../../shared/domain';
 import { useAutoSave } from '../autosave';
 import './today.css';
 
@@ -15,25 +17,26 @@ export function TodayCapture({onOpen}:{onOpen:()=>void}){
 }
 
 export function TodayHabits({habits,onMark,onManage}:{habits:TodayHabit[];onMark:(habit:TodayHabit,value:number,status:HabitLog['status'])=>Promise<void|boolean>;onManage:()=>void}){
+  const {data:dailyData}=useDaily();
   const [changes,setChanges]=useState<Record<number,Mark>>({});
   const {queue,status}=useAutoSave();
-  const items=habits.map(habit=>({...habit,...changes[habit.id]}));
+  const items=habits.map(habit=>{const slots=dailyData.slots.filter(s=>s.active&&s.habit_id===habit.id),done=slots.filter(s=>dailyData.checks.some(c=>c.slot_id===s.id&&c.day===localDay()&&c.done===1)).length;return {...habit,...changes[habit.id],...(slots.length?{value:done===slots.length?habit.target:0,status:done===slots.length?'done' as const:null,careProgress:`${done}/${slots.length}`}:{})};});
   const daily=items.filter(habit=>habit.period==='daily'),weekly=items.filter(habit=>habit.period==='weekly');
   const completed=daily.filter(success),pending=daily.filter(habit=>!success(habit));
   function mark(habit:TodayHabit,value:number,nextStatus:HabitLog['status'],delay=0){
     const patch={value,status:nextStatus};setChanges(previous=>({...previous,[habit.id]:patch}));
     queue.enqueue(`today-habit:${habit.id}`,async()=>{await onMark(habit,value,nextStatus);setChanges(previous=>{if(previous[habit.id]!==patch)return previous;const next={...previous};delete next[habit.id];return next;});},delay);
   }
-  function row(habit:TodayHabit){return <div className={`today-habit ${success(habit)?'complete':''}`} key={habit.id}>
-    <span className="today-habit-name">{habit.name}{habit.format==='duration'&&<small>Цель: {habit.target} мин</small>}{habit.format==='quantity'&&<small>Цель: {habit.target}</small>}</span>
-    <div className="today-habit-actions">
+  function row(habit:TodayHabit&{careProgress?:string}){return <div className={`today-habit ${success(habit)?'complete':''}`} key={habit.id}>
+    <span className="today-habit-name">{habit.name}{habit.careProgress&&<small>{habit.careProgress}</small>}{habit.format==='duration'&&<small>Цель: {habit.target} мин</small>}{habit.format==='quantity'&&<small>Цель: {habit.target}</small>}</span>
+    {habit.careProgress?<CareChecks habitId={habit.id}/>:<div className="today-habit-actions">
       {(habit.format==='quantity'||habit.format==='duration')&&<input className="today-amount" aria-label={`Значение ${habit.name}`} type="number" min="0" value={habit.value??''} placeholder={habit.format==='duration'?'мин':'кол-во'} onChange={event=>{const value=Number(event.target.value);mark(habit,value,event.target.value===''?'skipped':habit.kind==='avoid'?(value===0?'done':'missed'):(value>=habit.target?'done':'missed'),350);}}/>}
       <button className={`today-choice ${success(habit)?'chosen good':''}`} aria-label={`${habit.kind==='avoid'?'Не было':'Сделано'}: ${habit.name}`} aria-pressed={success(habit)} onClick={()=>mark(habit,habit.kind==='avoid'?0:Math.max(1,habit.target),'done')}>{success(habit)&&<span aria-hidden="true">✓ </span>}{habit.kind==='avoid'?'Не было':'Сделано'}</button>
       <button className={`today-choice ${habit.status==='missed'?'chosen bad':''}`} aria-label={`${habit.kind==='avoid'?'Было':'Нет'}: ${habit.name}`} aria-pressed={habit.status==='missed'} onClick={()=>mark(habit,habit.kind==='avoid'?1:0,'missed')}>{habit.kind==='avoid'?'Было':'Нет'}</button>
       {habit.status&&habit.status!=='skipped'&&<button className="today-reset" aria-label={`Сбросить ${habit.name}`} onClick={()=>mark(habit,0,'skipped')}>↺</button>}
-    </div>
+    </div>}
   </div>;}
-  return <section className="today-card today-habits"><header className="today-card-head"><h2>Привычки</h2><span className="today-count">{completed.length} / {daily.length}</span></header>
+  return <section className="today-card today-habits"><header className="today-card-head"><h2>Уход и привычки</h2><span className="today-count">{completed.length} / {daily.length}</span></header>
     {daily.length>0&&<div className="today-progress" aria-label={`Ежедневные привычки: ${completed.length} из ${daily.length}`}><span style={{width:`${completed.length/daily.length*100}%`}}/></div>}
     {pending.slice(0,6).map(row)}
     {pending.length>6&&<details className="today-fold"><summary>Ещё привычки · {pending.length-6}</summary>{pending.slice(6).map(row)}</details>}

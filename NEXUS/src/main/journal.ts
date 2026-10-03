@@ -1,3 +1,4 @@
+import {knownCare} from '../shared/care';
 import {knownMetrics} from '../shared/growth';
 import { journalAnalysisSchema,isPositiveJournalAmount,hasIncompleteSelectedFinance } from '../shared/journal-schema';
 import { DayLifeRepository } from './life';
@@ -35,7 +36,8 @@ export class JournalService {
     const h=this.health.list(),f=this.finance.list(),w=this.work.list();
     const accounts=f.accounts.filter(x=>x.active);
     const preferred=accounts.find(x=>x.id===this.settings?.get().primaryAccountId)??accounts[0];
-    const analysis=await this.ai.analyzeJournal(journal.raw_text,{day:journal.day,dailyMarkers:this.life.list().markers,metrics:knownMetrics(this.life.snapshot()),habits:h.habits.filter(x=>x.active).map(x=>({id:x.id,name:x.name,kind:x.kind})),accounts:accounts.map(x=>({id:x.id,name:x.name})),defaultAccountId:preferred?.id??null,categories:f.categories.filter(x=>x.active&&x.kind==='expense').map(x=>({id:x.id,name:x.name,kind:x.kind})),jobs:w.jobs.map(x=>({id:x.id,title:x.title,company:x.company}))},overrideBudget);
+    const care=knownCare(this.life.snapshot(),journal.day);
+    const analysis=await this.ai.analyzeJournal(journal.raw_text,{care,day:journal.day,dailyMarkers:this.life.list().markers,metrics:knownMetrics(this.life.snapshot()),habits:h.habits.filter(x=>x.active&&!care.some(c=>c.habitId===x.id)).map(x=>({id:x.id,name:x.name,kind:x.kind})),accounts:accounts.map(x=>({id:x.id,name:x.name})),defaultAccountId:preferred?.id??null,categories:f.categories.filter(x=>x.active&&x.kind==='expense').map(x=>({id:x.id,name:x.name,kind:x.kind})),jobs:w.jobs.map(x=>({id:x.id,title:x.title,company:x.company}))},overrideBudget);
     this.db.prepare('UPDATE daily_journals SET analysis_json=?,applied_json=? WHERE id=?').run(JSON.stringify(analysis),'[]',id);
     return this.db.prepare('SELECT * FROM daily_journals WHERE id=?').get(id) as JournalEntry;
   }
@@ -45,7 +47,7 @@ export class JournalService {
     const analysis=journalAnalysisSchema.parse(raw),previous=JSON.parse(entry.analysis_json) as JournalAnalysis;
     const applied=JSON.parse(entry.applied_json) as string[];
     for(const key of applied){
-      const get=(a:JournalAnalysis)=>{if(key==='health.sleep')return [a.health.sleepStart,a.health.sleepEnd];if(key.startsWith('health.habit.'))return a.health.habits.find(x=>x.habitId===Number(key.slice(13)));if(key.startsWith('health.'))return a.health[(( {weight:'weightKg',sleep_start:'sleepStart',sleep_end:'sleepEnd'} as Record<string,string>)[key.slice(7)]??key.slice(7)) as keyof typeof a.health];if(key.startsWith('finance.'))return a.finance[Number(key.slice(8))];if(key.startsWith('work.'))return a.work[Number(key.slice(5))];if(key.startsWith('life.metric.'))return a.life?.metrics?.[Number(key.slice(12))];if(key.startsWith('life.task.'))return a.life?.tasks[Number(key.slice(10))];if(key.startsWith('life.memory.'))return a.life?.memories[Number(key.slice(12))];return a.life?.[key.slice(5) as keyof NonNullable<JournalAnalysis['life']>];};
+      const get=(a:JournalAnalysis)=>{if(key==='health.sleep')return [a.health.sleepStart,a.health.sleepEnd];if(key.startsWith('health.habit.'))return a.health.habits.find(x=>x.habitId===Number(key.slice(13)));if(key.startsWith('health.'))return a.health[(( {weight:'weightKg',sleep_start:'sleepStart',sleep_end:'sleepEnd'} as Record<string,string>)[key.slice(7)]??key.slice(7)) as keyof typeof a.health];if(key.startsWith('finance.'))return a.finance[Number(key.slice(8))];if(key.startsWith('work.'))return a.work[Number(key.slice(5))];if(key.startsWith('life.care.'))return a.life?.care?.[Number(key.slice(10))];if(key.startsWith('life.metric.'))return a.life?.metrics?.[Number(key.slice(12))];if(key.startsWith('life.task.'))return a.life?.tasks[Number(key.slice(10))];if(key.startsWith('life.memory.'))return a.life?.memories[Number(key.slice(12))];return a.life?.[key.slice(5) as keyof NonNullable<JournalAnalysis['life']>];};
       if(JSON.stringify(get(previous))!==JSON.stringify(get(analysis)))throw new Error('Сохранённое предложение нельзя менять в разборе.');
     }
     this.db.prepare('UPDATE daily_journals SET analysis_json=? WHERE id=?').run(JSON.stringify(analysis),id);

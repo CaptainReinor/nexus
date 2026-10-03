@@ -13,6 +13,6 @@ export class DesktopReminders{
   private persist(){writeFileSync(this.file,JSON.stringify({settings:this.settings,sent:[...this.sent].slice(-200)}),'utf8');}
   save(input:ReminderSettings){this.settings=reminderSchema.parse(input);this.persist();this.previous=Date.now();}
   start(){this.timer=setInterval(()=>this.tick(),30_000);}
-  private tick(){const now=Date.now(),start=Math.max(this.previous,now-120_000);this.previous=now;if(!Notification.isSupported()||(!this.settings.tasks&&!this.settings.journal&&!this.settings.weekly&&!this.settings.rules.some(x=>x.enabled)))return;const snapshot=JSON.parse(serializeBackup(this.db)) as Snapshot;const due=reminderPlan(snapshot,this.settings,new Date(start)).filter(x=>x.at<=now&&!this.sent.has(x.id));for(const item of due){const note=new Notification({title:item.title,body:item.body});note.on('click',this.open);note.show();this.sent.add(item.id);}if(due.length)this.persist();}
+  private tick(){const now=Date.now(),start=Math.max(this.previous,now-120_000);this.previous=now;if(!Notification.isSupported())return;const snapshot=JSON.parse(serializeBackup(this.db)) as Snapshot;const due=reminderPlan(snapshot,this.settings,new Date(start)).filter(x=>x.at<=now&&!this.sent.has(x.id));for(const item of due){const note=new Notification({title:item.title,body:item.body});note.on('click',this.open);note.show();this.sent.add(item.id);}if(due.length)this.persist();}
   stop(){if(this.timer)clearInterval(this.timer);this.timer=null;}
 }

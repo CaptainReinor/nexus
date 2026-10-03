@@ -80,3 +80,10 @@ describe('structured AI output',()=>{
     expect(body).not.toHaveProperty('reasoning_effort');
   });
 });
+
+it('sends care slots to the model and drops invented identities without marking the other execution',async()=>{
+ const db=openDatabase(':memory:'),slot='30000000-0000-4000-8000-000000000003';
+ const complete=vi.fn<AIProvider['complete']>().mockResolvedValue({content:JSON.stringify({summary:'Утренний уход',health:{weightKg:null,sleepStart:null,sleepEnd:null,mood:null,energy:null,nutrition:null,workout:null,habits:[{habitId:99,value:1,status:'done',reason:'Всё сразу'}]},finance:[],work:[],uncertain:[],life:{care:[{slotId:slot,done:true},{slotId:'40000000-0000-4000-8000-000000000004',done:true}]}}),requestId:'mock',inputTokens:1,outputTokens:1,costMicrousd:0});
+ const settings={get:()=>({aiEnabled:true,aiBudgetCents:1000,cheapModel:'test/model'}),usedMicrousd:()=>({known:0,unknown:0}),getApiKey:()=> 'synthetic'} as unknown as SettingsRepository;
+ try{const ai=new AIGateway(db,settings,{} as WorkRepository,{complete} as unknown as AIProvider),care=[{id:slot,habitId:99,name:'Уход',label:'Утро',time:'08:00'}];const result=await ai.analyzeJournal('Утром сделал уход',{day:'2026-10-03',care,habits:[],accounts:[],defaultAccountId:null,categories:[],jobs:[]});expect(result.life?.care).toEqual([{slotId:slot,done:true}]);expect(result.health.habits).toEqual([]);expect(complete.mock.calls[0][2]).toContain('Никогда не засчитывай все слоты');expect(JSON.parse(complete.mock.calls[0][3]).known.care).toEqual(care);}finally{db.close();}
+});

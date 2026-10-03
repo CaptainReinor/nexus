@@ -1,3 +1,4 @@
+import {dailyTables} from '../shared/daily-core';
 import Database from 'better-sqlite3';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -6,12 +7,12 @@ import { randomInt } from 'node:crypto';
 import { defaultDebit, defaultCategories } from '../shared/finance-defaults';
 
 export type DB = Database.Database;
-export const schemaVersion = 10;
+export const schemaVersion = 11;
 export const backupTables = [
   'settings','habits','habit_logs','health_daily_entries','weight_entries','workouts',
   'finance_accounts','finance_categories','finance_transactions','finance_budgets',
   'jobs','job_status_history','experience_entries','experience_cases','job_experience_links','job_ai_analyses','ai_usage','daily_journals','investment_accounts','investment_entries','day_details','day_tasks','day_memories','assistant_reviews',
-  'financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries','weekly_plan_tasks'
+  'financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries','weekly_plan_tasks',...dailyTables
 ] as const;
 
 const migrations: string[] = [
@@ -89,7 +90,22 @@ const migrations: string[] = [
   INSERT INTO weekly_plan_tasks (id,plan_id,task_id) SELECT task_id,id,task_id FROM weekly_plans WHERE task_id IN (SELECT id FROM day_tasks);
   `,
   `ALTER TABLE finance_transactions ADD COLUMN created_at TEXT NOT NULL DEFAULT '';
-  CREATE INDEX idx_transactions_created ON finance_transactions(created_at DESC);`
+  CREATE INDEX idx_transactions_created ON finance_transactions(created_at DESC);`,
+  `
+  CREATE TABLE habit_preferences(id INTEGER PRIMARY KEY REFERENCES habits(id),role TEXT NOT NULL CHECK(role IN ('habit','care')),updated_at TEXT NOT NULL);
+  CREATE TABLE care_slots(id TEXT PRIMARY KEY,habit_id INTEGER NOT NULL REFERENCES habits(id),label TEXT NOT NULL,time TEXT NOT NULL,notify INTEGER NOT NULL,active INTEGER NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+  CREATE TABLE care_checks(id TEXT PRIMARY KEY,slot_id TEXT NOT NULL REFERENCES care_slots(id),day TEXT NOT NULL,done INTEGER NOT NULL,updated_at TEXT NOT NULL,UNIQUE(slot_id,day));
+  CREATE TABLE routines(id TEXT PRIMARY KEY,steps_json TEXT NOT NULL,updated_at TEXT NOT NULL);
+  CREATE TABLE scheduled_payments(id TEXT PRIMARY KEY,name TEXT NOT NULL,amount_cents INTEGER NOT NULL CHECK(amount_cents>0),account_id INTEGER NOT NULL REFERENCES finance_accounts(id),category_id INTEGER NOT NULL REFERENCES finance_categories(id),cadence TEXT NOT NULL,start_day TEXT NOT NULL,active INTEGER NOT NULL,updated_at TEXT NOT NULL);
+  CREATE TABLE payment_occurrences(id TEXT PRIMARY KEY,payment_id TEXT NOT NULL REFERENCES scheduled_payments(id),due_day TEXT NOT NULL,amount_cents INTEGER NOT NULL CHECK(amount_cents>0),account_id INTEGER NOT NULL REFERENCES finance_accounts(id),category_id INTEGER NOT NULL REFERENCES finance_categories(id),status TEXT NOT NULL,transaction_id INTEGER,updated_at TEXT NOT NULL,UNIQUE(payment_id,due_day));
+  CREATE TABLE experiments(id TEXT PRIMARY KEY,title TEXT NOT NULL,rule TEXT NOT NULL,start_day TEXT NOT NULL,duration INTEGER NOT NULL,active INTEGER NOT NULL,updated_at TEXT NOT NULL);
+  CREATE TABLE experiment_logs(id TEXT PRIMARY KEY,experiment_id TEXT NOT NULL REFERENCES experiments(id),day TEXT NOT NULL,done INTEGER NOT NULL,updated_at TEXT NOT NULL,UNIQUE(experiment_id,day));
+  CREATE TABLE focus_sessions(id TEXT PRIMARY KEY,title TEXT NOT NULL,task_id TEXT,mode TEXT NOT NULL,target_seconds INTEGER NOT NULL,day TEXT NOT NULL,state TEXT NOT NULL,elapsed_seconds INTEGER NOT NULL,started_at TEXT NOT NULL,resumed_at TEXT,ended_at TEXT,updated_at TEXT NOT NULL);
+  CREATE TABLE evening_answers(id TEXT PRIMARY KEY,day TEXT NOT NULL UNIQUE,question TEXT NOT NULL,answer TEXT NOT NULL,skipped INTEGER NOT NULL,updated_at TEXT NOT NULL);
+  CREATE INDEX idx_care_checks_day ON care_checks(day);
+  CREATE INDEX idx_payments_due ON payment_occurrences(status,due_day);
+  CREATE INDEX idx_focus_day ON focus_sessions(day);
+`
 ];
 
 const starterDatabases=new WeakSet<DB>();
@@ -125,7 +141,7 @@ export function serializeBackup(db: DB): string {
 export function exportBackup(db: DB, path: string): void {writeFileSync(path,serializeBackup(db),'utf8');}
 export function importBackupText(db: DB, content: string): void {
   const parsed = backupSchema.parse(JSON.parse(content));
-  for (const table of backupTables) if (!Array.isArray(parsed.tables[table])) {if((table==='weekly_plan_tasks'&&parsed.version<9)||(['financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries'].includes(table)&&parsed.version<8)||(table==='daily_journals'&&parsed.version<3)||(table.startsWith('investment_')&&parsed.version<5)||(['day_details','day_tasks','day_memories','assistant_reviews'].includes(table)&&parsed.version<6))parsed.tables[table]=[];else throw new Error(`В копии отсутствует таблица ${table}.`);}
+  for (const table of backupTables) if (!Array.isArray(parsed.tables[table])) {if((dailyTables.some(t=>t===table)&&parsed.version<11)||(table==='weekly_plan_tasks'&&parsed.version<9)||(['financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries'].includes(table)&&parsed.version<8)||(table==='daily_journals'&&parsed.version<3)||(table.startsWith('investment_')&&parsed.version<5)||(['day_details','day_tasks','day_memories','assistant_reviews'].includes(table)&&parsed.version<6))parsed.tables[table]=[];else throw new Error(`В копии отсутствует таблица ${table}.`);}
   const allowed = new Map<string,Set<string>>();
   for (const table of backupTables) allowed.set(table,new Set((db.pragma(`table_info(${table})`) as {name:string}[]).map(c=>c.name)));
   db.transaction(()=>{

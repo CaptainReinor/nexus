@@ -4,7 +4,7 @@ import { readRecordClocks,recordKey,recordTime,fingerprint,writeRecordClocks } f
 // Reuse the server identity and keep all child records attached to that identity.
 export function alignNewParents(base:Snapshot,input:Snapshot,remote:Snapshot,keyOf:(table:string,row:Row)=>string):Snapshot{
   const local=structuredClone(input),original=readRecordClocks(input),clocks={...original};
-  const groups=[{table:'finance_accounts',fields:['name'],children:[['finance_transactions','account_id'],['finance_transactions','target_account_id']]},{table:'finance_categories',fields:['name','kind'],children:[['finance_transactions','category_id']]},{table:'investment_accounts',fields:['name'],children:[['investment_entries','account_id']]}];
+  const groups=[{table:'finance_accounts',fields:['name'],children:[['finance_transactions','account_id'],['finance_transactions','target_account_id'],['scheduled_payments','account_id'],['payment_occurrences','account_id']]},{table:'finance_categories',fields:['name','kind'],children:[['finance_transactions','category_id'],['scheduled_payments','category_id'],['payment_occurrences','category_id']]},{table:'investment_accounts',fields:['name'],children:[['investment_entries','account_id']]}];
   for(const group of groups){
     const known=new Set((base.tables[group.table]??[]).map(x=>x.id));
     for(const row of local.tables[group.table]??[]){

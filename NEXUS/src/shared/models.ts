@@ -1,4 +1,5 @@
 import type { LifeSuggestions,DayLifeData,DetailPatch,Marker,CoachReview } from './life';
+import type {DailyAPI} from './daily';
 export type HabitKind = 'positive' | 'avoid';
 export type HabitFormat = 'boolean' | 'quantity' | 'duration' | 'avoidance';
 export type Habit = { id: number; name: string; description: string; kind: HabitKind; format: HabitFormat; target: number; period: 'daily' | 'weekly'; active: number; sort_order: number; created_at: string };
@@ -44,6 +45,7 @@ export type JournalEntry = {id:number;day:string;raw_text:string;source:'text'|'
 export type JobInput = Omit<Job,'id'|'created_at'|'updated_at'>;
 export type VacancyDraft = { title:string|null;company:string|null;url:string|null;source:string|null;city:string|null;work_mode:string|null;salary_from:number|null;salary_to:number|null;currency:string|null };
 export interface NexusAPI {
+  daily:DailyAPI;
   growth:import('./growth').GrowthAPI;
   reminders:import('./reminders').ReminderAPI;
   updates:import('./updates').UpdateAPI;

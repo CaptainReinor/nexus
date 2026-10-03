@@ -1,3 +1,5 @@
+import {ensureDaily} from '../../NEXUS/src/shared/daily-core';
+import {materializePayments} from '../../NEXUS/src/shared/payments';
 import {ensureFinanceOrder} from '../../NEXUS/src/shared/finance-order';
 import {ensureGrowth,materializeRepeats} from '../../NEXUS/src/shared/growth';
 import { mergeSnapshots,normalizeSleep,rowKey,sameSnapshot,type Snapshot,type State,type LocalEnvelope,type Conflict,type SyncStatus } from '../../NEXUS/src/shared/snapshot-sync';
@@ -46,7 +48,7 @@ export class OfflineSync {
     if(!this.ready||!this.local)throw new Error('Сначала загрузите данные с компьютера.');
     const next=structuredClone(this.local);change(next);
     for(const table of ['day_details','day_tasks','day_memories','assistant_reviews'])next.tables[table]??=[];
-    ensureGrowth(next);ensureFinanceOrder(next);materializeRepeats(next);
+    ensureGrowth(next);ensureFinanceOrder(next);ensureDaily(next);materializeRepeats(next);materializePayments(next);
     if(sameSnapshot(next,this.local)&&this.status!=='storage-error')return;
     next.tables.daily_journals=[...(next.tables.daily_journals??[])].sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))||Number(b.id)-Number(a.id)).slice(0,3);
     stampRecordChanges(this.local,next,rowKey);

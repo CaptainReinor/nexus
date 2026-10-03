@@ -1,8 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { NexusAPI } from '../shared/models';
 
-const call=(channel:string,payload?:unknown)=>ipcRenderer.invoke(channel,payload);
+const call=async(channel:string,payload?:unknown)=>{const result=await ipcRenderer.invoke(channel,payload);if(/^(health:(saveHabit|moveHabit|saveDay|saveDayField|saveHabitLog|archiveHabit)|finance:(saveAccount|saveCategory|deleteCategory|saveTransaction|deleteTransaction)|journal:(save|update|apply)|life:(task|remove))$/.test(channel))window.dispatchEvent(new Event('nexus:daily-change'));return result;};
 const api: NexusAPI = {
+  daily:{list:()=>call('daily:list'),careConfig:x=>call('daily:careConfig',x),careMark:x=>call('daily:careMark',x),routine:x=>call('daily:routine',x),routineEntry:x=>call('daily:routineEntry',x),payment:x=>call('daily:payment',x),paymentAction:x=>call('daily:paymentAction',x),experiment:x=>call('daily:experiment',x),experimentMark:x=>call('daily:experimentMark',x),focus:x=>call('daily:focus',x),reflection:x=>call('daily:reflection',x)},
   growth:{insights:(start,end)=>call('growth:insights',{start,end}),list:()=>call('growth:list'),goal:input=>call('growth:goal',input),plan:input=>call('growth:plan',input),repeat:input=>call('growth:repeat',input),metric:input=>call('growth:metric',input),entry:input=>call('growth:entry',input),removePlan:id=>call('growth:removePlan',id)},
   reminders:{get:()=>call('reminders:get'),save:input=>call('reminders:save',input),permission:()=>call('reminders:permission')},
   updates:{status:()=>call('updates:status'),check:()=>call('updates:check'),download:()=>call('updates:download'),install:()=>call('updates:install')},

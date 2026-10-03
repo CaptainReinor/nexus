@@ -1,3 +1,4 @@
+import {ReflectionPanel} from '../../NEXUS/src/renderer/components/daily-ui';
 import { hasIncompleteSelectedFinance } from '../../NEXUS/src/shared/journal-schema';
 import { journalTimestamp } from '../../NEXUS/src/shared/life';
 import { JournalReview } from '../../NEXUS/src/renderer/components/journal-review';
@@ -71,7 +72,7 @@ export function JournalPage({snapshot,commit,commitLatest}:Props){
   function editReview(value:JournalAnalysis){if(!analysis)return;const id=analysis.entryId;setAnalysis({entryId:id,value});void commit(s=>{const current=rows(s,'daily_journals').find(x=>x.id===id);if(current)current.analysis_json=JSON.stringify(value);});}
   return <>
     <div className="heading"><small>05 / ДНЕВНИК</small><h1>Дневник</h1><p>Расскажите о дне. AI предложит изменения, а вы выберете нужные.</p></div>
-    <section className="card"><h2>Запись дня</h2>
+    <ReflectionPanel/><section className="card"><h2>Запись дня</h2>
       <label>Дата<input type="date" value={day} onChange={e=>setDay(e.target.value)}/></label>
       <label>Что произошло<textarea rows={7} value={draft} onChange={e=>{setDraft(e.target.value);setAnalysis(null);}} placeholder="Встал в 8 утра. Потратил 5000 рублей на еду…"/></label>
       <div className="actions journal-actions"><button disabled={!draft.trim()||!!busy} onClick={()=>void analyze()}>{busy==='analyze'?'Разбираю…':'Разобрать с AI'}</button><button className="ghost" disabled={!draft.trim()||!!busy} onClick={()=>void saveDraft()}>Сохранить текст</button></div>

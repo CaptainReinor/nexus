@@ -1,16 +1,16 @@
 import type { DB } from './database';
-import { serializeBackup } from './database';
+import { schemaVersion,serializeBackup } from './database';
 import type { Snapshot } from '../shared/snapshot-sync';
 import { applyLife,lifeData,patchDay,updateTask,saveMemory,saveReview,coachFacts,type DayLifeData,type DetailPatch,type LifeSuggestions,type CoachReview,type Marker } from '../shared/life';
 
 export class DayLifeRepository {
   constructor(private db:DB){}
   snapshot():Snapshot{return JSON.parse(serializeBackup(this.db)) as Snapshot;}
-  private lifeSnapshot():Snapshot{return {format:'nexus-backup',version:9,exportedAt:new Date().toISOString(),tables:Object.fromEntries(['day_details','day_tasks','day_memories','assistant_reviews','settings','custom_metrics','metric_entries','weekly_plans','weekly_plan_tasks'].map(table=>[table,this.db.prepare(`SELECT * FROM ${table}`).all() as Record<string,unknown>[]]))};}
+  private lifeSnapshot():Snapshot{return {format:'nexus-backup',version:schemaVersion,exportedAt:new Date().toISOString(),tables:Object.fromEntries(['habits','habit_logs','habit_preferences','care_slots','care_checks','day_details','day_tasks','day_memories','assistant_reviews','settings','custom_metrics','metric_entries','weekly_plans','weekly_plan_tasks'].map(table=>[table,this.db.prepare(`SELECT * FROM ${table}`).all() as Record<string,unknown>[]]))};}
   list():DayLifeData{return lifeData(this.lifeSnapshot());}
   private change(fn:(snapshot:Snapshot)=>void):void{
     const before=this.lifeSnapshot(),snapshot=structuredClone(before);fn(snapshot);
-    this.db.transaction(()=>{for(const table of ['day_details','day_tasks','day_memories','assistant_reviews','metric_entries','weekly_plans']){
+    this.db.transaction(()=>{for(const table of ['care_checks','habit_logs','day_details','day_tasks','day_memories','assistant_reviews','metric_entries','weekly_plans']){
       const primary=table==='day_details'?'day':'id',remaining=new Set(snapshot.tables[table].map(r=>r[primary]));
       for(const row of before.tables[table])if(!remaining.has(row[primary]))this.db.prepare(`DELETE FROM ${table} WHERE ${primary}=?`).run(String(row[primary]));
       for(const row of snapshot.tables[table]){const old=before.tables[table].find(r=>r[primary]===row[primary]);if(old&&JSON.stringify(old)===JSON.stringify(row))continue;const keys=Object.keys(row);this.db.prepare(`INSERT INTO ${table} (${keys.map(k=>`"${k}"`).join(',')}) VALUES (${keys.map(()=>'?').join(',')}) ON CONFLICT(${primary}) DO UPDATE SET ${keys.filter(k=>k!==primary).map(k=>`"${k}"=excluded."${k}"`).join(',')}`).run(...keys.map(k=>row[k] as string|number|null));}

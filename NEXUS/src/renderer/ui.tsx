@@ -11,7 +11,7 @@ export function errorText(error: unknown): string {
 export function useData<T>(loader:()=>Promise<T>): {data:T|null;loading:boolean;error:string;reload:()=>Promise<void>} {
   const [data,setData]=useState<T|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
   const reload=useCallback(async()=>{setLoading(true);setError('');try{setData(await loader());}catch(e){setError(errorText(e));}finally{setLoading(false);}},[loader]);
-  useEffect(()=>{void reload();},[reload]);
+  useEffect(()=>{void reload();const refresh=()=>void reload();window.addEventListener('nexus:daily-change',refresh);return()=>window.removeEventListener('nexus:daily-change',refresh);},[reload]);
   return {data,loading,error,reload};
 }
 export function Panel({title,eyebrow,action,children,className=''}:{title?:string;eyebrow?:string;action?:ReactNode;children:ReactNode;className?:string}) { return <section className={`panel ${className}`}><div className="panel-head"><div>{eyebrow&&<div className="eyebrow">{eyebrow}</div>}{title&&<h2>{title}</h2>}</div>{action}</div>{children}</section>; }

@@ -1,3 +1,10 @@
+import {DailyRepository} from './daily';
+import {careConfigSchema,careMarkSchema} from '../shared/care';
+import {routineSchema,routineEntrySchema} from '../shared/routines';
+import {paymentSchema,paymentActionSchema} from '../shared/payments';
+import {experimentSchema,experimentMarkSchema} from '../shared/experiments';
+import {focusSchema} from '../shared/focus';
+import {reflectionSchema} from '../shared/reflection';
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -29,7 +36,7 @@ app.commandLine.appendSwitch('lang','ru');
 
 let window: BrowserWindow | null = null;
 let notifyLocalChange=()=>{};
-const changes=/^(?:growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|changeStatus|linkCase)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
+const changes=/^(?:daily:(?:careConfig|careMark|routine|routineEntry|payment|paymentAction|experiment|experimentMark|focus|reflection)|growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|changeStatus|linkCase)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
 const id=z.number().int().positive();
 const day=z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const text=z.string().max(100000);
@@ -99,6 +106,18 @@ void app.whenReady().then(()=>{
   handle('data:setBackupPassphrase',z.string().min(16).max(256),passphrase=>remoteBackup.setBackupPassphrase(passphrase));
   handle('accounts:create',z.object({name:z.string().trim().min(1).max(80),monthlyLimitCents:z.number().int().min(0).max(10000)}).strict(),input=>remoteBackup.createUser(input));
   handle('accounts:update',z.object({id:z.string().uuid(),active:z.boolean().optional(),monthlyLimitCents:z.number().int().min(0).max(10000).optional()}).strict(),input=>remoteBackup.updateUser(input));
+  const daily=new DailyRepository(db);
+  handle('daily:list',z.undefined(),()=>{if(daily.materialize())notifyLocalChange();return daily.list();});
+  handle('daily:careConfig',careConfigSchema,input=>daily.careConfig(input));
+  handle('daily:careMark',careMarkSchema,input=>daily.careMark(input));
+  handle('daily:routine',routineSchema,input=>daily.routine(input));
+  handle('daily:routineEntry',routineEntrySchema,input=>daily.routineEntry(input));
+  handle('daily:payment',paymentSchema,input=>daily.payment(input));
+  handle('daily:paymentAction',paymentActionSchema,input=>daily.paymentAction(input));
+  handle('daily:experiment',experimentSchema,input=>daily.experiment(input));
+  handle('daily:experimentMark',experimentMarkSchema,input=>daily.experimentMark(input));
+  handle('daily:focus',focusSchema,input=>daily.focus(input));
+  handle('daily:reflection',reflectionSchema,input=>daily.reflection(input));
   const growth=new GrowthRepository(db);
   handle('growth:insights',z.object({start:day,end:day}).refine(x=>x.start<=x.end),input=>growth.insights(input.start,input.end));
   handle('growth:list',z.undefined(),async()=>{if(growth.materialize())notifyLocalChange();return growth.list();});

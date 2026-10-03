@@ -6,7 +6,7 @@ import { toCents,toSignedCents } from './domain';
 it('loads current mobile journal data and rejects unsupported versions and invalid revisions',()=>{
   const state={revision:3,snapshot:{format:'nexus-backup',version:6,exportedAt:'2026-09-30T10:00:00Z',tables:{day_details:[{day:'2026-09-30',appetite:'high'}]}}};
   expect(syncStateSchema.parse(state)).toEqual(state);
-  expect(()=>syncStateSchema.parse({...state,snapshot:{...state.snapshot,version:11}})).toThrow();
+  expect(()=>syncStateSchema.parse({...state,snapshot:{...state.snapshot,version:12}})).toThrow();
   expect(()=>syncStateSchema.parse({...state,revision:0.5})).toThrow();
 });
 it('groups money and salaries without changing their numeric value',()=>{

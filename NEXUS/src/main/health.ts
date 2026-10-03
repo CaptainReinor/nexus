@@ -19,6 +19,7 @@ export class HealthRepository {
     };
   }
   saveHabit(input: Omit<Habit,'id'|'created_at'|'sort_order'> & {id?: number}): void {
+    if(input.id&&this.db.prepare('SELECT 1 FROM care_slots WHERE habit_id=? AND active=1').get(input.id)&&(input.period!=='daily'||input.kind!=='positive'||input.format!=='boolean'))throw new Error('Сначала уберите отдельные выполнения этого пункта.');
     if (input.id) this.db.prepare('UPDATE habits SET name=?,description=?,kind=?,format=?,target=?,period=?,active=? WHERE id=?').run(input.name,input.description,input.kind,input.format,input.target,input.period,input.active,input.id);
     else this.db.prepare('INSERT INTO habits(id,name,description,kind,format,target,period,active,sort_order,created_at) VALUES (nexus_id(),?,?,?,?,?,?,?,?,?)').run(input.name,input.description,input.kind,input.format,input.target,input.period,input.active,(this.db.prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM habits').get() as {next:number}).next,new Date().toISOString());
   }
@@ -42,6 +43,7 @@ export class HealthRepository {
   }
   archiveHabit(id: number): void { this.db.prepare('UPDATE habits SET active=0 WHERE id=?').run(id); }
   saveHabitLog(input:HabitLogInput): void {
+    if(this.db.prepare('SELECT 1 FROM care_slots WHERE habit_id=? AND active=1 AND substr(created_at,1,10)<=?').get(input.habit_id,input.day))throw new Error('Отметьте отдельные выполнения этого пункта.');
     this.db.prepare(`INSERT INTO habit_logs(id,habit_id,day,value,status,comment) VALUES (nexus_id(),@habit_id,@day,@value,@status,@comment)
       ON CONFLICT(habit_id,day) DO UPDATE SET value=excluded.value,status=excluded.status,comment=excluded.comment`).run(input);
   }
@@ -69,7 +71,7 @@ export class HealthRepository {
       ON CONFLICT(day) DO UPDATE SET sleep_start=excluded.sleep_start,sleep_end=excluded.sleep_end,sleep_minutes=excluded.sleep_minutes,mood=excluded.mood,energy=excluded.energy,nutrition=excluded.nutrition,comment=excluded.comment`).run({ day:input.day,sleep_start:input.sleep_start??null,sleep_end:input.sleep_end??null,sleep_minutes:input.sleep_minutes??null,mood:input.mood??null,energy:input.energy??null,nutrition:input.nutrition??null,comment:input.comment??'' });
       if (input.weight != null) this.db.prepare('INSERT INTO weight_entries(id,day,weight_kg) VALUES (nexus_id(),?,?) ON CONFLICT(day) DO UPDATE SET weight_kg=excluded.weight_kg').run(input.day,input.weight);
       if (input.workout) this.db.prepare('INSERT INTO workouts(id,day,done,type,minutes,comment) VALUES (nexus_id(),?,?,?,?,?) ON CONFLICT(day) DO UPDATE SET done=excluded.done,type=excluded.type,minutes=excluded.minutes,comment=excluded.comment').run(input.day,Number(input.workout.done),input.workout.type,input.workout.minutes,input.workout.comment);
-      for (const log of input.logs) this.db.prepare(`INSERT INTO habit_logs(id,habit_id,day,value,status,comment) VALUES (nexus_id(),?,?,?,?,?) ON CONFLICT(habit_id,day) DO UPDATE SET value=excluded.value,status=excluded.status,comment=excluded.comment`).run(log.habit_id,input.day,log.value,log.status,log.comment);
+      for (const log of input.logs.filter(log=>!this.db.prepare('SELECT 1 FROM care_slots WHERE habit_id=? AND active=1 AND substr(created_at,1,10)<=?').get(log.habit_id,input.day))) this.db.prepare(`INSERT INTO habit_logs(id,habit_id,day,value,status,comment) VALUES (nexus_id(),?,?,?,?,?) ON CONFLICT(habit_id,day) DO UPDATE SET value=excluded.value,status=excluded.status,comment=excluded.comment`).run(log.habit_id,input.day,log.value,log.status,log.comment);
     })();
   }
 }
