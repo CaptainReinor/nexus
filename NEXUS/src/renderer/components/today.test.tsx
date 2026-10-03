@@ -2,6 +2,8 @@ import { afterEach,expect,it,vi } from 'vitest';
 import { cleanup,fireEvent,render,screen,waitFor } from '@testing-library/react';
 import { TodayHabits,TodayTasks,type TodayHabit } from './today';
 import type { DayLifeData } from '../../shared/life';
+import { askConfirm } from '../confirm';
+vi.mock('../confirm',()=>({askConfirm:vi.fn(async()=>true)}));
 
 afterEach(cleanup);
 const habit:TodayHabit={id:1,name:'Фастфуд',kind:'avoid',format:'avoidance',period:'daily',target:0,value:null,status:null};
@@ -35,9 +37,20 @@ it('shows due and overdue tasks and sends only editable fields when completing o
   const task={id:'today',title:'Позвонить',day:'2026-10-01',due_day:'2026-10-01',status:'open' as const,created_at:'2026-10-01T08:00:00',updated_at:'2026-10-01T08:00:00'};
   const data:DayLifeData={details:[],memories:[],reviews:[],markers:[],tasks:[task,{...task,id:'future',title:'Завтра',due_day:'2026-10-02'},{...task,id:'overdue',title:'Вчера',due_day:'2026-09-30'}]};
   const save=vi.fn(async()=>{});
-  render(<TodayTasks data={data} day="2026-10-01" onTask={save} onMore={()=>{}}/>);
+  render(<TodayTasks data={data} day="2026-10-01" onTask={save} onRemove={async()=>{}} onMore={()=>{}}/>);
   expect(screen.queryByText('Завтра')).toBeNull();
   expect(screen.getByText('Вчера')).toBeTruthy();
   fireEvent.click(screen.getByRole('button',{name:'Выполнить: Позвонить'}));
   await waitFor(()=>expect(save).toHaveBeenCalledWith({id:'today',title:'Позвонить',day:'2026-10-01',due_day:'2026-10-01',status:'done'}));
+});
+it('moves an open or completed task without resetting its status and removes it only after confirmation',async()=>{
+  const task={id:'task',title:'Позвонить',day:'2026-10-01',due_day:'2026-10-03',status:'open' as const,created_at:'2026-10-01T08:00:00',updated_at:'2026-10-01T08:00:00'};
+  const data:DayLifeData={details:[],memories:[],reviews:[],markers:[],tasks:[task]};const save=vi.fn(async()=>{}),remove=vi.fn(async()=>{});
+  const view=render(<TodayTasks data={data} day="2026-10-03" onTask={save} onRemove={remove} onMore={()=>{}}/>);
+  fireEvent.click(screen.getByRole('button',{name:'Действия: Позвонить'}));fireEvent.change(screen.getByLabelText('Перенести: Позвонить'),{target:{value:'2026-10-05'}});fireEvent.click(screen.getByRole('button',{name:'Перенести'}));
+  await waitFor(()=>expect(save).toHaveBeenCalledWith({id:'task',title:'Позвонить',day:'2026-10-01',due_day:'2026-10-05',status:'open'}));
+  view.rerender(<TodayTasks data={{...data,tasks:[{...task,status:'done'}]}} day="2026-10-03" onTask={save} onRemove={remove} onMore={()=>{}}/>);
+  fireEvent.click(screen.getByText('Сделано · 1'));fireEvent.click(screen.getByRole('button',{name:'Действия: Позвонить'}));
+  vi.mocked(askConfirm).mockResolvedValueOnce(false);fireEvent.click(screen.getByRole('button',{name:'Удалить'}));await waitFor(()=>expect(askConfirm).toHaveBeenCalled());expect(remove).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button',{name:'Удалить'}));await waitFor(()=>expect(remove).toHaveBeenCalledWith('task'));
 });

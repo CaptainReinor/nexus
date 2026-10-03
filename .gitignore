@@ -48,3 +48,4 @@ NEXUS-Android/android/app/capacitor.build.gradle
 *.AppImage
 *.AppImage.config/
 *.AppImage.home/
+.npm-cache/

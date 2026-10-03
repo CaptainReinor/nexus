@@ -18,6 +18,7 @@ import { ProfileAIProvider } from './profile-ai';
 import { habitDueToday, localDay } from '../shared/domain';
 import { dailyHabitSummary } from '../shared/weekly';
 import { WeeklySummaryService } from './weekly';
+import { DesktopUpdates } from './updates';
 import type { DashboardData } from '../shared/models';
 
 app.commandLine.appendSwitch('lang','ru');
@@ -76,6 +77,11 @@ void app.whenReady().then(()=>{
   Menu.setApplicationMenu(null);
   const dbPath=join(app.getPath('userData'),'nexus.sqlite');
   const db=openDatabase(dbPath,{seedFinance:true});
+  const updates=new DesktopUpdates(async()=>{await db.backup(join(app.getPath('userData'),'before-update.sqlite'));});
+  handle('updates:status',z.undefined(),()=>updates.status());
+  handle('updates:check',z.undefined(),()=>updates.check());
+  handle('updates:download',z.undefined(),()=>updates.download());
+  handle('updates:install',z.undefined(),()=>updates.install());
   const remoteBackup=new RemoteBackupService(db,()=>window?.webContents.reload());
   const settings=new SettingsRepository(db,dbPath,()=>remoteBackup.isGuest()),health=new HealthRepository(db),finance=new FinanceRepository(db,()=>settings.get().firstDayOfWeek),work=new WorkRepository(db,()=>settings.get().firstDayOfWeek),ai=new AIGateway(db,settings,work,new ProfileAIProvider(remoteBackup),()=>!remoteBackup.isGuest()&&settings.get().hasApiKey?settings.getApiKey():''),journal=new JournalService(db,ai,health,finance,work,settings);
   handle('profiles:list',z.undefined(),()=>profiles.list());
@@ -125,6 +131,7 @@ void app.whenReady().then(()=>{
   handle('finance:saveCategory',z.object({id:id.optional(),name:nonEmpty,kind:z.enum(['expense','income']),active:boolInt}),input=>finance.saveCategory(input));
   handle('finance:saveTransaction',transactionSchema,input=>finance.saveTransaction(input));
   handle('finance:deleteTransaction',id,input=>finance.deleteTransaction(input));
+  handle('finance:deleteCategory',id,input=>finance.deleteCategory(input));
   handle('finance:setBudget',z.object({month:z.string().regex(/^\d{4}-\d{2}$/),amount_cents:z.number().int().nonnegative().safe()}),input=>finance.setBudget(input));
   handle('work:list',z.undefined(),()=>work.list());
   handle('work:saveJob',jobSchema,input=>work.saveJob(input));

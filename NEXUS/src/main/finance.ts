@@ -52,5 +52,10 @@ export class FinanceRepository {
     const result=this.db.prepare('DELETE FROM finance_transactions WHERE id=?').run(id);
     if(result.changes!==1)throw new Error('Операция уже удалена или не найдена.');
   }
+  deleteCategory(id:number):void {
+    // Retain the name and references in old operations and synchronized snapshots.
+    const result=this.db.prepare('UPDATE finance_categories SET active=0 WHERE id=?').run(id);
+    if(result.changes!==1)throw new Error('Категория не найдена.');
+  }
   setBudget(input: Budget): void { this.db.prepare('INSERT INTO finance_budgets(month,amount_cents) VALUES (?,?) ON CONFLICT(month) DO UPDATE SET amount_cents=excluded.amount_cents').run(input.month,input.amount_cents); }
 }

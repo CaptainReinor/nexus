@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
 export type AutoSaveStatus = { state:'saved'|'saving'|'error'; error?:string };
+const activeQueues=new Set<AutoSaveQueue>();
+export async function flushPendingEdits():Promise<boolean>{return (await Promise.all([...activeQueues].map(queue=>queue.flushAll()))).every(Boolean);}
 
 type Entry = {
   revision:number;
@@ -77,7 +79,7 @@ export function useAutoSave():{queue:AutoSaveQueue;status:AutoSaveStatus} {
   const [status,setStatus]=useState<AutoSaveStatus>({state:'saved'});
   const ref=useRef<AutoSaveQueue|null>(null);
   if(!ref.current)ref.current=new AutoSaveQueue(setStatus);
-  useEffect(()=>{ref.current?.setListener(setStatus);return()=>ref.current?.dispose();},[]);
+  useEffect(()=>{const queue=ref.current!;activeQueues.add(queue);queue.setListener(setStatus);return()=>{activeQueues.delete(queue);queue.dispose();};},[]);
   return {queue:ref.current,status};
 }
 

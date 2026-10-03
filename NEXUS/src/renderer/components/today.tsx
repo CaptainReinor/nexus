@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { askConfirm } from '../confirm';
 import type { Habit, HabitLog } from '../../shared/models';
 import type { DayLifeData, DayTask } from '../../shared/life';
 import { displayDay } from '../../shared/domain';
@@ -44,17 +45,24 @@ export function TodayHabits({habits,onMark,onManage}:{habits:TodayHabit[];onMark
   </section>;
 }
 
-export function TodayTasks({data,day,onTask,onMore}:{data:DayLifeData;day:string;onTask:(input:Pick<DayTask,'id'|'title'|'day'|'due_day'|'status'>|{title:string;day:string;due_day:string})=>Promise<void>;onMore:()=>void}){
-  const [adding,setAdding]=useState(false),[title,setTitle]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState<string|null>(null);
+export function TodayTasks({data,day,onTask,onRemove,onMore}:{data:DayLifeData;day:string;onTask:(input:Pick<DayTask,'id'|'title'|'day'|'due_day'|'status'>|{title:string;day:string;due_day:string})=>Promise<void>;onRemove:(id:string)=>Promise<void>;onMore:()=>void}){
+  const [adding,setAdding]=useState(false),[title,setTitle]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState<string|null>(null),[editing,setEditing]=useState<string|null>(null),[due,setDue]=useState(day);
   const tasks=data.tasks.filter(task=>task.status==='open'&&task.due_day<=day).sort((a,b)=>a.due_day.localeCompare(b.due_day)||a.created_at.localeCompare(b.created_at));
   const done=data.tasks.filter(task=>task.status==='done'&&task.due_day===day);
-  async function change(task:DayTask,status:'open'|'done'){setBusy(task.id);try{await onTask({id:task.id,title:task.title,day:task.day,due_day:task.due_day,status});setError('');}catch(error){setError(error instanceof Error?error.message:'Не удалось сохранить дело.');}finally{setBusy(null);}}
+  async function change(task:DayTask,status:'open'|'done',date=task.due_day){setBusy(task.id);try{await onTask({id:task.id,title:task.title,day:task.day,due_day:date,status});setEditing(null);setError('');}catch(error){setError(error instanceof Error?error.message:'Не удалось сохранить дело.');}finally{setBusy(null);}}
+  async function remove(task:DayTask){if(!await askConfirm(`Удалить «${task.title}»?`))return;setBusy(task.id);try{await onRemove(task.id);setEditing(null);setError('');}catch(error){setError(error instanceof Error?error.message:'Не удалось удалить дело.');}finally{setBusy(null);}}
   async function add(){if(!title.trim()||busy)return;setBusy('new');try{await onTask({title:title.trim(),day,due_day:day});setTitle('');setAdding(false);setError('');}catch(error){setError(error instanceof Error?error.message:'Не удалось добавить дело.');}finally{setBusy(null);}}
+  function row(task:DayTask){return <div className="today-task-wrap" key={task.id}><div className={`today-task ${task.status==='done'?'complete':''}`}>
+    {task.status==='open'?<button className="today-task-check" disabled={!!busy} aria-label={`Выполнить: ${task.title}`} onClick={()=>void change(task,'done')}><span aria-hidden="true">✓</span></button>:<span className="today-complete-mark" aria-hidden="true">✓</span>}
+    <div className="today-task-title"><span>{task.title}</span>{task.due_day<day&&<small className="today-overdue">{displayDay(task.due_day)}</small>}</div>
+    {task.status==='done'&&<button className="today-text-button" disabled={!!busy} onClick={()=>void change(task,'open')}>Вернуть</button>}
+    <button className="today-task-options" aria-label={`Действия: ${task.title}`} aria-expanded={editing===task.id} disabled={!!busy} onClick={()=>{setEditing(editing===task.id?null:task.id);setDue(task.due_day);}}>⋯</button>
+    </div>{editing===task.id&&<form className="today-task-editor" onSubmit={event=>{event.preventDefault();if(due)void change(task,task.status,due);}}><label>На другой день<input aria-label={`Перенести: ${task.title}`} type="date" required value={due} onChange={event=>setDue(event.target.value)}/></label><button className="today-button" disabled={!!busy||!due||due===task.due_day}>Перенести</button><button type="button" className="today-text-button today-task-delete" disabled={!!busy} onClick={()=>void remove(task)}>Удалить</button></form>}</div>;}
   return <section className="today-card today-tasks"><header className="today-card-head"><h2>Главные дела</h2><button className="today-text-button" aria-expanded={adding} onClick={()=>setAdding(!adding)}>+ Добавить</button></header>
-    {tasks.length?tasks.slice(0,5).map(task=><div className="today-task" key={task.id}><button className="today-task-check" disabled={!!busy} aria-label={`Выполнить: ${task.title}`} onClick={()=>void change(task,'done')}><span aria-hidden="true">✓</span></button><div><span>{task.title}</span>{task.due_day<day&&<small className="today-overdue">{displayDay(task.due_day)}</small>}</div></div>):<p className="today-empty">На сегодня дел нет. Выберите один следующий шаг.</p>}
-    {tasks.length>5&&<button className="today-text-button" onClick={onMore}>Все дела · {tasks.length}</button>}
+    {tasks.length?tasks.slice(0,5).map(row):<p className="today-empty">На сегодня дел нет.</p>}
+    {tasks.length>5&&<details className="today-fold"><summary>Ещё дела · {tasks.length-5}</summary>{tasks.slice(5).map(row)}</details>}
     {adding&&<form className="today-task-add" onSubmit={event=>{event.preventDefault();void add();}}><input aria-label="Новое дело на сегодня" autoFocus value={title} maxLength={300} onChange={event=>setTitle(event.target.value)} placeholder="Что хотите сделать сегодня?"/><button className="today-button" disabled={!!busy||!title.trim()}>Добавить</button></form>}
-    {done.length>0&&<details className="today-fold"><summary>Сделано · {done.length}</summary>{done.map(task=><div className="today-task complete" key={task.id}><span>{task.title}</span><button className="today-text-button" disabled={!!busy} onClick={()=>void change(task,'open')}>Вернуть</button></div>)}</details>}
+    {done.length>0&&<details className="today-fold"><summary>Сделано · {done.length}</summary>{done.map(row)}</details>}
     {error&&<p className="today-error" role="alert">{error}</p>}
     <footer className="today-card-footer"><button className="today-text-button" onClick={onMore}>Планы и заметки →</button></footer>
   </section>;

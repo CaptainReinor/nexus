@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
   @Override public void onCreate(android.os.Bundle savedInstanceState){
     registerPlugin(NexusAIPlugin.class);
     registerPlugin(NexusLocalStorePlugin.class);
+    registerPlugin(NexusUpdatesPlugin.class);
     super.onCreate(savedInstanceState);
     getWindow().getDecorView().post(this::hideStatusBar);
   }

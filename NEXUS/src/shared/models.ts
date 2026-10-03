@@ -44,6 +44,7 @@ export type JournalEntry = {id:number;day:string;raw_text:string;source:'text'|'
 export type JobInput = Omit<Job,'id'|'created_at'|'updated_at'>;
 export type VacancyDraft = { title:string|null;company:string|null;url:string|null;source:string|null;city:string|null;work_mode:string|null;salary_from:number|null;salary_to:number|null;currency:string|null };
 export interface NexusAPI {
+  updates:import('./updates').UpdateAPI;
   profiles:{list():Promise<import('./accounts').LocalProfiles>;create(name:string):Promise<import('./accounts').LocalProfiles>;select(id:string):Promise<void>};
   accounts:{invitation(id:string):Promise<import('./accounts').UserInvitation>;profile():Promise<import('./accounts').RemoteProfile|null>;managementStatus():Promise<{configured:boolean}>;setManagementKey(key:string):Promise<void>;list():Promise<import('./accounts').RemoteProfile[]>;create(input:{name:string;monthlyLimitCents:number}):Promise<import('./accounts').UserInvitation>;update(input:{id:string;active?:boolean;monthlyLimitCents?:number}):Promise<import('./accounts').RemoteProfile>};
   life:{list():Promise<DayLifeData>;patch(input:{day:string;patch:DetailPatch}):Promise<void>;markers(fields:Marker[]):Promise<void>;task(input:{id?:string;title?:string;day:string;due_day:string;status?:'open'|'done'}):Promise<void>;memory(input:{id?:string;day:string;text:string}):Promise<void>;remove(input:{table:'day_tasks'|'day_memories';id:string}):Promise<void>;review(input:{kind:'day'|'week';start:string;end:string;overrideBudget?:boolean}):Promise<CoachReview>};
@@ -63,6 +64,7 @@ export interface NexusAPI {
     saveCategory(input: { id?: number; name: string; kind: 'expense'|'income'; active: number }): Promise<void>;
     saveTransaction(input: Omit<Transaction,'id'|'account_name'|'category_name'|'target_name'>): Promise<void>;
     deleteTransaction(id:number): Promise<void>;
+    deleteCategory(id:number): Promise<void>;
     setBudget(input: Budget): Promise<void>;
   };
   work: {
