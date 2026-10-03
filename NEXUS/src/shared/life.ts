@@ -1,4 +1,4 @@
-import {saveMetricEntry,knownMetrics} from './growth';
+import {saveMetricEntry,knownMetrics,planTasks,type WeeklyPlan} from './growth';
 import {insights} from './insights';
 import { z } from './validation';
 import type { Snapshot,Row } from './snapshot-sync';
@@ -46,7 +46,7 @@ export function updateTask(snapshot:Snapshot,input:{id?:string;title?:string;day
   const row=snapshot.tables.day_tasks?.find(x=>x.id===input.id);if(!row)throw new Error('Дело не найдено.');
   const status=input.status??row.status;
   if(input.title!==undefined){if(!input.title.trim())throw new Error('Введите название дела.');row.title=input.title.trim();}
-  row.due_day=input.due_day;row.status=status;row.updated_at=new Date().toISOString();const plan=snapshot.tables.weekly_plans?.find(p=>p.task_id===row.id);if(plan)Object.assign(plan,{title:row.title,status,week:weekStart(new Date(`${input.due_day}T12:00:00`),1),updated_at:row.updated_at});
+  row.due_day=input.due_day;row.status=status;row.updated_at=new Date().toISOString();const link=snapshot.tables.weekly_plan_tasks?.find(l=>l.task_id===row.id),plan=snapshot.tables.weekly_plans?.find(p=>p.id===link?.plan_id||p.task_id===row.id) as WeeklyPlan|undefined;if(plan){const tasks=planTasks(snapshot,plan);Object.assign(plan,{status:tasks.every(t=>t.status==='done')?'done':'open',updated_at:row.updated_at});if(tasks.length===1)Object.assign(plan,{title:row.title,week:weekStart(new Date(`${input.due_day}T12:00:00`),1)});}
 }
 export function saveMemory(snapshot:Snapshot,text:string,date:string){
   const list=snapshot.tables.day_memories??(snapshot.tables.day_memories=[]),value=text.trim();if(!value)return;

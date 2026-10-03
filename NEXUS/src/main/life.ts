@@ -6,7 +6,7 @@ import { applyLife,lifeData,patchDay,updateTask,saveMemory,saveReview,coachFacts
 export class DayLifeRepository {
   constructor(private db:DB){}
   snapshot():Snapshot{return JSON.parse(serializeBackup(this.db)) as Snapshot;}
-  private lifeSnapshot():Snapshot{return {format:'nexus-backup',version:8,exportedAt:new Date().toISOString(),tables:Object.fromEntries(['day_details','day_tasks','day_memories','assistant_reviews','settings','custom_metrics','metric_entries','weekly_plans'].map(table=>[table,this.db.prepare(`SELECT * FROM ${table}`).all() as Record<string,unknown>[]]))};}
+  private lifeSnapshot():Snapshot{return {format:'nexus-backup',version:9,exportedAt:new Date().toISOString(),tables:Object.fromEntries(['day_details','day_tasks','day_memories','assistant_reviews','settings','custom_metrics','metric_entries','weekly_plans','weekly_plan_tasks'].map(table=>[table,this.db.prepare(`SELECT * FROM ${table}`).all() as Record<string,unknown>[]]))};}
   list():DayLifeData{return lifeData(this.lifeSnapshot());}
   private change(fn:(snapshot:Snapshot)=>void):void{
     const before=this.lifeSnapshot(),snapshot=structuredClone(before);fn(snapshot);

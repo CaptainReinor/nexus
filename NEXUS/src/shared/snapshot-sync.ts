@@ -81,6 +81,7 @@ export function mergeSnapshots(base:Snapshot,local:Snapshot,remote:Snapshot,choi
     snapshot.tables[table]=[...result.values()];
   }
   if(snapshot.tables.recurring_skips?.length){const skipped=new Set(snapshot.tables.recurring_skips.map(r=>r.id));snapshot.tables.day_tasks=(snapshot.tables.day_tasks??[]).filter(r=>!skipped.has(r.id));}
+  if(snapshot.tables.weekly_plan_tasks){const plans=new Set((snapshot.tables.weekly_plans??[]).map(p=>p.id)),tasks=new Set((snapshot.tables.day_tasks??[]).map(t=>t.id));const orphanTasks=new Set(snapshot.tables.weekly_plan_tasks.filter(l=>!plans.has(l.plan_id)).map(l=>l.task_id));snapshot.tables.day_tasks=(snapshot.tables.day_tasks??[]).filter(t=>!orphanTasks.has(t.id));snapshot.tables.weekly_plan_tasks=snapshot.tables.weekly_plan_tasks.filter(l=>plans.has(l.plan_id)&&tasks.has(l.task_id));}
   normalizeSleep(snapshot,base);
   if(snapshot.tables.daily_journals)snapshot.tables.daily_journals.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))||Number(b.id)-Number(a.id)).splice(3);
   const clocks={...remoteClocks};

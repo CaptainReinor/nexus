@@ -6,12 +6,12 @@ import { randomInt } from 'node:crypto';
 import { defaultDebit, defaultCategories } from '../shared/finance-defaults';
 
 export type DB = Database.Database;
-export const schemaVersion = 8;
+export const schemaVersion = 9;
 export const backupTables = [
   'settings','habits','habit_logs','health_daily_entries','weight_entries','workouts',
   'finance_accounts','finance_categories','finance_transactions','finance_budgets',
   'jobs','job_status_history','experience_entries','experience_cases','job_experience_links','job_ai_analyses','ai_usage','daily_journals','investment_accounts','investment_entries','day_details','day_tasks','day_memories','assistant_reviews',
-  'financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries'
+  'financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries','weekly_plan_tasks'
 ] as const;
 
 const migrations: string[] = [
@@ -83,6 +83,10 @@ const migrations: string[] = [
   CREATE TABLE metric_entries (id TEXT PRIMARY KEY,metric_id TEXT NOT NULL REFERENCES custom_metrics(id),day TEXT NOT NULL,value_json TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(metric_id,day));
   CREATE INDEX idx_metrics_day ON metric_entries(day);
   CREATE INDEX idx_plans_week ON weekly_plans(week);
+  `,
+  `
+  CREATE TABLE weekly_plan_tasks (id TEXT PRIMARY KEY,plan_id TEXT NOT NULL REFERENCES weekly_plans(id),task_id TEXT NOT NULL UNIQUE);
+  INSERT INTO weekly_plan_tasks (id,plan_id,task_id) SELECT task_id,id,task_id FROM weekly_plans WHERE task_id IN (SELECT id FROM day_tasks);
   `
 ];
 
@@ -119,7 +123,7 @@ export function serializeBackup(db: DB): string {
 export function exportBackup(db: DB, path: string): void {writeFileSync(path,serializeBackup(db),'utf8');}
 export function importBackupText(db: DB, content: string): void {
   const parsed = backupSchema.parse(JSON.parse(content));
-  for (const table of backupTables) if (!Array.isArray(parsed.tables[table])) {if((['financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries'].includes(table)&&parsed.version<8)||(table==='daily_journals'&&parsed.version<3)||(table.startsWith('investment_')&&parsed.version<5)||(['day_details','day_tasks','day_memories','assistant_reviews'].includes(table)&&parsed.version<6))parsed.tables[table]=[];else throw new Error(`В копии отсутствует таблица ${table}.`);}
+  for (const table of backupTables) if (!Array.isArray(parsed.tables[table])) {if((table==='weekly_plan_tasks'&&parsed.version<9)||(['financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries'].includes(table)&&parsed.version<8)||(table==='daily_journals'&&parsed.version<3)||(table.startsWith('investment_')&&parsed.version<5)||(['day_details','day_tasks','day_memories','assistant_reviews'].includes(table)&&parsed.version<6))parsed.tables[table]=[];else throw new Error(`В копии отсутствует таблица ${table}.`);}
   const allowed = new Map<string,Set<string>>();
   for (const table of backupTables) allowed.set(table,new Set((db.pragma(`table_info(${table})`) as {name:string}[]).map(c=>c.name)));
   db.transaction(()=>{
@@ -129,6 +133,7 @@ export function importBackupText(db: DB, content: string): void {
       if (!keys.length || keys.some(k=>!allowed.get(table)?.has(k))) throw new Error(`Некорректные поля таблицы ${table}.`);
       db.prepare(`INSERT INTO ${table} (${keys.map(k=>`"${k}"`).join(',')}) VALUES (${keys.map(()=>'?').join(',')})`).run(...keys.map(k=>row[k] as string|number|null));
     }
+    if (parsed.version < 9) db.exec('INSERT INTO weekly_plan_tasks (id,plan_id,task_id) SELECT task_id,id,task_id FROM weekly_plans WHERE task_id IN (SELECT id FROM day_tasks)');
     if (parsed.version < 4) db.exec('UPDATE habits SET sort_order=-id');
     db.exec('DELETE FROM daily_journals WHERE id NOT IN (SELECT id FROM daily_journals ORDER BY created_at DESC,id DESC LIMIT 3)');
     if(starterDatabases.has(db))seedFinance(db);

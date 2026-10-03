@@ -30,5 +30,5 @@ export function UpdatePanel(){
   const {state,busy,check,update}=value;
   const available=['available','ready'].includes(state.phase);
   const label=state.phase==='current'?'Установлена последняя версия':state.phase==='checking'?'Проверяем…':state.phase==='downloading'?`Скачивание · ${state.percent??0}%`:state.message??(available?`Доступна версия ${state.version}`:'');
-  return <section className="update-panel"><div><h2>Обновления</h2><span>NEXUS {state.currentVersion}</span>{label&&<p role="status">{label}</p>}</div><button type="button" className="update-action" disabled={busy||state.phase==='checking'||state.phase==='downloading'} onClick={()=>void(available?update():check())}>{state.phase==='ready'?'Установить':state.phase==='available'?'Скачать':'Проверить'}</button></section>;
+  return <section className="update-panel"><div><h2>Обновления</h2><span>NEXUS {state.currentVersion}</span>{label&&<p role="status">{label}</p>}</div><button type="button" className="update-action" disabled={busy||state.phase==='checking'||state.phase==='downloading'} onClick={()=>void(available?update():check())}>{state.phase==='ready'?'Установить':state.phase==='available'?'Скачать':'Проверить обновления'}</button></section>;
 }

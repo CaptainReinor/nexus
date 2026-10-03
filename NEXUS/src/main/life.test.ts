@@ -39,7 +39,7 @@ it('migrates an existing schema 5 database with a recoverable backup and preserv
  let disk:DB|undefined;
  try{
   disk=openDatabase(path);disk.prepare("INSERT INTO finance_accounts(id,name,opening_cents) VALUES (42,'Existing account',12345)").run();
-  disk.exec('DROP TABLE metric_entries; DROP TABLE custom_metrics; DROP TABLE recurring_skips; DROP TABLE recurring_tasks; DROP TABLE weekly_plans; DROP TABLE financial_goals; DROP TABLE assistant_reviews; DROP TABLE day_memories; DROP TABLE day_tasks; DROP TABLE day_details; DELETE FROM schema_migrations WHERE version>=6');disk.close();disk=undefined;
+  disk.exec('DROP TABLE weekly_plan_tasks; DROP TABLE metric_entries; DROP TABLE custom_metrics; DROP TABLE recurring_skips; DROP TABLE recurring_tasks; DROP TABLE weekly_plans; DROP TABLE financial_goals; DROP TABLE assistant_reviews; DROP TABLE day_memories; DROP TABLE day_tasks; DROP TABLE day_details; DELETE FROM schema_migrations WHERE version>=6');disk.close();disk=undefined;
   disk=openDatabase(path);expect(disk.prepare('SELECT opening_cents FROM finance_accounts WHERE id=42').get()).toEqual({opening_cents:12345});expect(new DayLifeRepository(disk).list().details).toEqual([]);
   const backup=readdirSync(folder).find(name=>name.includes(`.before-v${schemaVersion}-`))!;expect(backup).toBeTruthy();
   const saved=new Database(join(folder,backup),{readonly:true});try{expect(saved.prepare('SELECT MAX(version) AS v FROM schema_migrations').get()).toEqual({v:5});expect(saved.prepare('SELECT opening_cents FROM finance_accounts WHERE id=42').get()).toEqual({opening_cents:12345});}finally{saved.close();}

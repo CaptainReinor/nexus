@@ -13,6 +13,18 @@ import nexus_backup
 
 
 class BackupApiTest(unittest.TestCase):
+    def test_multi_day_plan_links_sync_and_old_clients_cannot_drop_them(self):
+        tables = nexus_backup.SYNC_TABLES | nexus_backup.INVESTMENT_TABLES | nexus_backup.LIFE_TABLES | nexus_backup.GROWTH_TABLES | {'weekly_plan_tasks'}
+        snapshot = {'format':'nexus-backup','version':9,'exportedAt':'2026-10-03T00:00:00Z','tables':{name:[] for name in tables}}
+        snapshot['tables']['weekly_plan_tasks'] = [{'id':'test-task','plan_id':'test-plan','task_id':'test-task'}]
+        self.assertEqual(self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=0)[0],200)
+        self.assertEqual(self.request('/v1/state')[1]['snapshot'],snapshot)
+        snapshot['version'] = 8
+        del snapshot['tables']['weekly_plan_tasks']
+        with self.assertRaises(urllib.error.HTTPError) as invalid:
+            self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=1)
+        self.assertEqual(invalid.exception.code,426)
+
     def test_life_tables_survive_sync_and_require_the_complete_schema(self):
         snapshot = {'format':'nexus-backup','version':6,'exportedAt':'2026-09-30T00:00:00Z','tables':{name:[] for name in nexus_backup.SYNC_TABLES | nexus_backup.INVESTMENT_TABLES | nexus_backup.LIFE_TABLES}}
         snapshot['tables']['day_details'] = [{'day':'2026-09-30','contexts_json':'["work"]','achievement':'Finished a project','appetite':'normal','sleep_quality':None,'tension':None}]
