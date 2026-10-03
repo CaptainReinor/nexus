@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
     registerPlugin(NexusAIPlugin.class);
     registerPlugin(NexusLocalStorePlugin.class);
     registerPlugin(NexusUpdatesPlugin.class);
+    registerPlugin(NexusRemindersPlugin.class);
     super.onCreate(savedInstanceState);
     getWindow().getDecorView().post(this::hideStatusBar);
   }

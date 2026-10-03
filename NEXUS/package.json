@@ -3,7 +3,7 @@
   "description": "NEXUS: habits, health, finance and journal",
   "author": "CaptainReinor",
   "desktopName": "ru.nexus.desktop.desktop",
-  "version": "0.4.9",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.cjs",

@@ -33,10 +33,11 @@ SYNC_TABLES = {
 }
 ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 AI_KEY_FILE = "openrouter-key"
-API_VERSION = "0.4.1"
+API_VERSION = "0.5.0"
 OPENROUTER_BASE = os.environ.get("NEXUS_OPENROUTER_BASE", "https://openrouter.ai/api/v1").rstrip("/")
 RELAY_KEY = os.environ.get("NEXUS_AI_RELAY_KEY", "")
 INVESTMENT_TABLES = {"investment_accounts", "investment_entries"}
+GROWTH_TABLES = {"financial_goals", "weekly_plans", "recurring_tasks", "recurring_skips", "custom_metrics", "metric_entries"}
 LIFE_TABLES = {"day_details", "day_tasks", "day_memories", "assistant_reviews"}
 
 
@@ -82,7 +83,7 @@ def valid_envelope(value: object) -> bool:
 def valid_sync_snapshot(value: object) -> bool:
     if not isinstance(value, dict) or set(value) != {"format", "version", "exportedAt", "tables"}:
         return False
-    if value["format"] != "nexus-backup" or type(value["version"]) is not int or not 1 <= value["version"] <= 7:
+    if value["format"] != "nexus-backup" or type(value["version"]) is not int or not 1 <= value["version"] <= 8:
         return False
     if not isinstance(value["exportedAt"], str) or len(value["exportedAt"]) > 40:
         return False
@@ -90,6 +91,8 @@ def valid_sync_snapshot(value: object) -> bool:
     expected = SYNC_TABLES | INVESTMENT_TABLES if value['version'] >= 5 else SYNC_TABLES
     if value['version'] >= 6:
         expected |= LIFE_TABLES
+    if value['version'] >= 8:
+        expected |= GROWTH_TABLES
     return isinstance(tables, dict) and set(tables) == expected and all(
         isinstance(rows, list) and len(rows) <= 100_000 and all(isinstance(row, dict) for row in rows)
         for rows in tables.values()

@@ -3,6 +3,8 @@ import type { NexusAPI } from '../shared/models';
 
 const call=(channel:string,payload?:unknown)=>ipcRenderer.invoke(channel,payload);
 const api: NexusAPI = {
+  growth:{insights:(start,end)=>call('growth:insights',{start,end}),list:()=>call('growth:list'),goal:input=>call('growth:goal',input),plan:input=>call('growth:plan',input),repeat:input=>call('growth:repeat',input),metric:input=>call('growth:metric',input),entry:input=>call('growth:entry',input),removePlan:id=>call('growth:removePlan',id)},
+  reminders:{get:()=>call('reminders:get'),save:input=>call('reminders:save',input),permission:()=>call('reminders:permission')},
   updates:{status:()=>call('updates:status'),check:()=>call('updates:check'),download:()=>call('updates:download'),install:()=>call('updates:install')},
   profiles:{list:()=>call('profiles:list'),create:name=>call('profiles:create',name),select:id=>call('profiles:select',id)},
   accounts:{profile:()=>call('accounts:profile'),managementStatus:()=>call('accounts:managementStatus'),setManagementKey:key=>call('accounts:setManagementKey',key),list:()=>call('accounts:list'),invitation:id=>call('accounts:invitation',id),create:input=>call('accounts:create',input),update:input=>call('accounts:update',input)},

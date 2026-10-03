@@ -1,3 +1,4 @@
+import {ensureGrowth,materializeRepeats} from '../../NEXUS/src/shared/growth';
 import { mergeSnapshots,normalizeSleep,rowKey,sameSnapshot,type Snapshot,type State,type LocalEnvelope,type Conflict,type SyncStatus } from '../../NEXUS/src/shared/snapshot-sync';
 import { readRecordClocks,recordTime,stampRecordChanges } from '../../NEXUS/src/shared/record-clocks';
 export { mergeSnapshots,rowKey,sameSnapshot } from '../../NEXUS/src/shared/snapshot-sync';
@@ -38,12 +39,13 @@ export class OfflineSync {
       else this.setStatus(this.pending?'pending':'saved');
     }
     await this.refresh();
+    if(this.local)await this.change(()=>{});
   }
   async change(change:(snapshot:Snapshot)=>void):Promise<void>{
     if(!this.ready||!this.local)throw new Error('Сначала загрузите данные с компьютера.');
     const next=structuredClone(this.local);change(next);
     for(const table of ['day_details','day_tasks','day_memories','assistant_reviews'])next.tables[table]??=[];
-    next.version=Math.max(next.version,7);
+    ensureGrowth(next);materializeRepeats(next);
     if(sameSnapshot(next,this.local)&&this.status!=='storage-error')return;
     next.tables.daily_journals=[...(next.tables.daily_journals??[])].sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))||Number(b.id)-Number(a.id)).slice(0,3);
     stampRecordChanges(this.local,next,rowKey);

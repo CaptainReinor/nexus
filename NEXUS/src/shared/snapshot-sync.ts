@@ -13,6 +13,7 @@ const fieldsEqual=(a:Row|undefined|null,b:Row|undefined|null)=>a===b||Boolean(a&
 // First entries on two devices share these empty defaults; an untouched default
 // must not overwrite a fact entered on the other device.
 function initialDay(table:string,row:Row):Row|undefined{
+  if(table==='day_tasks'&&typeof row.recurrence_id==='string')return {...row,status:'open'};
   if(table==='day_details')return {day:row.day,contexts_json:'[]',achievement:'',appetite:null,sleep_quality:null,tension:null};
   if(table==='health_daily_entries')return {day:row.day,sleep_start:null,sleep_end:null,sleep_minutes:null,mood:null,energy:null,nutrition:null,comment:''};
 }
@@ -79,6 +80,7 @@ export function mergeSnapshots(base:Snapshot,local:Snapshot,remote:Snapshot,choi
     }
     snapshot.tables[table]=[...result.values()];
   }
+  if(snapshot.tables.recurring_skips?.length){const skipped=new Set(snapshot.tables.recurring_skips.map(r=>r.id));snapshot.tables.day_tasks=(snapshot.tables.day_tasks??[]).filter(r=>!skipped.has(r.id));}
   normalizeSleep(snapshot,base);
   if(snapshot.tables.daily_journals)snapshot.tables.daily_journals.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))||Number(b.id)-Number(a.id)).splice(3);
   const clocks={...remoteClocks};

@@ -6,17 +6,17 @@ import { applyLife,lifeData,patchDay,updateTask,saveMemory,saveReview,coachFacts
 export class DayLifeRepository {
   constructor(private db:DB){}
   snapshot():Snapshot{return JSON.parse(serializeBackup(this.db)) as Snapshot;}
-  private lifeSnapshot():Snapshot{return {format:'nexus-backup',version:7,exportedAt:new Date().toISOString(),tables:Object.fromEntries(['day_details','day_tasks','day_memories','assistant_reviews','settings'].map(table=>[table,this.db.prepare(`SELECT * FROM ${table}`).all() as Record<string,unknown>[]]))};}
+  private lifeSnapshot():Snapshot{return {format:'nexus-backup',version:8,exportedAt:new Date().toISOString(),tables:Object.fromEntries(['day_details','day_tasks','day_memories','assistant_reviews','settings','custom_metrics','metric_entries','weekly_plans'].map(table=>[table,this.db.prepare(`SELECT * FROM ${table}`).all() as Record<string,unknown>[]]))};}
   list():DayLifeData{return lifeData(this.lifeSnapshot());}
   private change(fn:(snapshot:Snapshot)=>void):void{
-    const snapshot=this.lifeSnapshot();fn(snapshot);
-    this.db.transaction(()=>{
-      for(const table of ['day_details','day_tasks','day_memories','assistant_reviews']){
-        this.db.prepare(`DELETE FROM ${table}`).run();
-        for(const row of snapshot.tables[table]??[]){const keys=Object.keys(row);this.db.prepare(`INSERT INTO ${table} (${keys.map(k=>`"${k}"`).join(',')}) VALUES (${keys.map(()=>'?').join(',')})`).run(...keys.map(k=>row[k] as string|number|null));}
-      }
-    })();
+    const before=this.lifeSnapshot(),snapshot=structuredClone(before);fn(snapshot);
+    this.db.transaction(()=>{for(const table of ['day_details','day_tasks','day_memories','assistant_reviews','metric_entries','weekly_plans']){
+      const primary=table==='day_details'?'day':'id',remaining=new Set(snapshot.tables[table].map(r=>r[primary]));
+      for(const row of before.tables[table])if(!remaining.has(row[primary]))this.db.prepare(`DELETE FROM ${table} WHERE ${primary}=?`).run(String(row[primary]));
+      for(const row of snapshot.tables[table]){const old=before.tables[table].find(r=>r[primary]===row[primary]);if(old&&JSON.stringify(old)===JSON.stringify(row))continue;const keys=Object.keys(row);this.db.prepare(`INSERT INTO ${table} (${keys.map(k=>`"${k}"`).join(',')}) VALUES (${keys.map(()=>'?').join(',')}) ON CONFLICT(${primary}) DO UPDATE SET ${keys.filter(k=>k!==primary).map(k=>`"${k}"=excluded."${k}"`).join(',')}`).run(...keys.map(k=>row[k] as string|number|null));}
+    }})();
   }
+
   patch(day:string,patch:DetailPatch){this.change(s=>patchDay(s,day,patch));}
   markers(fields:Marker[]){this.db.prepare('INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('dailyMarkers',JSON.stringify(fields));}
   task(input:{id?:string;title?:string;day:string;due_day:string;status?:'open'|'done'}){

@@ -18,6 +18,10 @@ import { ProfileAIProvider } from './profile-ai';
 import { habitDueToday, localDay } from '../shared/domain';
 import { dailyHabitSummary } from '../shared/weekly';
 import { WeeklySummaryService } from './weekly';
+import { GrowthRepository } from './growth';
+import { goalSchema,planSchema,repeatSchema,metricSchema,metricEntrySchema } from '../shared/growth';
+import { DesktopReminders } from './reminders';
+import { reminderSchema } from '../shared/reminders';
 import { DesktopUpdates } from './updates';
 import type { DashboardData } from '../shared/models';
 
@@ -25,7 +29,7 @@ app.commandLine.appendSwitch('lang','ru');
 
 let window: BrowserWindow | null = null;
 let notifyLocalChange=()=>{};
-const changes=/^(?:life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|changeStatus|linkCase)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
+const changes=/^(?:growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|changeStatus|linkCase)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
 const id=z.number().int().positive();
 const day=z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const text=z.string().max(100000);
@@ -95,13 +99,27 @@ void app.whenReady().then(()=>{
   handle('data:setBackupPassphrase',z.string().min(16).max(256),passphrase=>remoteBackup.setBackupPassphrase(passphrase));
   handle('accounts:create',z.object({name:z.string().trim().min(1).max(80),monthlyLimitCents:z.number().int().min(0).max(10000)}).strict(),input=>remoteBackup.createUser(input));
   handle('accounts:update',z.object({id:z.string().uuid(),active:z.boolean().optional(),monthlyLimitCents:z.number().int().min(0).max(10000).optional()}).strict(),input=>remoteBackup.updateUser(input));
+  const growth=new GrowthRepository(db);
+  handle('growth:insights',z.object({start:day,end:day}).refine(x=>x.start<=x.end),input=>growth.insights(input.start,input.end));
+  handle('growth:list',z.undefined(),async()=>{if(growth.materialize())notifyLocalChange();return growth.list();});
+  handle('growth:goal',goalSchema,input=>growth.goal(input));
+  handle('growth:plan',planSchema,input=>growth.plan(input));
+  handle('growth:repeat',repeatSchema,input=>growth.repeat(input));
+  handle('growth:metric',metricSchema,input=>growth.metric(input));
+  handle('growth:entry',metricEntrySchema,input=>growth.entry(input));
+  handle('growth:removePlan',z.string().uuid(),input=>growth.removePlan(input));
+  const reminders=new DesktopReminders(db,()=>{window?.show();window?.focus();});
+  handle('reminders:get',z.undefined(),()=>reminders.get());
+  handle('reminders:save',reminderSchema,input=>reminders.save(input));
+  handle('reminders:permission',z.undefined(),()=>reminders.permission());
+  reminders.start();
   const life=new DayLifeRepository(db);
-  handle('life:list',z.undefined(),()=>life.list());
+  handle('life:list',z.undefined(),()=>{if(growth.materialize())notifyLocalChange();return life.list();});
   handle('life:patch',z.object({day,patch:detailPatchSchema}),input=>life.patch(input.day,input.patch));
   handle('life:markers',z.array(z.enum(['appetite','sleep_quality','tension'])).max(3),input=>life.markers(input));
   handle('life:task',z.object({id:z.string().uuid().optional(),title:z.string().trim().min(1).max(300).optional(),day,due_day:day,status:z.enum(['open','done']).optional()}).strict(),input=>life.task(input));
   handle('life:memory',z.object({id:z.string().uuid().optional(),day,text:z.string().trim().min(1).max(2000)}).strict(),input=>life.memory(input));
-  handle('life:remove',z.object({table:z.enum(['day_tasks','day_memories']),id:z.string().uuid()}),input=>life.remove(input.table,input.id));
+  handle('life:remove',z.object({table:z.enum(['day_tasks','day_memories']),id:z.string().uuid()}),input=>input.table==='day_tasks'?growth.removeTask(input.id):life.remove(input.table,input.id));
   handle('life:review',z.object({kind:z.enum(['day','week']),start:day,end:day,overrideBudget:z.boolean().optional()}).refine(x=>x.start<=x.end&&(x.kind!=='day'||x.start===x.end)),async input=>{const review=await ai.reviewLife(life.facts(input.start,input.end),input.overrideBudget);life.saveReview(input.kind,input.start,input.end,review);return review;});
   handle('journal:editAnalysis',z.object({id,analysis:journalAnalysisSchema}),input=>journal.editAnalysis(input.id,input.analysis));
   remoteBackup.startAutoUpload();
@@ -172,7 +190,7 @@ void app.whenReady().then(()=>{
   handle('journal:transcribe',z.object({base64:z.string().min(1).max(32_000_000),format:z.enum(['webm','wav','mp3']),overrideBudget:z.boolean().optional()}),input=>ai.transcribe(input.base64,input.format,input.overrideBudget));
   createWindow();
   app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow();});
-  app.on('before-quit',()=>{remoteBackup.stopAutoUpload();db.close();});
+  app.on('before-quit',()=>{reminders.stop();remoteBackup.stopAutoUpload();db.close();});
 }).catch(error=>{ logError('startup',error); dialog.showErrorBox('NEXUS не запустился',error instanceof Error?error.message:'Неизвестная ошибка'); app.quit(); });
 
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});

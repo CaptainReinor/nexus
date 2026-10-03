@@ -6,11 +6,12 @@ import { randomInt } from 'node:crypto';
 import { defaultDebit, defaultCategories } from '../shared/finance-defaults';
 
 export type DB = Database.Database;
-export const schemaVersion = 7;
+export const schemaVersion = 8;
 export const backupTables = [
   'settings','habits','habit_logs','health_daily_entries','weight_entries','workouts',
   'finance_accounts','finance_categories','finance_transactions','finance_budgets',
-  'jobs','job_status_history','experience_entries','experience_cases','job_experience_links','job_ai_analyses','ai_usage','daily_journals','investment_accounts','investment_entries','day_details','day_tasks','day_memories','assistant_reviews'
+  'jobs','job_status_history','experience_entries','experience_cases','job_experience_links','job_ai_analyses','ai_usage','daily_journals','investment_accounts','investment_entries','day_details','day_tasks','day_memories','assistant_reviews',
+  'financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries'
 ] as const;
 
 const migrations: string[] = [
@@ -71,6 +72,17 @@ const migrations: string[] = [
   DROP TABLE experience_cases;
   ALTER TABLE experience_cases_v7 RENAME TO experience_cases;
   ALTER TABLE job_experience_links_v7 RENAME TO job_experience_links;
+  `,
+  `
+  ALTER TABLE day_tasks ADD COLUMN recurrence_id TEXT;
+  CREATE TABLE financial_goals (id TEXT PRIMARY KEY,name TEXT NOT NULL,target_cents INTEGER NOT NULL CHECK(target_cents>0),saved_cents INTEGER NOT NULL CHECK(saved_cents>=0),deadline TEXT,active INTEGER NOT NULL,updated_at TEXT NOT NULL);
+  CREATE TABLE weekly_plans (id TEXT PRIMARY KEY,title TEXT NOT NULL,week TEXT NOT NULL,task_id TEXT,status TEXT NOT NULL CHECK(status IN ('open','done')),updated_at TEXT NOT NULL);
+  CREATE TABLE recurring_tasks (id TEXT PRIMARY KEY,title TEXT NOT NULL,weekdays_json TEXT NOT NULL,start_day TEXT NOT NULL,active INTEGER NOT NULL,updated_at TEXT NOT NULL);
+  CREATE TABLE recurring_skips (id TEXT PRIMARY KEY,template_id TEXT NOT NULL,day TEXT NOT NULL);
+  CREATE TABLE custom_metrics (id TEXT PRIMARY KEY,name TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('number','boolean','choice')),unit TEXT NOT NULL,options_json TEXT NOT NULL,active INTEGER NOT NULL,updated_at TEXT NOT NULL);
+  CREATE TABLE metric_entries (id TEXT PRIMARY KEY,metric_id TEXT NOT NULL REFERENCES custom_metrics(id),day TEXT NOT NULL,value_json TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(metric_id,day));
+  CREATE INDEX idx_metrics_day ON metric_entries(day);
+  CREATE INDEX idx_plans_week ON weekly_plans(week);
   `
 ];
 
@@ -107,7 +119,7 @@ export function serializeBackup(db: DB): string {
 export function exportBackup(db: DB, path: string): void {writeFileSync(path,serializeBackup(db),'utf8');}
 export function importBackupText(db: DB, content: string): void {
   const parsed = backupSchema.parse(JSON.parse(content));
-  for (const table of backupTables) if (!Array.isArray(parsed.tables[table])) {if((table==='daily_journals'&&parsed.version<3)||(table.startsWith('investment_')&&parsed.version<5)||(['day_details','day_tasks','day_memories','assistant_reviews'].includes(table)&&parsed.version<6))parsed.tables[table]=[];else throw new Error(`В копии отсутствует таблица ${table}.`);}
+  for (const table of backupTables) if (!Array.isArray(parsed.tables[table])) {if((['financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries'].includes(table)&&parsed.version<8)||(table==='daily_journals'&&parsed.version<3)||(table.startsWith('investment_')&&parsed.version<5)||(['day_details','day_tasks','day_memories','assistant_reviews'].includes(table)&&parsed.version<6))parsed.tables[table]=[];else throw new Error(`В копии отсутствует таблица ${table}.`);}
   const allowed = new Map<string,Set<string>>();
   for (const table of backupTables) allowed.set(table,new Set((db.pragma(`table_info(${table})`) as {name:string}[]).map(c=>c.name)));
   db.transaction(()=>{

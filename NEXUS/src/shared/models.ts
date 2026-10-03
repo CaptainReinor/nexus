@@ -44,6 +44,8 @@ export type JournalEntry = {id:number;day:string;raw_text:string;source:'text'|'
 export type JobInput = Omit<Job,'id'|'created_at'|'updated_at'>;
 export type VacancyDraft = { title:string|null;company:string|null;url:string|null;source:string|null;city:string|null;work_mode:string|null;salary_from:number|null;salary_to:number|null;currency:string|null };
 export interface NexusAPI {
+  growth:import('./growth').GrowthAPI;
+  reminders:import('./reminders').ReminderAPI;
   updates:import('./updates').UpdateAPI;
   profiles:{list():Promise<import('./accounts').LocalProfiles>;create(name:string):Promise<import('./accounts').LocalProfiles>;select(id:string):Promise<void>};
   accounts:{invitation(id:string):Promise<import('./accounts').UserInvitation>;profile():Promise<import('./accounts').RemoteProfile|null>;managementStatus():Promise<{configured:boolean}>;setManagementKey(key:string):Promise<void>;list():Promise<import('./accounts').RemoteProfile[]>;create(input:{name:string;monthlyLimitCents:number}):Promise<import('./accounts').UserInvitation>;update(input:{id:string;active?:boolean;monthlyLimitCents?:number}):Promise<import('./accounts').RemoteProfile>};
