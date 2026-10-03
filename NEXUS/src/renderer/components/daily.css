@@ -16,3 +16,7 @@
 
 .care-heading .daily-tabs button{white-space:nowrap;padding:10px 12px;line-height:20px;text-align:center}
 @media(max-width:700px){.care-heading{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}.care-heading .daily-tabs{width:100%;flex-basis:auto;box-sizing:border-box}.care-heading .daily-tabs button{flex:1}.care-heading>.daily-button{justify-self:end}.daily-dialog .habit-form{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin:0}.daily-dialog .habit-form>:is(input,select,button){width:100%;grid-column:auto;min-width:0}}
+
+.payment-reminder-fields{display:grid;gap:14px}.payment-reminder-fields>label:not(.daily-checkbox),.payment-reminder-fields .daily-fields label{display:grid;gap:7px}.payment-reminder-fields .daily-checkbox{display:flex;align-items:center;gap:10px}.payment-reminder-fields input:not([type=checkbox]){box-sizing:border-box;width:100%;min-width:0}.payment-reminder-fields input[type=checkbox]{width:18px;height:18px;min-height:18px;flex:none;accent-color:#d5ad5f}
+
+.payment-reminder-fields label{margin:0}.payment-reminder-fields label>input,.payment-reminder-fields label>textarea{margin:0}.payment-reminder-fields textarea{box-sizing:border-box;width:100%;min-width:0;padding:10px 12px;background:#101b21;border:1px solid #50616a;border-radius:9px;color:inherit;font:inherit;resize:vertical}
