@@ -18,10 +18,14 @@ export class HealthRepository {
       history: this.db.prepare('SELECT * FROM health_daily_entries ORDER BY day DESC LIMIT 90').all() as HealthData['history']
     };
   }
-  saveHabit(input: Omit<Habit,'id'|'created_at'|'sort_order'> & {id?: number}): void {
-    if(input.id&&this.db.prepare('SELECT 1 FROM care_slots WHERE habit_id=? AND active=1').get(input.id)&&(input.period!=='daily'||input.kind!=='positive'||input.format!=='boolean'))throw new Error('Сначала уберите отдельные выполнения этого пункта.');
-    if (input.id) this.db.prepare('UPDATE habits SET name=?,description=?,kind=?,format=?,target=?,period=?,active=? WHERE id=?').run(input.name,input.description,input.kind,input.format,input.target,input.period,input.active,input.id);
-    else this.db.prepare('INSERT INTO habits(id,name,description,kind,format,target,period,active,sort_order,created_at) VALUES (nexus_id(),?,?,?,?,?,?,?,?,?)').run(input.name,input.description,input.kind,input.format,input.target,input.period,input.active,(this.db.prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM habits').get() as {next:number}).next,new Date().toISOString());
+  saveHabit(input: Omit<Habit,'id'|'created_at'|'sort_order'> & {id?: number;role?: 'habit'|'care'}): void {
+    this.db.transaction(()=>{
+      if(input.id&&this.db.prepare('SELECT 1 FROM care_slots WHERE habit_id=? AND active=1').get(input.id)&&(input.period!=='daily'||input.kind!=='positive'||input.format!=='boolean'))throw new Error('Сначала уберите отдельные выполнения этого пункта.');
+      let id=input.id;
+      if(id){if(!this.db.prepare('UPDATE habits SET name=?,description=?,kind=?,format=?,target=?,period=?,active=? WHERE id=?').run(input.name,input.description,input.kind,input.format,input.target,input.period,input.active,id).changes)throw new Error('Пункт не найден.');}
+      else {id=Number(this.db.prepare('INSERT INTO habits(id,name,description,kind,format,target,period,active,sort_order,created_at) VALUES (nexus_id(),?,?,?,?,?,?,?,?,?)').run(input.name,input.description,input.kind,input.format,input.target,input.period,input.active,(this.db.prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM habits').get() as {next:number}).next,new Date().toISOString()).lastInsertRowid);}
+      if(input.role)this.db.prepare('INSERT INTO habit_preferences(id,role,updated_at) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET role=excluded.role,updated_at=excluded.updated_at').run(id,input.role,new Date().toISOString());
+    })();
   }
   moveHabit(id:number,direction:'up'|'down'): void {
     this.db.transaction(()=>{

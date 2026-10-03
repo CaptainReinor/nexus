@@ -5,6 +5,9 @@ import {localDay} from './domain';
 import type {Snapshot} from './snapshot-sync';
 export const careConfigSchema=z.object({habit_id:z.number().int().positive(),role:z.enum(['habit','care']),slots:z.array(z.object({id:z.string().uuid().optional(),label:z.string().trim().min(1).max(60),time:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),notify:z.boolean()})).max(8)}).strict();
 export const careMarkSchema=z.object({slot_id:z.string().uuid(),day:dateSchema,done:z.boolean().nullable()}).strict();
+export const careRoleSchema=z.object({habit_id:z.number().int().positive(),role:z.enum(['habit','care'])}).strict();
+export type CareRole=z.infer<typeof careRoleSchema>;
+export function saveCareRole(s:Snapshot,input:CareRole){ensureDaily(s);const x=careRoleSchema.parse(input);if(!records(s,'habits').some(h=>h.id===x.habit_id&&h.active))throw new Error('Пункт не найден.');put(s,'habit_preferences',{id:x.habit_id,role:x.role,updated_at:new Date().toISOString()});}
 export type CareConfig=z.infer<typeof careConfigSchema>;
 export type CareMark=z.infer<typeof careMarkSchema>;
 export type CareSlot={id:string;habit_id:number;label:string;time:string;notify:number;active:number;created_at:string;updated_at:string};

@@ -1,5 +1,5 @@
 import {DailyRepository} from './daily';
-import {careConfigSchema,careMarkSchema} from '../shared/care';
+import {careConfigSchema,careRoleSchema,careMarkSchema} from '../shared/care';
 import {routineSchema,routineEntrySchema} from '../shared/routines';
 import {paymentSchema,paymentActionSchema} from '../shared/payments';
 import {experimentSchema,experimentMarkSchema} from '../shared/experiments';
@@ -36,7 +36,7 @@ app.commandLine.appendSwitch('lang','ru');
 
 let window: BrowserWindow | null = null;
 let notifyLocalChange=()=>{};
-const changes=/^(?:daily:(?:careConfig|careMark|routine|routineEntry|payment|paymentAction|experiment|experimentMark|focus|reflection)|growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|changeStatus|linkCase)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
+const changes=/^(?:daily:(?:careConfig|careRole|careMark|routine|routineEntry|payment|paymentAction|experiment|experimentMark|focus|reflection)|growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|changeStatus|linkCase)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
 const id=z.number().int().positive();
 const day=z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const text=z.string().max(100000);
@@ -59,7 +59,7 @@ function handle<T extends z.ZodTypeAny>(channel:string,schema:T,fn:(input:z.infe
     }
   });
 }
-const habitSchema=z.object({id:id.optional(),name:nonEmpty,description:optionalText,kind:z.enum(['positive','avoid']),format:z.enum(['boolean','quantity','duration','avoidance']),target:z.number().nonnegative(),period:z.enum(['daily','weekly']),active:boolInt});
+const habitSchema=z.object({id:id.optional(),name:nonEmpty,description:optionalText,kind:z.enum(['positive','avoid']),format:z.enum(['boolean','quantity','duration','avoidance']),target:z.number().nonnegative(),period:z.enum(['daily','weekly']),active:boolInt,role:z.enum(['habit','care']).optional()});
 const dailySchema=z.object({day, sleep_start:z.string().nullable().optional(),sleep_end:z.string().nullable().optional(),sleep_minutes:z.number().int().nonnegative().nullable().optional(),mood:z.number().int().min(1).max(10).nullable().optional(),energy:z.number().int().min(1).max(10).nullable().optional(),nutrition:z.enum(['good','normal','poor']).nullable().optional(),comment:optionalText,weight:z.number().positive().max(500).nullable().optional(),workout:z.object({done:z.boolean(),type:text,minutes:z.number().int().nonnegative().nullable(),comment:text}).nullable().optional(),logs:z.array(z.object({habit_id:id,value:z.number().nonnegative(),status:z.enum(['done','missed','skipped']),comment:text}))});
 const transactionSchema=z.object({occurred_at:z.string().min(10).max(30),amount_cents:z.number().int().positive().safe(),type:z.enum(['expense','income','transfer']),account_id:id,target_account_id:id.nullable(),category_id:id.nullable(),note:text});
 const jobSchema=z.object({id:id.optional(),title:nonEmpty,company:nonEmpty,url:z.string().max(2000),source:text,city:text,work_mode:text,salary_from:z.number().int().nonnegative().nullable(),salary_to:z.number().int().nonnegative().nullable(),currency:z.string().min(3).max(3),original_text:text,notes:text,status:z.enum(['saved','planned','applied','viewed','invited','interview','next','offer','rejected','withdrawn','archived'])});
@@ -109,6 +109,7 @@ void app.whenReady().then(()=>{
   const daily=new DailyRepository(db);
   handle('daily:list',z.undefined(),()=>{if(daily.materialize())notifyLocalChange();return daily.list();});
   handle('daily:careConfig',careConfigSchema,input=>daily.careConfig(input));
+  handle('daily:careRole',careRoleSchema,input=>daily.careRole(input));
   handle('daily:careMark',careMarkSchema,input=>daily.careMark(input));
   handle('daily:routine',routineSchema,input=>daily.routine(input));
   handle('daily:routineEntry',routineEntrySchema,input=>daily.routineEntry(input));

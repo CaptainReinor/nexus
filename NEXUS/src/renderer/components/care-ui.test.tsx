@@ -1,0 +1,22 @@
+import {afterEach,expect,it,vi} from 'vitest';
+import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
+import {DailyProvider} from './daily-context';
+import {CareSettings} from './care-ui';
+import {dailyData,type DailyAPI} from '../../shared/daily';
+import {saveCareRole} from '../../shared/care';
+import type {Snapshot} from '../../shared/snapshot-sync';
+afterEach(cleanup);
+it('exposes direct transfers and creates items in the selected group',async()=>{
+ const s:Snapshot={format:'nexus-backup',version:11,exportedAt:'',tables:{habits:[{id:1,name:'Процедура',description:'',kind:'positive',format:'boolean',target:1,period:'daily',active:1,sort_order:0,created_at:''}]}};
+ const careRole=vi.fn(async x=>{saveCareRole(s,x);}),onCreate=vi.fn();
+ const api={list:async()=>dailyData(s),careRole} as unknown as DailyAPI;
+ render(<DailyProvider api={api}><CareSettings onCreate={onCreate}/></DailyProvider>);
+ await screen.findByText('Процедура');
+ fireEvent.click(screen.getByRole('button',{name:'В уход: Процедура'}));
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Уход'}).getAttribute('aria-pressed')).toBe('true'));
+ expect(screen.getByText('Процедура')).toBeTruthy();expect(careRole).toHaveBeenCalledWith({habit_id:1,role:'care'});
+ fireEvent.click(screen.getByRole('button',{name:'+ Добавить'}));expect(onCreate).toHaveBeenLastCalledWith('care');
+ fireEvent.click(screen.getByRole('button',{name:'В привычки: Процедура'}));
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Привычки'}).getAttribute('aria-pressed')).toBe('true'));
+ expect(screen.getByText('Процедура')).toBeTruthy();
+});

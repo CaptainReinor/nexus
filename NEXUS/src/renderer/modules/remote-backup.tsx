@@ -22,7 +22,7 @@ export function RemoteBackupPanel({beforeAction,onRestored}:{beforeAction:()=>Pr
   async function enableAndroidAI(){setBusy('ai');try{await window.nexus.data.enableAndroidAI();setNotice('AI для Android подключён через ваш сервер.');}catch(e){setNotice(errorText(e));}finally{setBusy('');}}
   async function restore(item:RemoteBackupInfo){if(!(await askConfirm(`Восстановить копию от ${new Date(item.createdAt).toLocaleString('ru-RU')}? Текущая база сначала будет сохранена локально.`)))return;if(!await beforeAction()){setNotice('Сначала исправьте ошибку локального сохранения.');return;}setBusy(item.id);try{await window.nexus.data.remoteRestore(item.id);onRestored();}catch(e){setNotice(errorText(e));}finally{setBusy('');}}
 
-  return <Panel eyebrow="08 / СЕРВЕР" title="Сервер и синхронизация" className="remote-backup-panel">
+  return <Panel title="Сервер и синхронизация" className="remote-backup-panel">
 
     {notice&&<Notice message={notice} onClose={()=>setNotice('')}/>}
     {(!config?.configured||editing)&&<div className="form-stack">

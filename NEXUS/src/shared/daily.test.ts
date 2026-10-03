@@ -5,7 +5,7 @@ import {DayLifeRepository} from '../main/life';
 import {HealthRepository} from '../main/health';
 import {lifeSchema,lifeKeys,applyLife,coachFacts} from './life';
 import {dailyTables} from './daily-core';
-import {saveCareConfig,markCare,knownCare} from './care';
+import {saveCareConfig,saveCareRole,markCare,knownCare} from './care';
 import {saveRoutine,recordRoutineEntry} from './routines';
 import {savePayment,paymentDate,paymentAction} from './payments';
 import {saveExperiment,markExperiment,experimentResult,type Experiment} from './experiments';
@@ -20,6 +20,23 @@ afterEach(()=>{db.close();vi.useRealTimers();});
 const snapshot=()=>JSON.parse(serializeBackup(db)) as Snapshot;
 function care(s:Snapshot){saveCareConfig(s,{habit_id:1,role:'care',slots:[{label:'Утро',time:'08:00',notify:true},{label:'Вечер',time:'20:00',notify:true}]});return s.tables.care_slots;}
 const payment={name:'Музыка',amount_cents:39900,account_id:1,category_id:1,cadence:'monthly' as const,start_day:'2026-10-03',active:1 as const};
+it('moves between care and habits without rewriting schedules, marks or reminders',async()=>{
+ const s=snapshot(),slots=care(s);markCare(s,{slot_id:String(slots[0].id),day:'2026-10-03',done:true});
+ const before=structuredClone(s),plan=reminderPlan(s,{...defaultReminders,quiet:false},new Date('2026-10-03T07:00:00'));
+ saveCareRole(s,{habit_id:1,role:'habit'});
+ for(const table of Object.keys(s.tables).filter(t=>t!=='habit_preferences'))expect(s.tables[table]).toEqual(before.tables[table]);
+ expect(reminderPlan(s,{...defaultReminders,quiet:false},new Date('2026-10-03T07:00:00'))).toEqual(plan);
+ expect(()=>saveCareRole(s,{habit_id:999,role:'care'})).toThrow('не найден');
+ importBackupText(db,JSON.stringify(s));const repo=new DailyRepository(db);await repo.careRole({habit_id:1,role:'care'});
+ const data=await repo.list();expect(data.preferences[0].role).toBe('care');expect(data.checks).toHaveLength(1);expect(data.slots).toHaveLength(2);expect(data.logs[0].comment).toBe('1/2');
+});
+it('creates a care item atomically and preserves its group when older clients edit it',()=>{
+ const health=new HealthRepository(db);health.saveHabit({name:'Процедура',description:'',kind:'positive',format:'boolean',target:1,period:'daily',active:1,role:'care'});
+ const item=health.list().habits.find(h=>h.name==='Процедура')!;
+ expect(db.prepare('SELECT role FROM habit_preferences WHERE id=?').get(item.id)).toEqual({role:'care'});
+ health.saveHabit({...item,name:'Новая процедура'});expect(db.prepare('SELECT role FROM habit_preferences WHERE id=?').get(item.id)).toEqual({role:'care'});
+ health.saveHabit({...item,role:'habit'});expect(db.prepare('SELECT role FROM habit_preferences WHERE id=?').get(item.id)).toEqual({role:'habit'});
+});
 it('keeps two care executions independent, derives completion after offline merge and supports clearing marks',()=>{
  const base=snapshot(),slots=care(base),left=structuredClone(base),right=structuredClone(base);
  markCare(left,{slot_id:String(slots[0].id),day:'2026-10-03',done:true});markCare(right,{slot_id:String(slots[1].id),day:'2026-10-03',done:true});

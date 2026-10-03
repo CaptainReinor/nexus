@@ -3,7 +3,7 @@ import {schemaVersion} from './database';
 import type {Snapshot,Row} from '../shared/snapshot-sync';
 import {dailyTables} from '../shared/daily-core';
 import {dailyData,type DailyAPI} from '../shared/daily';
-import {saveCareConfig,markCare,type CareConfig,type CareMark} from '../shared/care';
+import {saveCareConfig,saveCareRole,markCare,type CareRole,type CareConfig,type CareMark} from '../shared/care';
 import {saveRoutine,recordRoutineEntry,type RoutineInput,type RoutineEntry} from '../shared/routines';
 import {savePayment,paymentAction,materializePayments,type PaymentInput,type PaymentAction} from '../shared/payments';
 import {saveExperiment,markExperiment,type ExperimentInput,type experimentMarkSchema} from '../shared/experiments';
@@ -19,6 +19,7 @@ export class DailyRepository implements DailyAPI{
   materialize(){const s=this.snapshot();if(!materializePayments(s))return false;this.change(next=>{next.tables.payment_occurrences=s.tables.payment_occurrences;});return true;}
   async list(){return dailyData(this.snapshot());}
   async careConfig(x:CareConfig){this.change(s=>saveCareConfig(s,x));}
+  async careRole(x:CareRole){this.change(s=>saveCareRole(s,x));}
   async careMark(x:CareMark){this.change(s=>markCare(s,x));}
   async routine(x:RoutineInput){this.change(s=>saveRoutine(s,x));}
   async routineEntry(x:RoutineEntry){this.change(s=>recordRoutineEntry(s,x));}

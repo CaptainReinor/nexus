@@ -13,7 +13,7 @@ type Mark={value:number;status:HabitLog['status']};
 const success=(habit:TodayHabit)=>habit.status==='done'&&(habit.kind==='avoid'?habit.value===0:(habit.value??0)>=habit.target);
 
 export function TodayCapture({onOpen}:{onOpen:()=>void}){
-  return <section className="today-capture"><div className="today-capture-icon" aria-hidden="true">✎</div><div><h2>Что было сегодня?</h2><p>Текстом или голосом.</p></div><button className="today-button primary" onClick={onOpen}>Записать день <span aria-hidden="true">→</span></button></section>;
+  return <section className="today-capture"><div className="today-capture-icon" aria-hidden="true">✎</div><div><h2>Что было сегодня?</h2></div><button className="today-button primary" onClick={onOpen}>Записать день <span aria-hidden="true">→</span></button></section>;
 }
 
 export function TodayHabits({habits,onMark,onManage}:{habits:TodayHabit[];onMark:(habit:TodayHabit,value:number,status:HabitLog['status'])=>Promise<void|boolean>;onManage:()=>void}){
@@ -40,7 +40,7 @@ export function TodayHabits({habits,onMark,onManage}:{habits:TodayHabit[];onMark
     {daily.length>0&&<div className="today-progress" aria-label={`Ежедневные привычки: ${completed.length} из ${daily.length}`}><span style={{width:`${completed.length/daily.length*100}%`}}/></div>}
     {pending.slice(0,6).map(row)}
     {pending.length>6&&<details className="today-fold"><summary>Ещё привычки · {pending.length-6}</summary>{pending.slice(6).map(row)}</details>}
-    {!daily.length&&<p className="today-empty">Добавьте привычки, которые хотите отмечать каждый день.</p>}
+
     {daily.length>0&&!pending.length&&<p className="today-done">✓ На сегодня всё сделано</p>}
     {completed.length>0&&<details className="today-fold"><summary>Выполнено · {completed.length}</summary>{completed.map(row)}</details>}
     {weekly.length>0&&<details className="today-fold"><summary>На этой неделе · {weekly.length}</summary>{weekly.map(row)}</details>}

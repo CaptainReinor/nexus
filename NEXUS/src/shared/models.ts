@@ -55,7 +55,7 @@ export interface NexusAPI {
   investments:{list():Promise<InvestmentData>;saveAccount(input:{id?:number;name:string;active:number}):Promise<void>;saveEntry(input:Omit<InvestmentEntry,'id'>):Promise<void>;deleteEntry(id:number):Promise<void>};
   health: {
     list(): Promise<HealthData>;
-    saveHabit(input: Omit<Habit,'id'|'created_at'|'sort_order'> & { id?: number }): Promise<void>;
+    saveHabit(input: Omit<Habit,'id'|'created_at'|'sort_order'> & { id?: number; role?: 'habit'|'care' }): Promise<void>;
     moveHabit(input: { id: number; direction: 'up' | 'down' }): Promise<void>;
     saveDay(input: DailyInput): Promise<void>;
     saveDayField(input: DayFieldInput): Promise<void>;

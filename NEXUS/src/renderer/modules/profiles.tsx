@@ -20,7 +20,7 @@ export function AccountsPanel(){
   const userRow=(user:RemoteProfile)=><div className="compact-list" key={user.id}><div><strong>{user.name}</strong><span>{user.usedMicrousd===undefined?'Расход недоступен':`$${(user.usedMicrousd/1_000_000).toFixed(4)}`} / ${((user.monthlyLimitCents??0)/100).toFixed(2)}</span><button type="button" className="button secondary small" disabled={busy} onClick={()=>void showCode(user)}>Показать код</button><button type="button" className="button ghost small" disabled={busy} onClick={()=>void toggle(user)}>{user.active?'Отключить доступ и AI':'Восстановить доступ и AI'}</button>{user.active&&<button type="button" className="button ghost small" onClick={()=>hide(user)}>{hiddenIds.includes(user.id)?'Вернуть в список':'Скрыть'}</button>}</div></div>;
   if(!config.data?.configured||profile?.role!=='owner')return null;
   const code=invitation?(invitation.code??JSON.stringify({format:'nexus-invite',version:1,name:invitation.user.name,endpoint:invitation.endpoint,token:invitation.token})):'';
-  return <Panel eyebrow="ДОСТУП" title="Доступы друзей" className="settings-wide">
+  return <Panel title="Доступы друзей" className="settings-wide">
     {notice&&<Notice message={notice} onClose={()=>setNotice('')}/>}
     <>
 

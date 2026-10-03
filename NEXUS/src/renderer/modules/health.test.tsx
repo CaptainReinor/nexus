@@ -23,7 +23,7 @@ it('lets the user change the order of active habits',async()=>{
   window.nexus={health:{list:vi.fn().mockResolvedValue({habits:[habit(1,'Чтение',0),habit(2,'Прогулка',1)],logs:[],daily:null,weights:[],workouts:[],history:[]}),saveDay:vi.fn(),saveHabit:vi.fn(),moveHabit,archiveHabit:vi.fn()},settings:{get:vi.fn().mockResolvedValue({firstDayOfWeek:1})}} as unknown as NexusAPI;
   render(<HealthPage/>);
   fireEvent.click(screen.getByRole('button',{name:'Уход и привычки'}));
-  fireEvent.click(await screen.findByText('История и порядок'));
+  fireEvent.click(await screen.findByText('История'));
   await screen.findByRole('button',{name:'Поднять привычку Прогулка'});
   fireEvent.click(screen.getByRole('button',{name:'Поднять привычку Прогулка'}));
   await waitFor(()=>expect(moveHabit).toHaveBeenCalledWith({id:2,direction:'up'}));

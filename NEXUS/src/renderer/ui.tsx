@@ -14,7 +14,7 @@ export function useData<T>(loader:()=>Promise<T>): {data:T|null;loading:boolean;
   useEffect(()=>{void reload();const refresh=()=>void reload();window.addEventListener('nexus:daily-change',refresh);return()=>window.removeEventListener('nexus:daily-change',refresh);},[reload]);
   return {data,loading,error,reload};
 }
-export function Panel({title,eyebrow,action,children,className=''}:{title?:string;eyebrow?:string;action?:ReactNode;children:ReactNode;className?:string}) { return <section className={`panel ${className}`}><div className="panel-head"><div>{eyebrow&&<div className="eyebrow">{eyebrow}</div>}{title&&<h2>{title}</h2>}</div>{action}</div>{children}</section>; }
+export function Panel({title,eyebrow,action,children,className=''}:{title?:string;eyebrow?:string;action?:ReactNode;children:ReactNode;className?:string}) { return <section className={`panel ${className}`}>{(title||eyebrow||action)&&<div className="panel-head"><div>{eyebrow&&<div className="eyebrow">{eyebrow}</div>}{title&&<h2>{title}</h2>}</div>{action}</div>}{children}</section>; }
 export function Stat({label,value,sub,tone=''}:{label:string;value:ReactNode;sub?:ReactNode;tone?:string}) {return <div className={`stat ${tone}`}><div className="stat-label">{label}</div><div className="stat-value">{value}</div>{sub&&<div className="stat-sub">{sub}</div>}</div>}
 export function Empty({title,description,action}:{title:string;description?:string;action?:ReactNode}) {return <div className="empty"><div className="empty-mark">◇</div><strong>{title}</strong>{description&&<p>{description}</p>}{action}</div>}
 export function Modal({title,onClose,children,wide=false}:{title:string;onClose:()=>void;children:ReactNode;wide?:boolean}) {
