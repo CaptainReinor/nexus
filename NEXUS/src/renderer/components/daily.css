@@ -11,8 +11,8 @@
 
 .daily-heading>.daily-button,.daily-heading>.daily-icon-button{flex:none;white-space:nowrap}.daily-dialog>header{position:sticky;top:0;z-index:1;background:#19272d}
 
-.care-heading .daily-tabs{margin:0}.care-setting-row>div:first-child{min-width:0;flex:1}.care-setting-row strong{overflow-wrap:anywhere}.care-setting-row .daily-actions{flex-shrink:0}.care-move{white-space:nowrap}
+.care-heading .daily-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:280px;max-width:100%;flex:0 0 280px;box-sizing:border-box;margin:0;overflow:visible}.care-setting-row>div:first-child{min-width:0;flex:1}.care-setting-row strong{overflow-wrap:anywhere}.care-setting-row .daily-actions{flex-shrink:0}.care-move{white-space:nowrap}
 @media(max-width:700px){.care-heading{flex-wrap:wrap}.care-setting-row{flex-wrap:wrap}.care-setting-row>div:first-child{flex-basis:100%}.care-setting-row .daily-actions{width:100%;justify-content:flex-end;flex-wrap:wrap}}
 
-.care-heading .daily-tabs button{white-space:nowrap}
-@media(max-width:700px){.care-heading{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}.care-heading .daily-tabs{width:100%;box-sizing:border-box}.care-heading .daily-tabs button{flex:1}.care-heading>.daily-button{justify-self:end}.daily-dialog .habit-form{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin:0}.daily-dialog .habit-form>:is(input,select,button){width:100%;grid-column:auto;min-width:0}}
+.care-heading .daily-tabs button{white-space:nowrap;padding:10px 12px;line-height:20px;text-align:center}
+@media(max-width:700px){.care-heading{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}.care-heading .daily-tabs{width:100%;flex-basis:auto;box-sizing:border-box}.care-heading .daily-tabs button{flex:1}.care-heading>.daily-button{justify-self:end}.daily-dialog .habit-form{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin:0}.daily-dialog .habit-form>:is(input,select,button){width:100%;grid-column:auto;min-width:0}}
