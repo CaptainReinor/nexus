@@ -13,6 +13,17 @@ import nexus_backup
 
 
 class BackupApiTest(unittest.TestCase):
+    def test_finance_insertion_times_survive_sync_and_cannot_be_downgraded(self):
+        tables = nexus_backup.SYNC_TABLES | nexus_backup.INVESTMENT_TABLES | nexus_backup.LIFE_TABLES | nexus_backup.GROWTH_TABLES | {'weekly_plan_tasks'}
+        snapshot = {'format':'nexus-backup','version':10,'exportedAt':'2026-10-03T00:00:00Z','tables':{name:[] for name in tables}}
+        snapshot['tables']['finance_transactions'] = [{'id':1,'occurred_at':'2025-01-01T12:00:00','created_at':'2026-10-03T18:00:00.001Z'}]
+        self.assertEqual(self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=0)[0],200)
+        self.assertEqual(self.request('/v1/state')[1]['snapshot'],snapshot)
+        snapshot['version'] = 9
+        with self.assertRaises(urllib.error.HTTPError) as invalid:
+            self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=1)
+        self.assertEqual(invalid.exception.code,426)
+
     def test_multi_day_plan_links_sync_and_old_clients_cannot_drop_them(self):
         tables = nexus_backup.SYNC_TABLES | nexus_backup.INVESTMENT_TABLES | nexus_backup.LIFE_TABLES | nexus_backup.GROWTH_TABLES | {'weekly_plan_tasks'}
         snapshot = {'format':'nexus-backup','version':9,'exportedAt':'2026-10-03T00:00:00Z','tables':{name:[] for name in tables}}

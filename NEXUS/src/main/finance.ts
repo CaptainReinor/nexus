@@ -1,3 +1,4 @@
+import { nextTransactionCreatedAt } from '../shared/finance-order';
 import type { DB } from './database';
 import type { Account, Budget, Category, FinanceData, Transaction } from '../shared/models';
 import { localDay, monthOf, weekStart } from '../shared/domain';
@@ -26,7 +27,7 @@ export class FinanceRepository {
     return {
       accounts,
       categories: this.db.prepare('SELECT * FROM finance_categories ORDER BY kind,name').all() as Category[],
-      transactions: this.db.prepare(`SELECT t.*,a.name AS account_name,c.name AS category_name,ta.name AS target_name FROM finance_transactions t JOIN finance_accounts a ON a.id=t.account_id LEFT JOIN finance_accounts ta ON ta.id=t.target_account_id LEFT JOIN finance_categories c ON c.id=t.category_id ORDER BY t.occurred_at DESC,t.id DESC LIMIT 500`).all() as Transaction[],
+      transactions: this.db.prepare(`SELECT t.*,a.name AS account_name,c.name AS category_name,ta.name AS target_name FROM finance_transactions t JOIN finance_accounts a ON a.id=t.account_id LEFT JOIN finance_accounts ta ON ta.id=t.target_account_id LEFT JOIN finance_categories c ON c.id=t.category_id ORDER BY (t.created_at!='') DESC,t.created_at DESC,t.occurred_at DESC,t.id DESC LIMIT 500`).all() as Transaction[],
       budget: (this.db.prepare('SELECT * FROM finance_budgets WHERE month=?').get(month) as Budget)??null,
       category_totals: this.db.prepare(`SELECT COALESCE(c.name,'Без категории') AS name,SUM(t.amount_cents) AS amount_cents FROM finance_transactions t LEFT JOIN finance_categories c ON c.id=t.category_id WHERE t.type='expense' AND substr(t.occurred_at,1,7)=? GROUP BY c.id ORDER BY amount_cents DESC`).all(month) as FinanceData['category_totals'],
       expense_history:balance_history.map(x=>({day:x.day,amount_cents:expensesByDay.get(x.day)??0})),
@@ -42,11 +43,12 @@ export class FinanceRepository {
     if (input.id) this.db.prepare('UPDATE finance_categories SET name=?,kind=?,active=? WHERE id=?').run(input.name,input.kind,input.active,input.id);
     else this.db.prepare('INSERT INTO finance_categories(id,name,kind,active) VALUES (nexus_id(),?,?,?)').run(input.name,input.kind,input.active);
   }
-  saveTransaction(input: Omit<Transaction,'id'|'account_name'|'category_name'|'target_name'>): void {
+  saveTransaction(input: Omit<Transaction,'id'|'created_at'|'account_name'|'category_name'|'target_name'>): void {
     if (input.type==='transfer' && (!input.target_account_id || input.target_account_id===input.account_id)) throw new Error('Выберите другой счёт для перевода.');
     if (input.type==='expense' && !input.category_id) throw new Error('Выберите категорию.');
     if(input.type==='expense'&&!this.db.prepare("SELECT id FROM finance_categories WHERE id=? AND kind='expense' AND active=1").get(input.category_id))throw new Error('Выберите активную категорию расхода.');
-    this.db.prepare('INSERT INTO finance_transactions(id,occurred_at,amount_cents,type,account_id,target_account_id,category_id,note) VALUES (nexus_id(),?,?,?,?,?,?,?)').run(input.occurred_at,input.amount_cents,input.type,input.account_id,input.type==='transfer'?input.target_account_id:null,input.type==='expense'?input.category_id:null,input.note);
+    const createdAt=nextTransactionCreatedAt(this.db.prepare("SELECT MAX(created_at) AS created_at FROM finance_transactions").all() as {created_at:string}[]);
+    this.db.prepare('INSERT INTO finance_transactions(id,created_at,occurred_at,amount_cents,type,account_id,target_account_id,category_id,note) VALUES (nexus_id(),?,?,?,?,?,?,?,?)').run(createdAt,input.occurred_at,input.amount_cents,input.type,input.account_id,input.type==='transfer'?input.target_account_id:null,input.type==='expense'?input.category_id:null,input.note);
   }
   deleteTransaction(id:number):void {
     const result=this.db.prepare('DELETE FROM finance_transactions WHERE id=?').run(id);

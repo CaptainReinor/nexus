@@ -9,7 +9,7 @@ export type Workout = { id: number; day: string; done: number; type: string; min
 export type HealthData = { habits: Habit[]; logs: HabitLog[]; daily: DailyEntry | null; weights: WeightEntry[]; workouts: Workout[]; history: DailyEntry[] };
 export type Account = { id: number; name: string; opening_cents: number; active: number; balance_cents: number };
 export type Category = { id: number; name: string; kind: 'expense' | 'income'; active: number };
-export type Transaction = { id: number; occurred_at: string; amount_cents: number; type: 'expense' | 'income' | 'transfer'; account_id: number; target_account_id: number | null; category_id: number | null; note: string; account_name?: string; category_name?: string; target_name?: string };
+export type Transaction = { id: number; created_at?: string; occurred_at: string; amount_cents: number; type: 'expense' | 'income' | 'transfer'; account_id: number; target_account_id: number | null; category_id: number | null; note: string; account_name?: string; category_name?: string; target_name?: string };
 export type InvestmentAccount={id:number;name:string;active:number};
 export type InvestmentEntry={id:number;account_id:number;day:string;value_cents:number;flow_cents:number;note:string};
 export type InvestmentData={accounts:InvestmentAccount[];entries:InvestmentEntry[]};
@@ -64,7 +64,7 @@ export interface NexusAPI {
     list(): Promise<FinanceData>;
     saveAccount(input: { id?: number; name: string; opening_cents: number; active: number }): Promise<void>;
     saveCategory(input: { id?: number; name: string; kind: 'expense'|'income'; active: number }): Promise<void>;
-    saveTransaction(input: Omit<Transaction,'id'|'account_name'|'category_name'|'target_name'>): Promise<void>;
+    saveTransaction(input: Omit<Transaction,'id'|'created_at'|'account_name'|'category_name'|'target_name'>): Promise<void>;
     deleteTransaction(id:number): Promise<void>;
     deleteCategory(id:number): Promise<void>;
     setBudget(input: Budget): Promise<void>;

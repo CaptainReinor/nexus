@@ -1,3 +1,4 @@
+import { nextTransactionCreatedAt } from '../../NEXUS/src/shared/finance-order';
 import { isPositiveJournalAmount,hasIncompleteSelectedFinance } from '../../NEXUS/src/shared/journal-schema';
 import { applyLife,lifeKeys } from '../../NEXUS/src/shared/life';
 import { journalSchema, type JournalAnalysis } from './ai';
@@ -46,7 +47,7 @@ export function applyJournalSuggestions(snapshot:Snapshot,entryId:number,rawAnal
       const category=rows(snapshot,'finance_categories').find(x=>x.id===item.categoryId&&x.active===1&&x.kind===item.type);
       if(!account||(item.type==='expense'&&!category))throw new Error('Нужны существующие счёт и категория.');
       const transactions=rows(snapshot,'finance_transactions');
-      transactions.push({id:nextId(transactions),occurred_at:`${day}T12:00:00`,amount_cents:item.amountCents,type:item.type,account_id:item.accountId,target_account_id:null,category_id:item.type==='income'?null:item.categoryId,note:item.note||'Из дневника'});
+      transactions.push({id:nextId(transactions),created_at:nextTransactionCreatedAt(transactions),occurred_at:`${day}T12:00:00`,amount_cents:item.amountCents,type:item.type,account_id:item.accountId,target_account_id:null,category_id:item.type==='income'?null:item.categoryId,note:item.note||'Из дневника'});
     }else if(key.startsWith('work.')){
       const item=analysis.work[Number(key.slice(5))],job=rows(snapshot,'jobs').find(x=>x.id===item?.jobId);
       if(!job||!item)throw new Error('Вакансия не найдена.');

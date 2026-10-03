@@ -6,7 +6,7 @@ import { randomInt } from 'node:crypto';
 import { defaultDebit, defaultCategories } from '../shared/finance-defaults';
 
 export type DB = Database.Database;
-export const schemaVersion = 9;
+export const schemaVersion = 10;
 export const backupTables = [
   'settings','habits','habit_logs','health_daily_entries','weight_entries','workouts',
   'finance_accounts','finance_categories','finance_transactions','finance_budgets',
@@ -87,7 +87,9 @@ const migrations: string[] = [
   `
   CREATE TABLE weekly_plan_tasks (id TEXT PRIMARY KEY,plan_id TEXT NOT NULL REFERENCES weekly_plans(id),task_id TEXT NOT NULL UNIQUE);
   INSERT INTO weekly_plan_tasks (id,plan_id,task_id) SELECT task_id,id,task_id FROM weekly_plans WHERE task_id IN (SELECT id FROM day_tasks);
-  `
+  `,
+  `ALTER TABLE finance_transactions ADD COLUMN created_at TEXT NOT NULL DEFAULT '';
+  CREATE INDEX idx_transactions_created ON finance_transactions(created_at DESC);`
 ];
 
 const starterDatabases=new WeakSet<DB>();

@@ -31,7 +31,7 @@ it('keeps an unknown expense editable and requires a positive amount before appl
  expect(()=>applyJournalSuggestions(mobile,entry.id,value,['health.mood','finance.0'])).toThrow('Укажите сумму');expect(JSON.stringify(mobile)).toBe(before);
  value.finance[0].amountCents=3575;journal.editAnalysis(entry.id,value);
  journal.apply(entry.id,['finance.0']);applyJournalSuggestions(mobile,entry.id,value,['finance.0']);
- expect(finance.list().transactions[0].amount_cents).toBe(3575);expect(mobile.tables.finance_transactions[0].amount_cents).toBe(3575);
+ expect(finance.list().transactions[0].amount_cents).toBe(3575);expect(mobile.tables.finance_transactions[0].amount_cents).toBe(3575);expect(finance.list().transactions[0].created_at?.slice(0,10)).not.toBe('2026-10-01');expect(String(mobile.tables.finance_transactions[0].created_at).slice(0,10)).not.toBe('2026-10-01');
 });
 it('migrates an existing schema 5 database with a recoverable backup and preserves old records',()=>{
  const root=resolve(process.cwd()),folder=mkdtempSync(join(root,'.test-life-migration-')),path=join(folder,'nexus.sqlite');
@@ -39,7 +39,7 @@ it('migrates an existing schema 5 database with a recoverable backup and preserv
  let disk:DB|undefined;
  try{
   disk=openDatabase(path);disk.prepare("INSERT INTO finance_accounts(id,name,opening_cents) VALUES (42,'Existing account',12345)").run();
-  disk.exec('DROP TABLE weekly_plan_tasks; DROP TABLE metric_entries; DROP TABLE custom_metrics; DROP TABLE recurring_skips; DROP TABLE recurring_tasks; DROP TABLE weekly_plans; DROP TABLE financial_goals; DROP TABLE assistant_reviews; DROP TABLE day_memories; DROP TABLE day_tasks; DROP TABLE day_details; DELETE FROM schema_migrations WHERE version>=6');disk.close();disk=undefined;
+  disk.exec('DROP INDEX idx_transactions_created; ALTER TABLE finance_transactions DROP COLUMN created_at; DROP TABLE weekly_plan_tasks; DROP TABLE metric_entries; DROP TABLE custom_metrics; DROP TABLE recurring_skips; DROP TABLE recurring_tasks; DROP TABLE weekly_plans; DROP TABLE financial_goals; DROP TABLE assistant_reviews; DROP TABLE day_memories; DROP TABLE day_tasks; DROP TABLE day_details; DELETE FROM schema_migrations WHERE version>=6');disk.close();disk=undefined;
   disk=openDatabase(path);expect(disk.prepare('SELECT opening_cents FROM finance_accounts WHERE id=42').get()).toEqual({opening_cents:12345});expect(new DayLifeRepository(disk).list().details).toEqual([]);
   const backup=readdirSync(folder).find(name=>name.includes(`.before-v${schemaVersion}-`))!;expect(backup).toBeTruthy();
   const saved=new Database(join(folder,backup),{readonly:true});try{expect(saved.prepare('SELECT MAX(version) AS v FROM schema_migrations').get()).toEqual({v:5});expect(saved.prepare('SELECT opening_cents FROM finance_accounts WHERE id=42').get()).toEqual({opening_cents:12345});}finally{saved.close();}

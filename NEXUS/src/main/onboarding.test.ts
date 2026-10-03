@@ -39,6 +39,7 @@ it('migrates linked cases without deleting vacancy links and accepts independent
     CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT NOT NULL);
     INSERT INTO schema_migrations VALUES(6,'2026-09-30');
     CREATE TABLE day_tasks (id TEXT PRIMARY KEY,title TEXT NOT NULL,day TEXT NOT NULL,due_day TEXT NOT NULL,status TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+    CREATE TABLE finance_transactions(id INTEGER PRIMARY KEY,occurred_at TEXT NOT NULL);
     CREATE TABLE jobs(id INTEGER PRIMARY KEY);
     CREATE TABLE experience_entries(id INTEGER PRIMARY KEY);
     CREATE TABLE experience_cases(id INTEGER PRIMARY KEY,entry_id INTEGER NOT NULL REFERENCES experience_entries(id),title TEXT NOT NULL,situation TEXT NOT NULL DEFAULT '',task TEXT NOT NULL DEFAULT '',actions TEXT NOT NULL DEFAULT '',result TEXT NOT NULL DEFAULT '',skills TEXT NOT NULL DEFAULT '',tools TEXT NOT NULL DEFAULT '',tags TEXT NOT NULL DEFAULT '');
