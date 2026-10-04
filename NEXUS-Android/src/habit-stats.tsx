@@ -4,7 +4,7 @@ import { rows, today, type Snapshot } from './sync';
 const dateOf=(date:Date)=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 export function HabitStatistics({snapshot}:{snapshot:Snapshot}){
  const habits=rows(snapshot,'habits').filter(x=>x.active===1),logs=rows(snapshot,'habit_logs');
- return <section className="card"><h2>Регулярность привычек</h2><p className="muted">Зелёный — успех, красный — не выполнено, серый — период ещё не завершён.</p>{habits.map(h=>{
+ return <section className="card dominion-frame"><h2>Регулярность привычек</h2><p className="muted">Зелёный — успех, красный — не выполнено, серый — период ещё не завершён.</p>{habits.map(h=>{
   const weekly=h.period==='weekly';
   const cells=Array.from({length:weekly?8:28},(_,i)=>{const date=new Date(`${today()}T12:00:00`);date.setDate(date.getDate()-(weekly?7-i:27-i)*(weekly?7:1));if(weekly)date.setDate(date.getDate()-(date.getDay()+6)%7);const day=dateOf(date),result=habitPeriodState(h as unknown as Habit,logs as unknown as HabitLog[],day,today());return {day,state:result==='unmarked'?'empty':result};});
   const observed=cells.filter(x=>x.state!=='empty').length,done=cells.filter(x=>x.state==='success').length;

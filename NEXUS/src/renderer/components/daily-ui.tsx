@@ -5,7 +5,6 @@ import {DailyDialog} from './daily-context';
 import {FocusPanel} from './focus-ui';
 export {DailyProvider,useDaily} from './daily-context';
 export {CareSettings,CareChecks} from './care-ui';
-export {ReflectionPanel} from './reflection-ui';
 export {PaymentsPanel} from './payments-ui';
 export {ExperimentsPanel} from './experiments-ui';
 export {FocusDock} from './focus-ui';

@@ -1,4 +1,4 @@
-// Contextual system copy from Dominion 3.0. Never apply to user records.
+// Contextual system copy from Dominion 3.1. Never apply to user records.
 export const appearanceCopy:Record<string,Record<string,{windows:string;android:string}>>={
   "App": {
     "Вакансий пока нет.": {
@@ -121,8 +121,14 @@ export const appearanceCopy:Record<string,Record<string,{windows:string;android:
     }
   },
   "finance": {
-    "Выберите дату касанием или ползунком.": {"windows":"","android":""},
-    "Повседневные деньги и отдельный инвестиционный портфель.": {"windows":"","android":""},
+    "Выберите дату касанием или ползунком.": {
+      "windows": "",
+      "android": ""
+    },
+    "Повседневные деньги и отдельный инвестиционный портфель.": {
+      "windows": "",
+      "android": ""
+    },
     "Загрузка финансов…": {
       "windows": "Загрузка…",
       "android": "Загрузка…"
@@ -229,7 +235,10 @@ export const appearanceCopy:Record<string,Record<string,{windows:string;android:
     }
   },
   "journal": {
-    "Расскажите о дне. AI предложит изменения, а вы выберете нужные.": {"windows":"","android":""},
+    "Расскажите о дне. AI предложит изменения, а вы выберете нужные.": {
+      "windows": "",
+      "android": ""
+    },
     "Записей пока нет.": {
       "windows": "Нет записей",
       "android": "Нет записей"
@@ -566,7 +575,10 @@ export const appearanceCopy:Record<string,Record<string,{windows:string;android:
     }
   },
   "payments-ui": {
-    "Уведомления о платежах": {"windows":"Сигналы платежей","android":"Сигналы платежей"},
+    "Уведомления о платежах": {
+      "windows": "Сигналы платежей",
+      "android": "Сигналы платежей"
+    },
     "Уведомления": {
       "windows": "Сигналы",
       "android": "Сигналы"
@@ -620,10 +632,6 @@ export const appearanceCopy:Record<string,Record<string,{windows:string;android:
     "Вечер": {
       "windows": "Вечерний протокол",
       "android": "Вечер"
-    },
-    "Вопрос вечера": {
-      "windows": "Вечерний разбор",
-      "android": "Вечерний разбор"
     },
     "Рассказать о дне →": {
       "windows": "Запись дня →",
@@ -733,7 +741,10 @@ export const appearanceCopy:Record<string,Record<string,{windows:string;android:
     }
   },
   "life-board": {
-    "ЛИЧНЫЙ НАСТАВНИК": {"windows":"СОВЕТНИК","android":"СОВЕТНИК"},
+    "ЛИЧНЫЙ НАСТАВНИК": {
+      "windows": "СОВЕТНИК",
+      "android": "СОВЕТНИК"
+    },
     "Воспоминание": {
       "windows": "Запись памяти",
       "android": "Запись памяти"
@@ -815,20 +826,6 @@ export const appearanceCopy:Record<string,Record<string,{windows:string;android:
       "android": "Результат"
     }
   },
-  "reflection-ui": {
-    "Вопрос вечера": {
-      "windows": "Вечерний разбор",
-      "android": "Вечерний разбор"
-    },
-    "Ответ на вопрос вечера": {
-      "windows": "Ответ",
-      "android": "Ответ"
-    },
-    "Пара предложений…": {
-      "windows": "",
-      "android": ""
-    }
-  },
   "today": {
     "Все привычки →": {
       "windows": "Все протоколы →",
@@ -855,8 +852,8 @@ export const appearanceCopy:Record<string,Record<string,{windows:string;android:
       "android": "Протоколы"
     },
     "Что было сегодня?": {
-      "windows": "Запись дня",
-      "android": "Запись дня"
+      "windows": "",
+      "android": ""
     },
     "Что хотите сделать сегодня?": {
       "windows": "",

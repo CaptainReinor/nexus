@@ -1,0 +1,133 @@
+{
+  "version": "3.1",
+  "colors": {
+    "bg": "#10161B",
+    "surface": "#1A232B",
+    "surfaceRaised": "#26333D",
+    "surfaceInset": "#0C1116",
+    "borderDecorative": "#52616C",
+    "borderControl": "#6F808D",
+    "text": "#E6ECEF",
+    "textSecondary": "#B1BEC7",
+    "textOnAccent": "#FFFFFF",
+    "accent": "#B92E35",
+    "accentHover": "#CE3942",
+    "accentPressed": "#92232C",
+    "accentEdge": "#D95760",
+    "success": "#76C49B",
+    "favorable": "#76C49B",
+    "unfavorable": "#E99A92",
+    "warning": "#E8B35A",
+    "info": "#80BFD0",
+    "errorText": "#FFC9C2",
+    "errorSurface": "#402528",
+    "focus": "#F4E2B8"
+  },
+  "spacing": [
+    4,
+    8,
+    12,
+    16,
+    24,
+    32
+  ],
+  "windows": {
+    "sidebar": 240,
+    "topbar": 64,
+    "normalMinWidth": 980,
+    "compactPadding": 24,
+    "widePadding": 22,
+    "panelPadding": 20,
+    "controlHeight": 40,
+    "plotHeight": 224,
+    "outerFrame": 18,
+    "panelFrame": 34,
+    "navFrame": 14
+  },
+  "android": {
+    "contentPadding": 16,
+    "panelPadding": 16,
+    "gap": 12,
+    "controlHeight": 48,
+    "touchTargetDp": 48,
+    "navMinHeight": 58,
+    "plotHeight": 192,
+    "outerFrame": 7,
+    "panelFrame": 16,
+    "navigationIcons": false,
+    "navigation": "text-only"
+  },
+  "motionMs": {
+    "pressed": 80,
+    "hover": 120,
+    "selection": 160,
+    "theme": 180,
+    "metric": 220,
+    "expand": 180,
+    "error": 120,
+    "reducedMax": 80
+  },
+  "persistence": {
+    "key": "nexus.appearance.theme.v1",
+    "values": [
+      "standard",
+      "dominion"
+    ],
+    "default": "standard",
+    "scope": "device-local"
+  },
+  "metricAssessment": {
+    "explicitGoal": "closer=favorable,farther=unfavorable,equal=neutral",
+    "defaultWeight": "decrease=favorable,increase=unfavorable",
+    "defaultSleep": "increase=favorable,decrease=unfavorable",
+    "displayedZero": "neutral",
+    "missingComparison": "no_delta"
+  },
+  "charts": {
+    "lineWidthWindows": 2.5,
+    "lineWidthAndroid": 2,
+    "comparisonDash": [
+      5,
+      4
+    ],
+    "goalDash": [
+      2,
+      4
+    ],
+    "lineFillMaxOpacity": 0.08,
+    "barStepRatio": [
+      0.6,
+      0.7
+    ],
+    "barMinGap": 3,
+    "barRadius": 2,
+    "zeroBarHeight": 0,
+    "xTicksWindows": 5,
+    "xTicksAndroid": 3,
+    "yTicks": [
+      3,
+      5
+    ],
+    "revealMs": 180,
+    "seriesColors": {
+      "neutral": "info",
+      "income": "favorable",
+      "expense": "unfavorable",
+      "comparison": "textSecondary",
+      "goal": "warning"
+    }
+  },
+  "materials": {
+    "chromeMid": "#343C3E",
+    "chromeLight": "#535D60",
+    "chromeDark": "#1C2326",
+    "chromeEdge": "#778286",
+    "frameAsset": "assets/console-frame.png",
+    "frameSlices": [
+      230,
+      250,
+      230,
+      250
+    ]
+  }
+}

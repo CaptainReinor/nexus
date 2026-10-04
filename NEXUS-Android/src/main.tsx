@@ -8,6 +8,7 @@ import './styles.css';
 import '../../NEXUS/src/renderer/components/design.css';
 import {initializeAppearance} from '../../NEXUS/src/renderer/appearance';
 import '../../NEXUS/src/renderer/dominion.css';
+import '../../NEXUS/src/renderer/dominion-material.css';
 initializeAppearance('android');
 import {initializeFeedback} from './feedback';
 initializeFeedback();

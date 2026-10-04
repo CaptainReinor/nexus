@@ -1,0 +1,1256 @@
+[
+  {
+    "scope": "App",
+    "source": "Вакансий пока нет.",
+    "windows": "Нет вакансий",
+    "android": "Нет вакансий"
+  },
+  {
+    "scope": "App",
+    "source": "Вставьте полный текст вакансии для AI-разбора.",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "App",
+    "source": "Вход в NEXUS",
+    "windows": "Доступ к NEXUS",
+    "android": "Доступ к NEXUS"
+  },
+  {
+    "scope": "App",
+    "source": "Дневник",
+    "windows": "Личный журнал",
+    "android": "Журнал"
+  },
+  {
+    "scope": "App",
+    "source": "Дополнительные отметки",
+    "windows": "Дополнительно",
+    "android": "Дополнительно"
+  },
+  {
+    "scope": "App",
+    "source": "Здоровье",
+    "windows": "Жизнеобеспечение",
+    "android": "Состояние"
+  },
+  {
+    "scope": "App",
+    "source": "Как прошёл день?",
+    "windows": "Самочувствие",
+    "android": "Самочувствие"
+  },
+  {
+    "scope": "App",
+    "source": "Настройки",
+    "windows": "Командный пульт",
+    "android": "Пульт"
+  },
+  {
+    "scope": "App",
+    "source": "Опыт",
+    "windows": "Послужной список",
+    "android": "Опыт"
+  },
+  {
+    "scope": "App",
+    "source": "Последний вес",
+    "windows": "Вес",
+    "android": "Вес"
+  },
+  {
+    "scope": "App",
+    "source": "Последний сон",
+    "windows": "Сон",
+    "android": "Сон"
+  },
+  {
+    "scope": "App",
+    "source": "Работа",
+    "windows": "Кадровые операции",
+    "android": "Карьера"
+  },
+  {
+    "scope": "App",
+    "source": "Самочувствие · необязательно",
+    "windows": "Самочувствие",
+    "android": "Самочувствие"
+  },
+  {
+    "scope": "App",
+    "source": "Сон, самочувствие и воспоминания",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "App",
+    "source": "Траты сегодня",
+    "windows": "Расходы сегодня",
+    "android": "Расходы сегодня"
+  },
+  {
+    "scope": "App",
+    "source": "Уход",
+    "windows": "Обслуживание",
+    "android": "Обслуживание"
+  },
+  {
+    "scope": "App",
+    "source": "Уход и привычки",
+    "windows": "Протоколы",
+    "android": "Протоколы"
+  },
+  {
+    "scope": "App",
+    "source": "Финансы",
+    "windows": "Ресурсный контроль",
+    "android": "Ресурсы"
+  },
+  {
+    "scope": "App",
+    "source": "Хватало ли сил?",
+    "windows": "Энергия",
+    "android": "Энергия"
+  },
+  {
+    "scope": "App",
+    "source": "Эксперименты",
+    "windows": "Испытания",
+    "android": "Испытания"
+  },
+  {
+    "scope": "ui",
+    "source": "Добавьте ещё одно измерение, чтобы увидеть динамику.",
+    "windows": "Нет данных",
+    "android": "Нет данных"
+  },
+  {
+    "scope": "ui",
+    "source": "Сохранено автоматически",
+    "windows": "Сохранено",
+    "android": "Сохранено"
+  },
+  {
+    "scope": "ui",
+    "source": "Сохраняется…",
+    "windows": "Сохранение…",
+    "android": "Сохранение…"
+  },
+  {
+    "scope": "registry",
+    "source": "Здоровье",
+    "windows": "Жизнеобеспечение",
+    "android": "Состояние"
+  },
+  {
+    "scope": "registry",
+    "source": "Настройки",
+    "windows": "Командный пульт",
+    "android": "Пульт"
+  },
+  {
+    "scope": "registry",
+    "source": "Работа",
+    "windows": "Кадровые операции",
+    "android": "Карьера"
+  },
+  {
+    "scope": "registry",
+    "source": "Финансы",
+    "windows": "Ресурсный контроль",
+    "android": "Ресурсы"
+  },
+  {
+    "scope": "connection-gate",
+    "source": "Вход в NEXUS",
+    "windows": "Доступ к NEXUS",
+    "android": "Доступ к NEXUS"
+  },
+  {
+    "scope": "finance",
+    "source": "Выберите дату касанием или ползунком.",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "finance",
+    "source": "Повседневные деньги и отдельный инвестиционный портфель.",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "finance",
+    "source": "Загрузка финансов…",
+    "windows": "Загрузка…",
+    "android": "Загрузка…"
+  },
+  {
+    "scope": "finance",
+    "source": "Категорий пока нет",
+    "windows": "Нет категорий",
+    "android": "Нет категорий"
+  },
+  {
+    "scope": "finance",
+    "source": "Крупнейшие расходы месяца",
+    "windows": "Крупные расходы",
+    "android": "Крупные расходы"
+  },
+  {
+    "scope": "finance",
+    "source": "Например, 60000",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "finance",
+    "source": "Общая картина",
+    "windows": "Сводка ресурсов",
+    "android": "Сводка ресурсов"
+  },
+  {
+    "scope": "finance",
+    "source": "Операций за период нет",
+    "windows": "Нет операций",
+    "android": "Нет операций"
+  },
+  {
+    "scope": "finance",
+    "source": "Операций пока нет",
+    "windows": "Нет операций",
+    "android": "Нет операций"
+  },
+  {
+    "scope": "finance",
+    "source": "Расходов пока нет",
+    "windows": "Нет расходов",
+    "android": "Нет расходов"
+  },
+  {
+    "scope": "finance",
+    "source": "Счетов пока нет",
+    "windows": "Нет счетов",
+    "android": "Нет счетов"
+  },
+  {
+    "scope": "finance",
+    "source": "Траты по дням",
+    "windows": "Расходы по дням",
+    "android": "Расходы по дням"
+  },
+  {
+    "scope": "finance",
+    "source": "Финансы",
+    "windows": "Ресурсный контроль",
+    "android": "Ресурсы"
+  },
+  {
+    "scope": "dashboard",
+    "source": "Дополнительные отметки",
+    "windows": "Дополнительно",
+    "android": "Дополнительно"
+  },
+  {
+    "scope": "dashboard",
+    "source": "Журнал",
+    "windows": "Личный журнал",
+    "android": "Журнал"
+  },
+  {
+    "scope": "dashboard",
+    "source": "Загрузка дня…",
+    "windows": "Загрузка…",
+    "android": "Загрузка…"
+  },
+  {
+    "scope": "dashboard",
+    "source": "Итоги недели →",
+    "windows": "Недельный рапорт →",
+    "android": "Недельный рапорт →"
+  },
+  {
+    "scope": "dashboard",
+    "source": "Мой день",
+    "windows": "Сводка дня",
+    "android": "Сводка дня"
+  },
+  {
+    "scope": "dashboard",
+    "source": "Самочувствие, заметки и воспоминания",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "settings",
+    "source": "Данные и синхронизация",
+    "windows": "Данные и связь",
+    "android": "Данные и связь"
+  },
+  {
+    "scope": "settings",
+    "source": "Загрузка настроек…",
+    "windows": "Загрузка…",
+    "android": "Загрузка…"
+  },
+  {
+    "scope": "settings",
+    "source": "Наставник, анализ и письма",
+    "windows": "Советник, анализ и письма",
+    "android": "Советник, анализ и письма"
+  },
+  {
+    "scope": "settings",
+    "source": "Настройки",
+    "windows": "Командный пульт",
+    "android": "Пульт"
+  },
+  {
+    "scope": "settings",
+    "source": "Распознавание голоса",
+    "windows": "Распознавание речи",
+    "android": "Распознавание речи"
+  },
+  {
+    "scope": "settings",
+    "source": "Расход AI",
+    "windows": "Расход ИИ",
+    "android": "Расход ИИ"
+  },
+  {
+    "scope": "settings",
+    "source": "Резервные копии",
+    "windows": "Резервный архив",
+    "android": "Резервный архив"
+  },
+  {
+    "scope": "settings",
+    "source": "Цель поиска",
+    "windows": "План откликов",
+    "android": "План откликов"
+  },
+  {
+    "scope": "journal",
+    "source": "Расскажите о дне. AI предложит изменения, а вы выберете нужные.",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "journal",
+    "source": "Записей пока нет.",
+    "windows": "Нет записей",
+    "android": "Нет записей"
+  },
+  {
+    "scope": "journal",
+    "source": "Напишите или начитайте несколько слов о дне.",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "journal",
+    "source": "Например: спал с 23:30 до 7:00, сходил в зал, потратил 650 ₽ на продукты, отправил отклик…",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "journal",
+    "source": "Нужно уточнить",
+    "windows": "Уточнение",
+    "android": "Уточнение"
+  },
+  {
+    "scope": "journal",
+    "source": "Предложения для сохранения",
+    "windows": "Предложения",
+    "android": "Предложения"
+  },
+  {
+    "scope": "journal",
+    "source": "Разбор появится здесь",
+    "windows": "Нет результатов",
+    "android": "Нет результатов"
+  },
+  {
+    "scope": "journal",
+    "source": "Разобрать с AI",
+    "windows": "Анализировать",
+    "android": "Анализировать"
+  },
+  {
+    "scope": "journal",
+    "source": "Расскажите о дне",
+    "windows": "Запись дня",
+    "android": "Запись дня"
+  },
+  {
+    "scope": "journal",
+    "source": "Текст дня",
+    "windows": "Запись дня",
+    "android": "Запись дня"
+  },
+  {
+    "scope": "profiles",
+    "source": "Доступы друзей",
+    "windows": "Реестр допусков",
+    "android": "Реестр допусков"
+  },
+  {
+    "scope": "profiles",
+    "source": "Имя друга",
+    "windows": "Имя",
+    "android": "Имя"
+  },
+  {
+    "scope": "weekly-summary",
+    "source": "Итоги недели",
+    "windows": "Недельный рапорт",
+    "android": "Недельный рапорт"
+  },
+  {
+    "scope": "weekly-summary",
+    "source": "Портфелей пока нет.",
+    "windows": "Нет портфелей",
+    "android": "Нет портфелей"
+  },
+  {
+    "scope": "weekly-summary",
+    "source": "Привычки",
+    "windows": "Ежедневные протоколы",
+    "android": "Протоколы"
+  },
+  {
+    "scope": "weekly-summary",
+    "source": "Разбор недели с ИИ",
+    "windows": "Анализ рапорта",
+    "android": "Анализ рапорта"
+  },
+  {
+    "scope": "weekly-summary",
+    "source": "Собираю итоги…",
+    "windows": "Загрузка…",
+    "android": "Загрузка…"
+  },
+  {
+    "scope": "weekly-summary",
+    "source": "Что получилось, где просели и следующие шаги.",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "investment-overview",
+    "source": "Пока нет оценок",
+    "windows": "Нет оценок",
+    "android": "Нет оценок"
+  },
+  {
+    "scope": "dashboard-widgets",
+    "source": "Последний вес",
+    "windows": "Вес",
+    "android": "Вес"
+  },
+  {
+    "scope": "dashboard-widgets",
+    "source": "Последний сон",
+    "windows": "Сон",
+    "android": "Сон"
+  },
+  {
+    "scope": "dashboard-widgets",
+    "source": "Траты сегодня",
+    "windows": "Расходы сегодня",
+    "android": "Расходы сегодня"
+  },
+  {
+    "scope": "remote-backup",
+    "source": "Копий пока нет.",
+    "windows": "Нет копий",
+    "android": "Нет копий"
+  },
+  {
+    "scope": "remote-backup",
+    "source": "Резервные копии",
+    "windows": "Резервный архив",
+    "android": "Резервный архив"
+  },
+  {
+    "scope": "remote-backup",
+    "source": "Сервер и синхронизация",
+    "windows": "Связь и синхронизация",
+    "android": "Связь и синхронизация"
+  },
+  {
+    "scope": "work",
+    "source": "+ Кейс",
+    "windows": "+ Досье",
+    "android": "+ Досье"
+  },
+  {
+    "scope": "work",
+    "source": "AI для вакансии",
+    "windows": "Советник",
+    "android": "Советник"
+  },
+  {
+    "scope": "work",
+    "source": "Анализ вакансии",
+    "windows": "Разбор вакансии",
+    "android": "Разбор вакансии"
+  },
+  {
+    "scope": "work",
+    "source": "Вакансий пока нет",
+    "windows": "Нет вакансий",
+    "android": "Нет вакансий"
+  },
+  {
+    "scope": "work",
+    "source": "Все кейсы",
+    "windows": "Все досье",
+    "android": "Все досье"
+  },
+  {
+    "scope": "work",
+    "source": "Загрузка данных…",
+    "windows": "Загрузка…",
+    "android": "Загрузка…"
+  },
+  {
+    "scope": "work",
+    "source": "Изменить кейс",
+    "windows": "Изменить досье",
+    "android": "Изменить досье"
+  },
+  {
+    "scope": "work",
+    "source": "К чему подготовиться",
+    "windows": "Подготовка",
+    "android": "Подготовка"
+  },
+  {
+    "scope": "work",
+    "source": "Кейс сохранён.",
+    "windows": "Досье сохранено",
+    "android": "Досье сохранено"
+  },
+  {
+    "scope": "work",
+    "source": "Кейсов пока нет",
+    "windows": "Нет досье",
+    "android": "Нет досье"
+  },
+  {
+    "scope": "work",
+    "source": "Кейсы",
+    "windows": "Досье опыта",
+    "android": "Досье опыта"
+  },
+  {
+    "scope": "work",
+    "source": "Мест работы пока нет",
+    "windows": "Нет записей об опыте",
+    "android": "Нет записей об опыте"
+  },
+  {
+    "scope": "work",
+    "source": "Места работы",
+    "windows": "Опыт работы",
+    "android": "Опыт работы"
+  },
+  {
+    "scope": "work",
+    "source": "Мой опыт",
+    "windows": "Послужной список",
+    "android": "Опыт"
+  },
+  {
+    "scope": "work",
+    "source": "Новый кейс",
+    "windows": "Новое досье",
+    "android": "Новое досье"
+  },
+  {
+    "scope": "work",
+    "source": "Работа",
+    "windows": "Кадровые операции",
+    "android": "Карьера"
+  },
+  {
+    "scope": "work",
+    "source": "Разбираю…",
+    "windows": "Анализ…",
+    "android": "Анализ…"
+  },
+  {
+    "scope": "work",
+    "source": "Разобрать текст с AI",
+    "windows": "Разобрать текст",
+    "android": "Разобрать текст"
+  },
+  {
+    "scope": "work",
+    "source": "Редактируемое сопроводительное письмо",
+    "windows": "Сопроводительное письмо",
+    "android": "Сопроводительное письмо"
+  },
+  {
+    "scope": "work",
+    "source": "Релевантные кейсы",
+    "windows": "Подходящие досье",
+    "android": "Подходящие досье"
+  },
+  {
+    "scope": "work",
+    "source": "Связанные кейсы",
+    "windows": "Связанные досье",
+    "android": "Связанные досье"
+  },
+  {
+    "scope": "work",
+    "source": "Создать кейс",
+    "windows": "Создать досье",
+    "android": "Создать досье"
+  },
+  {
+    "scope": "work",
+    "source": "Статистика поиска",
+    "windows": "Сводка поиска",
+    "android": "Сводка поиска"
+  },
+  {
+    "scope": "work",
+    "source": "Что акцентировать",
+    "windows": "Акценты",
+    "android": "Акценты"
+  },
+  {
+    "scope": "work",
+    "source": "Что подтверждено опытом",
+    "windows": "Подтверждено опытом",
+    "android": "Подтверждено опытом"
+  },
+  {
+    "scope": "work",
+    "source": "Что требуется",
+    "windows": "Требования",
+    "android": "Требования"
+  },
+  {
+    "scope": "investments",
+    "source": "Например, брокерский счёт",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "investments",
+    "source": "Оценок пока нет",
+    "windows": "Нет оценок",
+    "android": "Нет оценок"
+  },
+  {
+    "scope": "investments",
+    "source": "Портфелей пока нет",
+    "windows": "Нет портфелей",
+    "android": "Нет портфелей"
+  },
+  {
+    "scope": "health",
+    "source": "Вес и сон",
+    "windows": "Измерения",
+    "android": "Измерения"
+  },
+  {
+    "scope": "health",
+    "source": "Загрузка данных…",
+    "windows": "Загрузка…",
+    "android": "Загрузка…"
+  },
+  {
+    "scope": "health",
+    "source": "Заметка о дне",
+    "windows": "Заметка",
+    "android": "Заметка"
+  },
+  {
+    "scope": "health",
+    "source": "Заполнить день",
+    "windows": "Отметки дня",
+    "android": "Отметки дня"
+  },
+  {
+    "scope": "health",
+    "source": "Здоровье",
+    "windows": "Жизнеобеспечение",
+    "android": "Состояние"
+  },
+  {
+    "scope": "health",
+    "source": "Как прошёл день?",
+    "windows": "Самочувствие",
+    "android": "Самочувствие"
+  },
+  {
+    "scope": "health",
+    "source": "Календарь привычек",
+    "windows": "Календарь протоколов",
+    "android": "Календарь протоколов"
+  },
+  {
+    "scope": "health",
+    "source": "Календарь регулярности",
+    "windows": "Регулярность",
+    "android": "Регулярность"
+  },
+  {
+    "scope": "health",
+    "source": "Например, 78.4",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "health",
+    "source": "Отметки сегодня",
+    "windows": "Отметки дня",
+    "android": "Отметки дня"
+  },
+  {
+    "scope": "health",
+    "source": "Отметок пока нет",
+    "windows": "Нет отметок",
+    "android": "Нет отметок"
+  },
+  {
+    "scope": "health",
+    "source": "Пока нет измерений",
+    "windows": "Нет измерений",
+    "android": "Нет измерений"
+  },
+  {
+    "scope": "health",
+    "source": "Показатели",
+    "windows": "Телеметрия",
+    "android": "Телеметрия"
+  },
+  {
+    "scope": "health",
+    "source": "Последний вес",
+    "windows": "Вес",
+    "android": "Вес"
+  },
+  {
+    "scope": "health",
+    "source": "Привычек пока нет",
+    "windows": "Нет протоколов",
+    "android": "Нет протоколов"
+  },
+  {
+    "scope": "health",
+    "source": "Привычки",
+    "windows": "Ежедневные протоколы",
+    "android": "Протоколы"
+  },
+  {
+    "scope": "health",
+    "source": "Сон сегодня",
+    "windows": "Сон",
+    "android": "Сон"
+  },
+  {
+    "scope": "health",
+    "source": "Уход",
+    "windows": "Обслуживание",
+    "android": "Обслуживание"
+  },
+  {
+    "scope": "health",
+    "source": "Уход и привычки",
+    "windows": "Протоколы",
+    "android": "Протоколы"
+  },
+  {
+    "scope": "health",
+    "source": "Хватало ли сил?",
+    "windows": "Энергия",
+    "android": "Энергия"
+  },
+  {
+    "scope": "health",
+    "source": "Что стоит запомнить?",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "health",
+    "source": "Эксперименты",
+    "windows": "Испытания",
+    "android": "Испытания"
+  },
+  {
+    "scope": "insights-ui",
+    "source": "Выполненные дела",
+    "windows": "Выполнено",
+    "android": "Выполнено"
+  },
+  {
+    "scope": "insights-ui",
+    "source": "Закономерности",
+    "windows": "Аналитика",
+    "android": "Аналитика"
+  },
+  {
+    "scope": "insights-ui",
+    "source": "Сравнить с прошлой неделей",
+    "windows": "К прошлой неделе",
+    "android": "К прошлой неделе"
+  },
+  {
+    "scope": "insights-ui",
+    "source": "Успех привычек",
+    "windows": "Выполнение протоколов",
+    "android": "Выполнение протоколов"
+  },
+  {
+    "scope": "payments-ui",
+    "source": "Уведомления о платежах",
+    "windows": "Сигналы платежей",
+    "android": "Сигналы платежей"
+  },
+  {
+    "scope": "payments-ui",
+    "source": "Уведомления",
+    "windows": "Сигналы",
+    "android": "Сигналы"
+  },
+  {
+    "scope": "growth-ui",
+    "source": "Кофе, чтение, время на игры…",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "growth-ui",
+    "source": "На что хочешь накопить?",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "growth-ui",
+    "source": "Например, тренировка",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "growth-ui",
+    "source": "Планы на неделю",
+    "windows": "Недельный план",
+    "android": "Недельный план"
+  },
+  {
+    "scope": "growth-ui",
+    "source": "Повторяющиеся дела",
+    "windows": "Регулярные операции",
+    "android": "Повторения"
+  },
+  {
+    "scope": "growth-ui",
+    "source": "Свои показатели",
+    "windows": "Личная телеметрия",
+    "android": "Личная телеметрия"
+  },
+  {
+    "scope": "growth-ui",
+    "source": "Тренировка, уборка…",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "growth-ui",
+    "source": "Финансовые цели",
+    "windows": "Цели накопления",
+    "android": "Цели накопления"
+  },
+  {
+    "scope": "daily-ui",
+    "source": "Время работы",
+    "windows": "Время сессий",
+    "android": "Время сессий"
+  },
+  {
+    "scope": "daily-ui",
+    "source": "Фокус",
+    "windows": "Режим фокуса",
+    "android": "Режим фокуса"
+  },
+  {
+    "scope": "routine-ui",
+    "source": "Вечер",
+    "windows": "Вечерний протокол",
+    "android": "Вечер"
+  },
+  {
+    "scope": "routine-ui",
+    "source": "Рассказать о дне →",
+    "windows": "Запись дня →",
+    "android": "Запись дня →"
+  },
+  {
+    "scope": "routine-ui",
+    "source": "Утро",
+    "windows": "Утренний протокол",
+    "android": "Утро"
+  },
+  {
+    "scope": "updates",
+    "source": "Проверяем…",
+    "windows": "Проверка…",
+    "android": "Проверка…"
+  },
+  {
+    "scope": "journal-review",
+    "source": "Воспоминание",
+    "windows": "Запись памяти",
+    "android": "Запись памяти"
+  },
+  {
+    "scope": "reminders-ui",
+    "source": "+ Напоминание",
+    "windows": "+ Сигнал",
+    "android": "+ Сигнал"
+  },
+  {
+    "scope": "reminders-ui",
+    "source": "Итоги недели",
+    "windows": "Недельный рапорт",
+    "android": "Недельный рапорт"
+  },
+  {
+    "scope": "reminders-ui",
+    "source": "Напоминание",
+    "windows": "Сигнал",
+    "android": "Сигнал"
+  },
+  {
+    "scope": "reminders-ui",
+    "source": "Отдельное напоминание",
+    "windows": "Отдельный сигнал",
+    "android": "Отдельный сигнал"
+  },
+  {
+    "scope": "reminders-ui",
+    "source": "Пора заняться делом. Не откладывай.",
+    "windows": "Время задачи",
+    "android": "Время задачи"
+  },
+  {
+    "scope": "reminders-ui",
+    "source": "Привычки, уход и свои напоминания",
+    "windows": "Протоколы и сигналы",
+    "android": "Протоколы и сигналы"
+  },
+  {
+    "scope": "reminders-ui",
+    "source": "Сохранить напоминание",
+    "windows": "Сохранить сигнал",
+    "android": "Сохранить сигнал"
+  },
+  {
+    "scope": "reminders-ui",
+    "source": "Тихие часы",
+    "windows": "Режим тишины",
+    "android": "Режим тишины"
+  },
+  {
+    "scope": "reminders-ui",
+    "source": "Уведомления",
+    "windows": "Сигналы",
+    "android": "Сигналы"
+  },
+  {
+    "scope": "care-ui",
+    "source": "Вечер",
+    "windows": "Вечерний протокол",
+    "android": "Вечер"
+  },
+  {
+    "scope": "care-ui",
+    "source": "Пока пусто",
+    "windows": "Пусто",
+    "android": "Пусто"
+  },
+  {
+    "scope": "care-ui",
+    "source": "Привычки",
+    "windows": "Ежедневные протоколы",
+    "android": "Протоколы"
+  },
+  {
+    "scope": "care-ui",
+    "source": "Уход",
+    "windows": "Обслуживание",
+    "android": "Обслуживание"
+  },
+  {
+    "scope": "care-ui",
+    "source": "Уход и привычки",
+    "windows": "Протоколы",
+    "android": "Протоколы"
+  },
+  {
+    "scope": "experiments-ui",
+    "source": "+ Эксперимент",
+    "windows": "+ Испытание",
+    "android": "+ Испытание"
+  },
+  {
+    "scope": "experiments-ui",
+    "source": "Изменить эксперимент",
+    "windows": "Изменить испытание",
+    "android": "Изменить испытание"
+  },
+  {
+    "scope": "experiments-ui",
+    "source": "Новый эксперимент",
+    "windows": "Новое испытание",
+    "android": "Новое испытание"
+  },
+  {
+    "scope": "experiments-ui",
+    "source": "Промежуточное сравнение",
+    "windows": "Сравнение",
+    "android": "Сравнение"
+  },
+  {
+    "scope": "experiments-ui",
+    "source": "Что меняешь",
+    "windows": "Условие",
+    "android": "Условие"
+  },
+  {
+    "scope": "experiments-ui",
+    "source": "Эксперименты",
+    "windows": "Испытания",
+    "android": "Испытания"
+  },
+  {
+    "scope": "life-board",
+    "source": "ЛИЧНЫЙ НАСТАВНИК",
+    "windows": "СОВЕТНИК",
+    "android": "СОВЕТНИК"
+  },
+  {
+    "scope": "life-board",
+    "source": "Воспоминание",
+    "windows": "Запись памяти",
+    "android": "Запись памяти"
+  },
+  {
+    "scope": "life-board",
+    "source": "Воспоминания",
+    "windows": "Архив памяти",
+    "android": "Архив памяти"
+  },
+  {
+    "scope": "life-board",
+    "source": "Встреча, смешной случай, понравившийся фильм…",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "life-board",
+    "source": "Где просел",
+    "windows": "Проблемы",
+    "android": "Проблемы"
+  },
+  {
+    "scope": "life-board",
+    "source": "Главные дела",
+    "windows": "Приоритеты",
+    "android": "Приоритеты"
+  },
+  {
+    "scope": "life-board",
+    "source": "Личные показатели",
+    "windows": "Телеметрия",
+    "android": "Телеметрия"
+  },
+  {
+    "scope": "life-board",
+    "source": "Мой день",
+    "windows": "Сводка дня",
+    "android": "Сводка дня"
+  },
+  {
+    "scope": "life-board",
+    "source": "Момент, который хочется сохранить",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "life-board",
+    "source": "Например: встреча с друзьями",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "life-board",
+    "source": "Настроить свои показатели",
+    "windows": "Настроить телеметрию",
+    "android": "Настроить телеметрию"
+  },
+  {
+    "scope": "life-board",
+    "source": "Разбираю день…",
+    "windows": "Анализ…",
+    "android": "Анализ…"
+  },
+  {
+    "scope": "life-board",
+    "source": "Разобрать день",
+    "windows": "Анализ дня",
+    "android": "Анализ дня"
+  },
+  {
+    "scope": "life-board",
+    "source": "Результат дня",
+    "windows": "Итог дня",
+    "android": "Итог дня"
+  },
+  {
+    "scope": "life-board",
+    "source": "Следующие шаги",
+    "windows": "План действий",
+    "android": "План действий"
+  },
+  {
+    "scope": "life-board",
+    "source": "Следующий шаг",
+    "windows": "Следующее действие",
+    "android": "Следующее действие"
+  },
+  {
+    "scope": "life-board",
+    "source": "Сохранить момент",
+    "windows": "Сохранить запись",
+    "android": "Сохранить запись"
+  },
+  {
+    "scope": "life-board",
+    "source": "Текст воспоминания",
+    "windows": "Текст записи",
+    "android": "Текст записи"
+  },
+  {
+    "scope": "life-board",
+    "source": "Удалить воспоминание",
+    "windows": "Удалить запись памяти",
+    "android": "Удалить запись памяти"
+  },
+  {
+    "scope": "life-board",
+    "source": "Что вам интересно отмечать",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "life-board",
+    "source": "Что получилось",
+    "windows": "Результат",
+    "android": "Результат"
+  },
+  {
+    "scope": "today",
+    "source": "Все привычки →",
+    "windows": "Все протоколы →",
+    "android": "Все протоколы →"
+  },
+  {
+    "scope": "today",
+    "source": "Главные дела",
+    "windows": "Приоритеты",
+    "android": "Приоритеты"
+  },
+  {
+    "scope": "today",
+    "source": "Записать день",
+    "windows": "Запись дня",
+    "android": "Запись дня"
+  },
+  {
+    "scope": "today",
+    "source": "На сегодня дел нет.",
+    "windows": "Нет задач",
+    "android": "Нет задач"
+  },
+  {
+    "scope": "today",
+    "source": "Планы и заметки →",
+    "windows": "План и журнал →",
+    "android": "План и журнал →"
+  },
+  {
+    "scope": "today",
+    "source": "Уход и привычки",
+    "windows": "Протоколы",
+    "android": "Протоколы"
+  },
+  {
+    "scope": "today",
+    "source": "Что было сегодня?",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "today",
+    "source": "Что хотите сделать сегодня?",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "focus-ui",
+    "source": "Диплом, код, чтение…",
+    "windows": "",
+    "android": ""
+  },
+  {
+    "scope": "focus-ui",
+    "source": "Или выбери дело",
+    "windows": "Дело",
+    "android": "Дело"
+  },
+  {
+    "scope": "focus-ui",
+    "source": "Интервал окончен",
+    "windows": "Сессия завершена",
+    "android": "Сессия завершена"
+  },
+  {
+    "scope": "focus-ui",
+    "source": "Над чем работаешь",
+    "windows": "Задача",
+    "android": "Задача"
+  },
+  {
+    "scope": "focus-ui",
+    "source": "Начать работу",
+    "windows": "Начать сессию",
+    "android": "Начать сессию"
+  },
+  {
+    "scope": "focus-ui",
+    "source": "Последние сессии",
+    "windows": "Журнал сессий",
+    "android": "Журнал сессий"
+  },
+  {
+    "scope": "focus-ui",
+    "source": "Фокус",
+    "windows": "Режим фокуса",
+    "android": "Режим фокуса"
+  },
+  {
+    "scope": "payment-reminder-ui",
+    "source": "Уведомления о платежах",
+    "windows": "Сигналы платежей",
+    "android": "Сигналы платежей"
+  }
+]

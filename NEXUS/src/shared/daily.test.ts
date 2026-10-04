@@ -90,9 +90,16 @@ it('excludes pauses, survives closing the app and does not automatically complet
 it('compares equal observed experiment periods without inventing missing sleep values',()=>{
  const s=snapshot();saveExperiment(s,{title:'Режим',rule:'Ложиться до полуночи',start_day:'2026-10-01',duration:7,active:1});const e=s.tables.experiments[0] as unknown as Experiment;s.tables.health_daily_entries.push({day:'2026-09-24',sleep_minutes:420},{day:'2026-09-25',sleep_minutes:null},{day:'2026-10-01',sleep_minutes:480},{day:'2026-10-02',sleep_minutes:null});markExperiment(s,{id:e.id,day:'2026-10-01',done:true});markExperiment(s,{id:e.id,day:'2026-10-02',done:false});const result=experimentResult(s,e,'2026-10-03');expect(result).toMatchObject({elapsed:3,done:1,missed:1,unmarked:1,current:{sleep:480,sleepDays:1},previous:{sleep:420,sleepDays:1}});expect(()=>markExperiment(s,{id:e.id,day:'2026-10-04',done:true})).toThrow();
 });
-it('keeps evening answers optional, preserves the original question and exports every new domain',async()=>{
+it('preserves historical evening answers and exports every domain',async()=>{
  const repo=new DailyRepository(db);await repo.reflection({day:'2026-10-03',question:'Что помогло?',answer:'Прогулка',skipped:false});await repo.payment(payment);await repo.routine({id:'evening',steps:['reflection']});await repo.experiment({title:'Без доставки',rule:'Готовить дома',start_day:'2026-10-03',duration:7,active:1});await repo.focus({action:'start',title:'Диплом',task_id:null,mode:'stopwatch',target_seconds:1500});
  const s=snapshot();expect(eveningQuestion(s,'2026-10-03')).toBe('Что помогло?');expect(coachFacts(s,'2026-10-03','2026-10-03').daily.reflections[0].answer).toBe('Прогулка');saveReflection(s,{day:'2026-10-02',question:'Как день?',answer:'',skipped:true});expect(coachFacts(s,'2026-10-02','2026-10-02').daily.reflections).toEqual([]);
  const copy=openDatabase(':memory:');try{importBackupText(copy,JSON.stringify(s));expect(copy.pragma('foreign_key_check')).toEqual([]);expect((await new DailyRepository(copy).list()).payments[0].name).toBe('Музыка');}finally{copy.close();}
  const old=structuredClone(s);old.version=10;for(const table of dailyTables)delete old.tables[table];importBackupText(db,JSON.stringify(old));expect((await repo.list()).sessions).toEqual([]);
+});
+
+it('drops the retired evening question from saved routines without deleting historical answers',()=>{
+ const s=snapshot(),slots=care(s);saveReflection(s,{day:'2026-10-02',question:'Как день?',answer:'Прогулка',skipped:false});const answers=structuredClone(s.tables.evening_answers);
+ saveRoutine(s,{id:'evening',steps:[`slot:${slots[1].id}`,'reflection','journal']});
+ expect(JSON.parse(String(s.tables.routines[0].steps_json))).toEqual([`slot:${slots[1].id}`,'journal']);expect(s.tables.evening_answers).toEqual(answers);
+ expect(()=>saveRoutine(s,{id:'evening',steps:['unknown']})).toThrow('недоступен');
 });

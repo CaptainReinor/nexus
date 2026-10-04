@@ -1,6 +1,5 @@
 import {useNavigationCopy} from '../../NEXUS/src/renderer/appearance';
 import {useSystemCopy} from '../../NEXUS/src/renderer/appearance';
-import {ReflectionPanel} from '../../NEXUS/src/renderer/components/daily-ui';
 import { hasIncompleteSelectedFinance } from '../../NEXUS/src/shared/journal-schema';
 import { journalTimestamp } from '../../NEXUS/src/shared/life';
 import { JournalReview } from '../../NEXUS/src/renderer/components/journal-review';
@@ -77,17 +76,17 @@ export function JournalPage({snapshot,commit,commitLatest}:Props){
   function editReview(value:JournalAnalysis){if(!analysis)return;const id=analysis.entryId;setAnalysis({entryId:id,value});void commit(s=>{const current=rows(s,'daily_journals').find(x=>x.id===id);if(current)current.analysis_json=JSON.stringify(value);});}
   return <>
     <div className="heading"><small>05 / ДНЕВНИК</small><h1>{navCopy('journal','Дневник',true)}</h1>{copy("Расскажите о дне. AI предложит изменения, а вы выберете нужные.")&&<p>{copy("Расскажите о дне. AI предложит изменения, а вы выберете нужные.")}</p>}</div>
-    <ReflectionPanel/><section className="card"><h2>Запись дня</h2>
+    <section className="card dominion-frame"><h2>Запись дня</h2>
       <label>Дата<input type="date" value={day} onChange={e=>setDay(e.target.value)}/></label>
       <label>Что произошло<textarea rows={7} value={draft} onChange={e=>{setDraft(e.target.value);setAnalysis(null);}} placeholder="Встал в 8 утра. Потратил 5000 рублей на еду…"/></label>
       <div className="actions journal-actions"><button disabled={!draft.trim()||!!busy} onClick={()=>void analyze()}>{busy==='analyze'?'Разбираю…':copy("Разобрать с AI")}</button><button className="ghost" disabled={!draft.trim()||!!busy} onClick={()=>void saveDraft()}>Сохранить текст</button></div>
       <label className="audio-file">Начитать или загрузить запись<input type="file" accept="audio/*,.webm,.wav,.mp3,.m4a,.ogg,.aac,.flac" onChange={e=>void transcribe(e)} disabled={!!busy}/></label>
       {busy==='transcribe'&&<p className="muted">Распознаю речь…</p>}{message&&<p className="muted" role="status">{message}</p>}
     </section>
-    {analysis&&<section className="card"><h2>Предложения AI</h2><p>{analysis.value.summary}</p>{analysis.value.uncertain.length>0&&<div className="notice"><span>Нужно уточнить: {analysis.value.uncertain.join('; ')}</span></div>}
+    {analysis&&<section className="card dominion-frame"><h2>Предложения AI</h2><p>{analysis.value.summary}</p>{analysis.value.uncertain.length>0&&<div className="notice"><span>Нужно уточнить: {analysis.value.uncertain.join('; ')}</span></div>}
       <JournalReview analysis={analysis.value} accounts={rows(snapshot,'finance_accounts').filter(x=>x.active===1).map(x=>({id:Number(x.id),name:String(x.name)}))} categories={rows(snapshot,'finance_categories').filter(x=>x.active===1).map(x=>({id:Number(x.id),name:String(x.name),kind:String(x.kind)}))} habits={rows(snapshot,'habits').map(x=>({id:Number(x.id),name:String(x.name),kind:String(x.kind)}))} jobs={rows(snapshot,'jobs').map(x=>({id:Number(x.id),title:String(x.title)}))} selected={selected} applied={applied} onSelect={(key,checked)=>setSelected(previous=>{const next=new Set(previous);if(checked)next.add(key);else next.delete(key);return next;})} onChange={editReview} busy={!!busy} day={day} transactions={rows(snapshot,'finance_transactions').map(x=>({day:String(x.occurred_at).slice(0,10),amount:Number(x.amount_cents),type:String(x.type),accountId:Number(x.account_id)}))}/>
 <button disabled={!selected.size||!!busy||hasIncompleteSelectedFinance(analysis.value,selected)} onClick={()=>void apply()}>Сохранить выбранное</button>
     </section>}
-    <section className="card"><h2>Последние 3 записи</h2>{entries.length?entries.slice(0,3).map(item=><button className="journal-entry-button" key={text(item.id)} onClick={()=>loadEntry(Number(item.id))}><small>{text(item.day)} · {item.analysis_json?'Разобрано':'Текст'}</small><span>{text(item.raw_text).slice(0,120)}</span></button>):<p className="empty">{copy("Записей пока нет.")}</p>}</section>
+    <section className="card dominion-frame"><h2>Последние 3 записи</h2>{entries.length?entries.slice(0,3).map(item=><button className="journal-entry-button" key={text(item.id)} onClick={()=>loadEntry(Number(item.id))}><small>{text(item.day)} · {item.analysis_json?'Разобрано':'Текст'}</small><span>{text(item.raw_text).slice(0,120)}</span></button>):<p className="empty">{copy("Записей пока нет.")}</p>}</section>
   </>;
 }

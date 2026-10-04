@@ -42,7 +42,7 @@ export function TodayHabits({habits,onMark,onManage}:{habits:TodayHabit[];onMark
       {habit.status&&habit.status!=='skipped'&&<button className="today-reset" aria-label={`Сбросить ${habit.name}`} onClick={()=>mark(habit,0,'skipped')}>↺</button>}
     </div>}
   </div>;}
-  return <section className="today-card today-habits"><header className="today-card-head"><h2>{copy("Уход и привычки")}</h2><span className="today-count">{completed.length} / {daily.length}</span></header>
+  return <section className="today-card dominion-frame today-habits"><header className="today-card-head"><h2>{copy("Уход и привычки")}</h2><span className="today-count">{completed.length} / {daily.length}</span></header>
     {daily.length>0&&<div className="today-progress" aria-label={`Ежедневные привычки: ${completed.length} из ${daily.length}`}><span style={{width:`${completed.length/daily.length*100}%`}}/></div>}
     {pending.slice(0,6).map(row)}
     {pending.length>6&&<details className="today-fold"><summary>Ещё привычки · {pending.length-6}</summary>{pending.slice(6).map(row)}</details>}
@@ -69,7 +69,7 @@ export function TodayTasks({data,day,onTask,onRemove,onMore}:{data:DayLifeData;d
     {task.status==='done'&&<button className="today-text-button" disabled={!!busy} onClick={()=>void change(task,'open')}>Вернуть</button>}
     <button className="today-task-options" aria-label={`Действия: ${task.title}`} aria-expanded={editing===task.id} disabled={!!busy} onClick={()=>{setEditing(editing===task.id?null:task.id);setDue(task.due_day);}}>⋯</button>
     </div>{editing===task.id&&<form className="today-task-editor" onSubmit={event=>{event.preventDefault();if(due)void change(task,task.status,due);}}><label>На другой день<input aria-label={`Перенести: ${task.title}`} type="date" required value={due} onChange={event=>setDue(event.target.value)}/></label><button className="today-button" disabled={!!busy||!due||due===task.due_day}>Перенести</button><button type="button" className="today-text-button today-task-delete" disabled={!!busy} onClick={()=>void remove(task)}>Удалить</button></form>}</div>;}
-  return <section className="today-card today-tasks"><header className="today-card-head"><h2>{copy("Главные дела")}</h2><button className="today-text-button" aria-expanded={adding} onClick={()=>setAdding(!adding)}>+ Добавить</button></header>
+  return <section className="today-card dominion-frame today-tasks"><header className="today-card-head"><h2>{copy("Главные дела")}</h2><button className="today-text-button" aria-expanded={adding} onClick={()=>setAdding(!adding)}>+ Добавить</button></header>
     {tasks.length?tasks.slice(0,5).map(row):<p className="today-empty">{copy("На сегодня дел нет.")}</p>}
     {tasks.length>5&&<details className="today-fold"><summary>Ещё дела · {tasks.length-5}</summary>{tasks.slice(5).map(row)}</details>}
     {adding&&<form className="today-task-add" onSubmit={event=>{event.preventDefault();void add();}}><input aria-label="Новое дело на сегодня" autoFocus value={title} maxLength={300} onChange={event=>setTitle(event.target.value)} placeholder={copy("Что хотите сделать сегодня?")}/><button className="today-button" disabled={!!busy||!title.trim()}>Добавить</button></form>}

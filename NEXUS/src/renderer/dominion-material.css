@@ -1,0 +1,428 @@
+/* Dominion 3.1: structural chrome; data surfaces remain texture free.
+   Local nine-slice artwork has transparent centre and CSS fallback beneath it. */
+html[data-theme=dominion] {
+  --dominion-frame: url('./assets/console-frame.png');
+  --chrome-light: #697780;
+  --chrome-mid: #343c3e;
+  --chrome-dark: #1c2326;
+  --chrome-edge: #778286;
+  --material-face: linear-gradient(130deg, #26333d, #131e25 80%);
+  --material-steel: linear-gradient(135deg, #697780, #2c3a43 45%, #55656f);
+}
+html[data-theme=dominion] .dominion-chassis {
+  border: 18px solid transparent;
+  border-image: var(--dominion-frame) 230 250 230 250 / 18px / 0 stretch;
+  padding: 3px;
+  background: linear-gradient(var(--bg),var(--bg)) padding-box, var(--material-steel) border-box;
+  box-shadow: inset 0 1px 0 #96a2a7, inset 0 -4px 0 #020608;
+  min-width: 0;
+}
+html[data-theme=dominion][data-platform=windows] .app-shell {
+  grid-template-columns: 240px minmax(0,1fr);
+  min-height: 100dvh;
+}
+html[data-theme=dominion][data-platform=windows] .sidebar {
+  top: 21px;
+  height: calc(100dvh - 42px);
+  padding: 16px 14px 20px;
+  border-right: 12px solid #343c3e;
+  background: linear-gradient(115deg,#253138,#10191f);
+  box-shadow: inset -1px 0 #778286, 2px 0 #0a1013, 4px 0 #52616c;
+}
+html[data-theme=dominion][data-platform=windows] .brand {
+  min-height: 112px;
+  margin-bottom: 20px;
+  padding: 20px 16px;
+  gap: 0;
+  border: 1px solid var(--accent-edge);
+  border-radius: 2px;
+  background: linear-gradient(130deg,#8b3039,#561d26);
+  box-shadow: inset 0 2px #d9576070, inset 0 -5px #2d0e16, 0 3px 4px #0007;
+}
+html[data-theme=dominion] .dominion-brand-label {
+  display: block;
+  margin-top: 12px;
+  color: var(--text);
+  font: 11px/1.3 'Segoe UI',system-ui,sans-serif;
+  letter-spacing: .2em;
+}
+html[data-theme=dominion][data-platform=windows] .brand strong {
+  font-family: 'Segoe UI',system-ui,sans-serif;
+  font-size: 30px;
+  letter-spacing: .12em;
+}
+html[data-theme=dominion] :is(.brand-emblem,.nav-glyph,.nav-chevron) { display: none; }
+html[data-theme=dominion] .sidebar nav { margin-top: 0; gap: 14px; }
+html[data-theme=dominion] .nav-item {
+  min-height: 78px;
+  border: 14px solid transparent;
+  border-image: var(--dominion-frame) 230 250 230 250 / 14px / 0 stretch;
+  padding: 10px 10px;
+  background: var(--material-face) padding-box,var(--material-steel) border-box;
+  box-shadow: inset 0 1px #778286, inset 0 -4px #040a0e, 0 3px 6px #0008;
+  color: var(--text);
+  line-height: 1.4;
+}
+html[data-theme=dominion] .nav-item.active {
+  background: linear-gradient(125deg,#983b45,#5a1d2a) padding-box,var(--material-steel) border-box;
+  box-shadow: inset 4px 0 var(--accent-edge), inset 0 1px #e9989866, inset 0 -4px #390e18, 0 3px 6px #0008;
+  border-left-color: transparent;
+}
+html[data-theme=dominion] .nav-item:hover {
+  filter: brightness(1.08);
+  transform: none;
+}
+html[data-theme=dominion] .nav-item:active {
+  box-shadow: inset 0 3px 5px #0009, inset 0 -1px #040a0e;
+}
+html[data-theme=dominion] .topbar {
+  height: 64px;
+  padding: 0 22px;
+  background: var(--bg);
+  border: 0;
+}
+html[data-theme=dominion][data-platform=windows] .page {
+  padding: 0 22px 22px;
+  max-width: none;
+  container-type: inline-size;
+}
+html[data-theme=dominion] :is(.page-title,.heading) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 80px;
+  padding: 18px 22px;
+  margin: 0 0 18px;
+  border: 1px solid var(--control-border);
+  border-left: 6px solid var(--accent-edge);
+  border-radius: 0;
+  background: linear-gradient(125deg,#2c383e,#1a242a);
+  box-shadow: inset 0 1px #95a2a766,inset 0 -5px #070d1199,0 3px 6px #0004;
+}
+html[data-theme=dominion] :is(.page-title,.heading)::after { display: none; }
+html[data-theme=dominion] :is(.page-title,.heading) h1 { min-width: 0; }
+
+/* Module frame: same material across subject areas, never around every row. */
+html[data-theme=dominion] .dominion-frame {
+  border: 34px solid transparent;
+  border-image: var(--dominion-frame) 230 250 230 250 / 34px / 0 stretch;
+  padding: 13px 16px 16px;
+  background: linear-gradient(125deg,#172128,#0c151b 82%) padding-box,var(--material-steel) border-box;
+  box-shadow: inset 0 1px 3px #000a,0 8px 14px #0008;
+  border-radius: 0;
+  clip-path: none;
+  overflow: visible;
+  min-width: 0;
+}
+html[data-theme=dominion] :is(.panel,.card,.today-card,.daily-panel,.life-board)::before,
+html[data-theme=dominion] :is(.panel,.card,.today-card,.daily-panel,.life-board)::after { display: none; }
+html[data-theme=dominion] :is(.panel-head,.today-card-head,.daily-heading,.card > h2) {
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+html[data-theme=dominion] :is(.today-layout,.content-grid,.health-day-grid,.settings-columns,.journal-grid) {
+  gap: 16px;
+  align-items: start;
+}
+html[data-theme=dominion] .today-layout { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); }
+html[data-theme=dominion] .health-day-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+html[data-theme=dominion] .dominion-instrument-bay {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 3px;
+  padding: 9px;
+  margin-bottom: 18px;
+  border: 0;
+  background: linear-gradient(140deg,#626f75,#28343a 45%,#48575e);
+  box-shadow: inset 0 1px #99a5ab, inset 0 -3px #10191e;
+}
+html[data-theme=dominion] .dominion-instrument-bay .today-metric {
+  padding: 19px 22px;
+  min-width: 0;
+  border: 1px solid #04090c;
+  border-radius: 0;
+  background: linear-gradient(130deg,#171f24,#080e11 80%);
+  box-shadow: inset 0 1px #6e7b81,inset 0 -1px #3b474e;
+  text-align: left;
+  color: var(--text);
+}
+html[data-theme=dominion] .today-metric strong { font-size: 30px; }
+html[data-theme=dominion] :is(.button,.daily-button,.today-button,.daily-launch) {
+  box-shadow: inset 0 1px #abb8bf55,inset 0 -3px #070e1399,0 2px 3px #0005;
+  background: linear-gradient(#3e515d,#26333d);
+  border: 1px solid var(--control-border);
+  transition: box-shadow 80ms ease-out,background-color 120ms ease-out,border-color 120ms ease-out;
+}
+html[data-theme=dominion] :is(.button.primary,.daily-button.primary,.today-button.primary,.life-primary,.confirm-accept) {
+  background: linear-gradient(#c7464d,#96262e);
+  border-color: var(--accent-edge);
+  color: white;
+  box-shadow: inset 0 1px #ffb1b166,inset 0 -4px #5a141b,0 2px 3px #0007;
+}
+html[data-theme=dominion] :is(.button.primary,.daily-button.primary,.today-button.primary,.life-primary,.confirm-accept):hover:not(:disabled) {
+  background: linear-gradient(#ce3942,#a93038);
+}
+html[data-theme=dominion] :is(.button,.daily-button,.today-button,.daily-launch):active:not(:disabled) {
+  background: var(--surface2);
+  box-shadow: inset 0 3px 5px #0009,inset 0 -1px #6f808d;
+  transform: translateY(1px);
+}
+html[data-theme=dominion] :is(.button.primary,.daily-button.primary,.today-button.primary,.life-primary,.confirm-accept):active:not(:disabled) {
+  background: var(--accent-pressed);
+  box-shadow: inset 0 3px 5px #0009,inset 0 -1px #5a141b;
+}
+html[data-theme=dominion] :is(.button,.daily-button,.today-button,.daily-launch):disabled {
+  background: var(--surface2);
+  color: var(--muted);
+  border-color: var(--line);
+  box-shadow: none;
+  transform: none;
+}
+html[data-theme=dominion] :is(.today-text-button,.daily-button.subtle) { box-shadow: none; background: transparent; }
+html[data-theme=dominion] :is(input,select,textarea) { box-shadow: inset 0 3px 4px #0009; }
+html[data-theme=dominion] :is(.tabs,.today-views,.life-tabs,.daily-tabs) {
+  background: var(--inset);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 2px 3px #0007;
+}
+html[data-theme=dominion] :is(.tabs button.active,.today-views button[aria-pressed=true],.life-tabs button.active,.daily-tabs button[aria-pressed=true]) {
+  background: linear-gradient(#35454e,#202c34);
+  box-shadow: inset 0 1px #6f808d,inset 0 -3px var(--accent-edge);
+}
+@container (max-width:808px) {
+  html[data-theme=dominion] .today-layout { grid-template-columns: 1fr; }
+}
+@container (max-width:736px) {
+  html[data-theme=dominion] :is(.health-day-grid,.content-grid,.journal-grid) { grid-template-columns: 1fr; }
+}
+@media (min-width:980px) and (max-width:1199px) {
+  html[data-theme=dominion][data-platform=windows] .app-shell { grid-template-columns: 205px minmax(0,1fr); }
+  html[data-theme=dominion][data-platform=windows] .sidebar { padding: 12px 8px; }
+  html[data-theme=dominion][data-platform=windows] .brand { padding: 18px 12px; }
+  html[data-theme=dominion][data-platform=windows] .brand strong { font-size: 25px; }
+  html[data-theme=dominion] .nav-item { padding: 9px 5px; font-size: 13px; }
+  html[data-theme=dominion][data-platform=windows] .page { padding: 0 16px 16px; }
+}
+@media (max-width:979px) {
+  html[data-theme=dominion][data-platform=windows] .app-shell { grid-template-columns: 1fr; }
+  html[data-theme=dominion][data-platform=windows] .page { padding: 0 12px 16px; }
+  html[data-theme=dominion][data-platform=windows] :is(.page-title,.heading) { flex-wrap: wrap; padding: 14px 16px; }
+}
+html[data-theme=dominion][data-platform=android] .app {
+  max-width: 1040px;
+  border-width: 7px;
+  border-image-width: 7px;
+  padding: 0 0 calc(75px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)));
+}
+html[data-theme=dominion][data-platform=android] .main {
+  padding: 12px max(10px,var(--safe-area-inset-right,env(safe-area-inset-right,0px))) 16px max(10px,var(--safe-area-inset-left,env(safe-area-inset-left,0px)));
+}
+html[data-theme=dominion][data-platform=android] .top {
+  top: 7px;
+  margin: 7px 10px 0;
+  min-height: calc(56px + var(--safe-area-inset-top,env(safe-area-inset-top,0px)));
+  padding: calc(10px + var(--safe-area-inset-top,env(safe-area-inset-top,0px))) 12px 10px;
+  background: linear-gradient(125deg,#8b3039,#561d26);
+  border: 1px solid var(--accent-edge);
+  box-shadow: inset 0 1px #f4a6aa55,inset 0 -4px #2e0e16;
+  gap: 10px;
+}
+html[data-theme=dominion][data-platform=android] .brand strong { font: 700 24px/1.2 system-ui,sans-serif; letter-spacing: .08em; }
+html[data-theme=dominion][data-platform=android] .brand .mark { display: none; }
+html[data-theme=dominion][data-platform=android] .dominion-brand-label { font-size: 10px; margin-top: 3px; }
+html[data-theme=dominion][data-platform=android] :is(.page-title,.heading) {
+  min-height: 56px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  gap: 10px;
+}
+html[data-theme=dominion][data-platform=android] .dominion-frame {
+  border-width: 16px;
+  border-image-width: 16px;
+  padding: 11px 10px 13px;
+}
+html[data-theme=dominion][data-platform=android] .dominion-instrument-bay {
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  padding: 6px;
+  gap: 3px;
+}
+html[data-theme=dominion][data-platform=android] .dominion-instrument-bay .today-metric {
+  padding: 12px 10px;
+  border: 1px solid #04090c;
+  box-shadow: inset 0 1px #6e7b81,inset 0 -1px #3b474e;
+  background: linear-gradient(130deg,#171f24,#080e11 80%);
+  text-align: left;
+}
+html[data-theme=dominion][data-platform=android] .dominion-instrument-bay .today-metric:last-child { grid-column: 1/-1; }
+html[data-theme=dominion][data-platform=android] .today-metric strong { font-size: 28px; }
+html[data-theme=dominion][data-platform=android] .bottom {
+  left: max(7px,calc((100vw - 1040px)/2 + 7px));
+  right: max(7px,calc((100vw - 1040px)/2 + 7px));
+  bottom: 7px;
+  height: auto;
+  min-height: calc(58px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)));
+  padding: 3px max(3px,var(--safe-area-inset-right,env(safe-area-inset-right,0px))) var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)) max(3px,var(--safe-area-inset-left,env(safe-area-inset-left,0px)));
+  background: linear-gradient(#394951,#202c34);
+  border: 1px solid var(--control-border);
+  box-shadow: inset 0 1px #a5b2b8,inset 0 -3px #050b0f,0 -3px 6px #0008;
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+html[data-theme=dominion][data-platform=android] .bottom button {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  min-height: 48px;
+  min-width: max-content;
+  flex: 1 0 48px;
+  gap: 0;
+  padding: 10px 5px;
+  font-size: .75rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+}
+html[data-theme=dominion][data-platform=android] .bottom button.active {
+  background: linear-gradient(#8b3039,#561d26);
+  border-color: var(--accent-edge);
+  box-shadow: inset 0 2px #e9989866,inset 0 -3px #2e0e16;
+  color: white;
+}
+html[data-theme=dominion][data-platform=android] .bottom button:focus-visible { outline-offset: -3px; }
+html[data-theme=dominion][data-platform=android] .today-layout { grid-template-columns: 1fr; }
+@media (max-width:359px) {
+  html[data-theme=dominion][data-platform=android] .dominion-instrument-bay { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion:reduce) {
+  html[data-theme=dominion] :is(.button,.daily-button,.today-button,.daily-launch,.nav-item) { transition: none; }
+  html[data-theme=dominion] :is(.button,.daily-button,.today-button,.daily-launch,.nav-item):active { transform: none; }
+}
+@media (forced-colors:active) {
+  html[data-theme=dominion] :is(.dominion-chassis,.dominion-frame,.nav-item,.brand,.top,.heading,.page-title,.dominion-instrument-bay) {
+    border-image: none;
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+  html[data-theme=dominion] :is(.button,.daily-button,.today-button,.daily-launch,.today-metric,.bottom button) {
+    background: ButtonFace;
+    color: ButtonText;
+    border: 1px solid ButtonText;
+    box-shadow: none;
+  }
+  html[data-theme=dominion] :is(.nav-item.active,.bottom button.active) { border: 2px solid Highlight; color: Highlight; background: Canvas; }
+}
+
+/* Inner panels have a quiet seam; a second heavy frame would crowd the data. */
+html[data-theme=dominion] .dominion-frame .dominion-frame {
+ border: 1px solid var(--line); border-image:none; padding:16px;
+ background:var(--inset); box-shadow:inset 0 1px 3px #0008;
+}
+html[data-theme=dominion] .dominion-instrument-bay { align-items:stretch; }
+html[data-theme=dominion] .dominion-instrument-bay .today-metric {
+ display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; align-self:stretch;
+}
+html[data-theme=dominion] :is(.stats-grid,.stats) {
+ gap:3px; padding:9px; background:linear-gradient(140deg,#626f75,#28343a 45%,#48575e);
+ box-shadow:inset 0 1px #99a5ab,inset 0 -3px #10191e;
+}
+html[data-theme=dominion] :is(.stat,.stats>div) {
+ border:1px solid #04090c; padding:19px 22px; border-radius:0;
+ background:linear-gradient(130deg,#171f24,#080e11 80%);
+ box-shadow:inset 0 1px #6e7b81,inset 0 -1px #3b474e;
+}
+html[data-theme=dominion] :is(.chart,.mobile-chart,.job-original,.journal-compose textarea,.vacancy-text) {
+ background:var(--inset); box-shadow:inset 0 3px 5px #0008;
+}
+html[data-theme=dominion] :is(.habit-check,.list-row,.transaction-row,.journal-entry-list button) {
+ background:var(--inset); border-color:var(--line); box-shadow:none;
+}
+html[data-theme=dominion] :is(.modal,.daily-dialog,.nexus-confirm,.growth-dialog) {
+ border:10px solid transparent; border-image:var(--dominion-frame) 230 250 230 250 /10px/0 stretch;
+ background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--material-steel) border-box;
+ box-shadow:inset 0 1px #778286,0 8px 24px #000b;
+ overflow:visible; max-height:calc(100dvh - 48px);
+}
+html[data-theme=dominion] .modal { overflow-y:auto; }
+html[data-theme=dominion] :is(.daily-dialog,.growth-dialog) > :is(header,.daily-dialog-body,.growth-dialog-body) { min-width:0; }
+html[data-theme=dominion] :is(.daily-dialog-body,.growth-dialog-body) { max-height:calc(100dvh - 160px); overflow-y:auto; }
+html[data-theme=dominion] :is(.notice,.error-banner,.update-toast) {
+ box-shadow:inset 0 1px #ffffff22,inset 0 -3px #0005,0 3px 8px #0007;
+}
+html[data-theme=dominion] .appearance-option { box-shadow:inset 0 2px 4px #0008; }
+html[data-theme=dominion] .appearance-option.selected { box-shadow:inset 0 0 0 1px var(--accent-edge),inset 0 2px 4px #0008; }
+html[data-theme=dominion] :is(.page-title,.heading) h1 { overflow-wrap:normal; }
+@media(max-width:599px) {
+ html[data-theme=dominion] :is(.stats-grid,.stats) { grid-template-columns:1fr; }
+}
+html[data-theme=dominion][data-platform=android] :is(.stats-grid,.stats) { padding:6px; }
+html[data-theme=dominion][data-platform=android] :is(.stat,.stats>div) { padding:12px 10px; }
+html[data-theme=dominion][data-platform=android] .appearance-options { grid-template-columns:1fr; }
+html[data-theme=dominion][data-platform=android] :is(.daily-dialog,.growth-dialog) { width:calc(100% - 32px); max-width:calc(100% - 32px); }
+html[data-theme=dominion][data-platform=android] .daily-dialog-body { padding:12px; }
+@media(prefers-reduced-motion:reduce) {
+ html[data-theme=dominion] .nav-item:hover { filter:none; }
+}
+@media(forced-colors:active) {
+ html[data-theme=dominion] :is(.dominion-frame,.dominion-frame .dominion-frame,.stat,.stats>div,.chart,.mobile-chart,.modal,.daily-dialog,.growth-dialog,.nexus-confirm) {
+  border-image:none; border:1px solid CanvasText; background:Canvas; color:CanvasText; box-shadow:none;
+ }
+}
+
+/* The journal action has one label. The standard layout remains unchanged. */
+html[data-theme=dominion] .today-capture {
+ display:flex; align-items:center; justify-content:flex-end; gap:12px;
+ padding:0; margin:0 0 16px; border:0; background:transparent; box-shadow:none;
+}
+html[data-theme=dominion] .today-capture > :is(.today-capture-icon,div) { display:none; }
+html[data-theme=dominion] .today-capture .today-button { min-height:44px; }
+html[data-theme=dominion] .daily-launch { background:var(--material-face); }
+html[data-theme=dominion] .dominion-frame :is(.daily-panel,.growth-panel,.growth-goals,.experiment-card,.card,.panel) {
+ border:1px solid var(--line);border-image:none;background:var(--inset);padding:16px;box-shadow:inset 0 1px 3px #0008;
+}
+html[data-theme=dominion][data-platform=android] .daily-launch strong { font-size:14px; }
+html[data-theme=dominion][data-platform=android] .today-capture .today-button { min-height:48px; }
+html[data-theme=dominion][data-platform=android] :is(.card,.daily-panel,.growth-panel,.today-secondary,.mobile-fold,.life-board) {
+ border-width:16px;border-image-width:16px;padding:11px 10px 13px;
+}
+html[data-theme=dominion][data-platform=android] .dominion-frame :is(.daily-panel,.growth-panel,.growth-goals,.experiment-card,.card,.panel) {
+ border-width:1px;border-image:none;padding:12px;
+}
+
+@media(forced-colors:active) {
+ html[data-theme=dominion] {--bg:Canvas;--surface:Canvas;--surface2:Canvas;--inset:Canvas;--text:CanvasText;--muted:CanvasText;--line:CanvasText;--control-border:CanvasText;--focus:Highlight;}
+ html[data-theme=dominion][data-platform] :is(.dominion-chassis,.dominion-frame,.dominion-frame .dominion-frame,.nav-item,.brand,.top,.heading,.page-title,.dominion-instrument-bay,.today-metric,.stat,.stats>div,.modal,.daily-dialog,.growth-dialog,.nexus-confirm) {
+  border-image:none;border:1px solid CanvasText;background:Canvas;color:CanvasText;box-shadow:none;filter:none;
+ }
+ html[data-theme=dominion][data-platform] :is(.button,.daily-button,.today-button,.daily-launch,.bottom button) {background:ButtonFace;color:ButtonText;border:1px solid ButtonText;box-shadow:none;}
+ html[data-theme=dominion][data-platform] :is(.nav-item.active,.bottom button.active) {border:2px solid Highlight;background:Canvas;color:Highlight;}
+}
+
+/* The selector preview uses the real, synthetic-data interface. */
+.appearance-preview.dominion{background:#10191e url('./assets/dominion-preview.jpg') center top/cover no-repeat;display:block;padding:0}
+.appearance-preview.dominion>i,.appearance-preview.dominion>span{display:none}
+@media(forced-colors:active){.appearance-preview.dominion{background:Canvas;border:1px solid CanvasText}}
+
+html[data-theme=dominion] .update-panel {border-width:18px;border-image-width:18px;padding:16px}
+html[data-theme=dominion] .update-action,
+html[data-theme=dominion][data-platform=android] :is(.card>button:not(.ghost),.card .inline>button:not(.ghost),.habit-form>button) {
+ background:linear-gradient(#c7464d,#96262e);border-color:var(--accent-edge);color:white;box-shadow:inset 0 1px #ffb1b166,inset 0 -4px #5a141b,0 2px 3px #0007;
+}
+html[data-theme=dominion] .update-action:active:not(:disabled),
+html[data-theme=dominion][data-platform=android] :is(.card>button:not(.ghost),.card .inline>button:not(.ghost),.habit-form>button):active:not(:disabled) {background:var(--accent-pressed);box-shadow:inset 0 3px 5px #0009,inset 0 -1px #5a141b}
+html[data-theme=dominion] .update-action:disabled,
+html[data-theme=dominion][data-platform=android] :is(.card>button,.card .inline>button,.habit-form>button):disabled {background:var(--surface2);color:var(--muted);border-color:var(--line);box-shadow:none}
+@media(max-width:599px){html[data-theme=dominion] .update-panel{flex-wrap:wrap;gap:12px}html[data-theme=dominion] .update-panel>div{min-width:0}}
+@media(forced-colors:active){html[data-theme=dominion][data-platform] :is(.update-action,.card>button,.card .inline>button,.habit-form>button){background:ButtonFace;color:ButtonText;border-color:ButtonText;box-shadow:none}}
+
+/* Mobile base labels have outer margins; checkbox rows keep one 48px target. */
+html[data-theme=dominion] .daily-form .daily-checkbox {margin:0;display:flex;align-items:center;gap:10px}
+html[data-theme=dominion][data-platform=android] .daily-checkbox input[type=checkbox] {min-height:18px;height:18px;width:18px;padding:0;flex:none}

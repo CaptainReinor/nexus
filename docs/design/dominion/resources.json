@@ -1,6 +1,6 @@
 {
-  "specVersion": "3.0",
-  "baselineRevision": "d919d8e2b29748ac46d094cd8533be2c68d71653",
+  "specVersion": "3.1",
+  "baselineRevision": "0735c84890a3c8a9a530a4d819dd0671d1d9391e",
   "resources": [
     {
       "path": "NEXUS/src/renderer/assets/SectorDominion-Heavy.ttf",
@@ -9,6 +9,22 @@
       "sha256": "40ab07877d00b4fed0c250cc739ac7b35729720105ad954ac4ff79702a9a26cc",
       "role": "Short Cyrillic screen headings only; system fallback",
       "status": "prototype font from the supplied design kit"
+    },
+    {
+      "path": "NEXUS/src/renderer/assets/console-frame.png",
+      "source": "User-supplied 11222.zip/NEXUS-Dominion-3.1/assets/console-frame.png",
+      "bytes": 932785,
+      "sha256": "034f122b433e78b3a06b4edc5f1ff650c6718c7898858c5af3d9ef403509c9bb",
+      "role": "Transparent-centre UI frame, 1448x1086, slices 230/250/230/250; local CSS fallback",
+      "status": "included locally"
+    },
+    {
+      "path": "NEXUS/src/renderer/assets/dominion-preview.jpg",
+      "source": "Screenshot of the implemented interface with synthetic data",
+      "bytes": 103554,
+      "sha256": "348b7bed63cd576cf9de748c7f4dd785283cfb9dee782503753ffe2d9dd4fb08",
+      "role": "Appearance selector only; not an interactive screen background",
+      "status": "included locally"
     }
   ],
   "backgrounds": {
@@ -17,6 +33,12 @@
   },
   "referenceOnlyAssetsIncluded": false,
   "generatedScenesIncluded": false,
-  "systemCopyScopes": 31,
-  "systemCopyKeys": 213
+  "systemCopyScopes": 30,
+  "systemCopyKeys": 209,
+  "artworkPolicy": {
+    "realStarCraftArtAllowedByUser": true,
+    "generatedScenesAllowed": false,
+    "candidateSources": "artwork-candidates-3.1.md",
+    "thirdPartyArtIncluded": false
+  }
 }
