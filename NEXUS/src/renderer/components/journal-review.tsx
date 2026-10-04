@@ -1,3 +1,4 @@
+import {useSystemCopy} from '../appearance';
 import {useDaily} from './daily-context';
 import {useGrowth} from './growth-ui';
 import {metricOptions} from '../../shared/growth';
@@ -10,6 +11,7 @@ import { wellbeingOptions,wellbeingLabel } from '../../shared/wellbeing';
 type Choice={id:number;name:string;kind?:string;target?:number};
 type Props={analysis:JournalAnalysis;accounts:Choice[];categories:Choice[];habits:Choice[];jobs:{id:number;title:string}[];selected:Set<string>;applied:Set<string>;onSelect:(key:string,checked:boolean)=>void;onChange:(analysis:JournalAnalysis)=>void;busy?:boolean;transactions?:{day:string;amount:number;type:string;accountId:number}[];day:string};
 export function JournalReview({analysis,accounts,categories,habits,jobs,selected,applied,onSelect,onChange,busy=false,transactions=[],day}:Props){
+  const copy=useSystemCopy('journal-review');
   const {data:growth}=useGrowth(),{data:daily}=useDaily();
   const h=analysis.health,life=analysis.life??lifeSchema.parse({});
   const already=(key:string)=>applied.has(key)||(applied.has('health.sleep')&&(key==='health.sleep_start'||key==='health.sleep_end'));
@@ -40,6 +42,6 @@ export function JournalReview({analysis,accounts,categories,habits,jobs,selected
   life.care?.forEach((item,i)=>{const slot=daily.slots.find(s=>s.id===item.slotId);if(!slot)return;items.push(card(`life.care.${i}`,`${daily.habits.find(h=>h.id===slot.habit_id)?.name} · ${slot.label}: ${item.done?'Выполнено':'Не выполнено'}`,control('Отметка',<select value={String(item.done)} onChange={e=>changeLife({care:life.care?.map((x,index)=>index===i?{...x,done:e.target.value==='true'}:x)})}><option value="true">Выполнено</option><option value="false">Не выполнено</option></select>)));});
   life.metrics?.forEach((item,i)=>{const metric=growth.metrics.find(m=>m.id===item.metricId&&m.active);if(!metric)return;items.push(card(`life.metric.${i}`,`${metric.name}: ${typeof item.value==='boolean'?(item.value?'Да':'Нет'):item.value}${metric.unit?' '+metric.unit:''}`,control(metric.name,metric.kind==='number'?<input type="number" min="0" step="any" value={Number(item.value)} onChange={e=>changeLife({metrics:life.metrics?.map((x,index)=>index===i?{...x,value:Number(e.target.value)}:x)})}/>:<select value={String(item.value)} onChange={e=>changeLife({metrics:life.metrics?.map((x,index)=>index===i?{...x,value:metric.kind==='boolean'?e.target.value==='true':e.target.value}:x)})}>{(metric.kind==='boolean'?['true','false']:metricOptions(metric)).map(v=><option value={v} key={v}>{metric.kind==='boolean'?(v==='true'?'Да':'Нет'):v}</option>)}</select>)));});
   life.tasks.forEach((item,i)=>items.push(card(`life.task.${i}`,`На ${displayDay(item.dueDay)}: ${item.title}`,<>{control('Дело',<input value={item.title} onChange={e=>changeLife({tasks:life.tasks.map((x,index)=>index===i?{...x,title:e.target.value}:x)})}/>)}{control('Дата',<input type="date" value={item.dueDay} onChange={e=>changeLife({tasks:life.tasks.map((x,index)=>index===i?{...x,dueDay:e.target.value}:x)})}/>)}</>)));
-  life.memories.forEach((item,i)=>items.push(card(`life.memory.${i}`,`Сохранить момент: ${item.text}`,control('Воспоминание',<textarea rows={3} value={item.text} onChange={e=>changeLife({memories:life.memories.map((x,index)=>index===i?{text:e.target.value}:x)})}/>,true))));
+  life.memories.forEach((item,i)=>items.push(card(`life.memory.${i}`,`Сохранить момент: ${item.text}`,control(copy('Воспоминание'),<textarea rows={3} value={item.text} onChange={e=>changeLife({memories:life.memories.map((x,index)=>index===i?{text:e.target.value}:x)})}/>,true))));
   return <div className="review-editor">{items.length?items:<p className="life-muted">Прямых отметок не найдено. Текст остался в дневнике.</p>}</div>;
 }
