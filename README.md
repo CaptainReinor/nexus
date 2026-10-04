@@ -18,7 +18,7 @@
 
 ## Установка
 
-Готовые сборки размещаются в [Releases](https://github.com/CaptainReinor/nexus/releases). Windows: запустить установщик. Android: установить APK. Linux: разрешить выполнение файла AppImage и запустить его без установки. Версии: **Windows 0.7.2**, **Android 0.7.2**, **Linux 0.4.8**. [Запуск на Linux](docs/linux.md). [Обновления приложения](docs/updates.md).
+Готовые сборки размещаются в [Releases](https://github.com/CaptainReinor/nexus/releases). Windows: запустить установщик. Android: установить APK. Linux: разрешить выполнение файла AppImage и запустить его без установки. Версии: **Windows 0.7.3**, **Android 0.7.3**, **Linux 0.4.8**. [Запуск на Linux](docs/linux.md). [Обновления приложения](docs/updates.md).
 
 При первом запуске введите код доступа. Адрес сервера уже настроен; приглашение выдаёт владелец NEXUS. Доступ к чужим данным код не предоставляет. На новом аккаунте сразу есть счёт «Дебет» и девять категорий расходов.
 
@@ -85,4 +85,4 @@ python3 -m unittest -q test_nexus_backup test_accounts
 
 ## Лицензия
 
-MIT. Лицензии сторонних зависимостей остаются за их авторами.
+Код — MIT. Лицензии сторонних зависимостей остаются за их авторами. Сторонние изображения и шрифты не распространяются под MIT; происхождение графики описано в [ресурсах дизайна](docs/design/dominion/resources.json) и [уведомлении об арте](NEXUS/src/renderer/assets/THIRD-PARTY-ART.md).

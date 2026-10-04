@@ -51,7 +51,7 @@ const monday=(day:string)=>{const date=new Date(`${day}T12:00:00`);date.setDate(
 const habitDone=(habit:Row,log:Row)=>log.status==='done'&&(habit.kind==='avoid'?num(log.value)===0:num(log.value)>=num(habit.target));
 const weeklyComplete=(habit:Row,logs:Row[],day:string)=>habit.period==='weekly'&&logs.some(log=>log.habit_id===habit.id&&str(log.day)>=monday(day)&&str(log.day)<=day&&habitDone(habit,log));
 
-function SectionHeading({title,detail}:{eyebrow:string;title:string;detail?:string}){const navCopy=useNavigationCopy(),id=nav.find(([,label])=>label===title)?.[0];return <div className="heading"><h1>{id?navCopy(id,title,true):title}</h1>{detail&&<p>{detail}</p>}</div>;}
+function SectionHeading({title,detail}:{eyebrow:string;title:string;detail?:string}){const navCopy=useNavigationCopy(),id=nav.find(([,label])=>label===title)?.[0];return <div className={`heading ${id==='today'?'today-page-head':''}`}><h1>{id?navCopy(id,title,true):title}</h1>{detail&&<p>{detail}</p>}</div>;}
 function Card({title,children}:{title:string;children:React.ReactNode}){return <section className="card dominion-frame">{title&&<h2>{title}</h2>}{children}</section>;}
 function Empty({children}:{children:React.ReactNode}){return <p className="empty">{children}</p>;}
 

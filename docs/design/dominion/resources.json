@@ -25,11 +25,20 @@
       "sha256": "348b7bed63cd576cf9de748c7f4dd785283cfb9dee782503753ffe2d9dd4fb08",
       "role": "Appearance selector only; not an interactive screen background",
       "status": "included locally"
+    },
+    {
+      "path": "NEXUS/src/renderer/assets/thor-header.jpg",
+      "source": "https://www.goodfon.com/games/wallpaper-badfon-starcraft-terran-tor-meh.html",
+      "originalUrl": "https://img.goodfon.com/original/1920x1200/8/28/badfon-starcraft-terran-tor-meh.jpg",
+      "bytes": 175288,
+      "sha256": "35f9f95343c6f92762bd6bbb0feec95149419a9c2033751d77ea01bb44ae86e4",
+      "role": "User-approved static accent in Dominion Today heading only",
+      "status": "included locally; third-party artwork, excluded from MIT; author unconfirmed, not attributed to Peter Lee"
     }
   ],
   "backgrounds": {
     "CITY": "steel fallback; no production artwork supplied",
-    "MACHINE": "steel fallback; no production artwork supplied"
+    "MACHINE": "Thor accent on Today only; other surfaces retain steel fallback"
   },
   "referenceOnlyAssetsIncluded": false,
   "generatedScenesIncluded": false,
@@ -39,6 +48,6 @@
     "realStarCraftArtAllowedByUser": true,
     "generatedScenesAllowed": false,
     "candidateSources": "artwork-candidates-3.1.md",
-    "thirdPartyArtIncluded": false
+    "thirdPartyArtIncluded": true
   }
 }

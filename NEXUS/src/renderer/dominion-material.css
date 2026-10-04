@@ -426,3 +426,40 @@ html[data-theme=dominion][data-platform=android] :is(.card>button,.card .inline>
 /* Mobile base labels have outer margins; checkbox rows keep one 48px target. */
 html[data-theme=dominion] .daily-form .daily-checkbox {margin:0;display:flex;align-items:center;gap:10px}
 html[data-theme=dominion][data-platform=android] .daily-checkbox input[type=checkbox] {min-height:18px;height:18px;width:18px;padding:0;flex:none}
+
+/* User-approved StarCraft accent: packaged locally, limited to Today heading. */
+html[data-theme=dominion] .today-page-head {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 178px;
+  padding: 26px 28px;
+  background: #172128;
+}
+html[data-theme=dominion] .today-page-head::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg,#172128 0%,#172128 30%,#172128dc 47%,#17212835 76%,#17212855),
+    linear-gradient(0deg,#172128cc,transparent 45%),
+    url('./assets/thor-header.jpg') right 47% / 700px auto no-repeat;
+}
+html[data-theme=dominion] .today-page-head h1 { text-shadow: 0 2px 8px #000b; }
+html[data-theme=dominion] .today-page-head .button {
+  align-self: flex-end;
+  background: #172128ed;
+  border-color: #7f929e;
+}
+html[data-theme=dominion][data-platform=android] .today-page-head {
+  min-height: 126px;
+  padding: 18px 16px;
+}
+html[data-theme=dominion][data-platform=android] .today-page-head::before {
+  background: linear-gradient(90deg,#172128 0%,#172128ee 28%,#17212899 53%,#17212822 100%),
+    linear-gradient(0deg,#172128bb,transparent),
+    url('./assets/thor-header.jpg') 80% 44% / 380px auto no-repeat;
+}
+@media (forced-colors: active) {
+  html[data-theme=dominion] .today-page-head::before { display: none; }
+}
