@@ -93,10 +93,12 @@ it('does not upload when durable local storage fails',async()=>{
   await test.engine.flush();expect(test.put).not.toHaveBeenCalled();expect(test.engine.status).toBe('storage-error');
 });
 
-it('retains only the three newest diary inputs',async()=>{
+it('retains thirty days of diary inputs independently of the three visible entries',async()=>{
+  vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-04T12:00:00Z'));
   const test=setup();await test.engine.start();
-  await test.engine.change(s=>{s.tables.daily_journals=Array.from({length:5},(_,i)=>({id:i,created_at:`2026-09-${25+i}T00:00:00Z`}));});
-  expect(test.engine.state.snapshot?.tables.daily_journals.map(row=>row.id)).toEqual([4,3,2]);
+  await test.engine.change(s=>{s.tables.daily_journals=[...Array.from({length:5},(_,i)=>({id:i,created_at:`2026-09-${25+i}T00:00:00Z`})),{id:99,created_at:'2026-08-01T00:00:00Z'}];});
+  expect(test.engine.state.snapshot?.tables.daily_journals.map(row=>row.id)).toEqual([4,3,2,1,0]);
+  expect(test.disk()?.local?.tables.daily_journals).toHaveLength(5);
 });
 
 it('uses natural keys when both devices add the same day and preserves the remote ID',()=>{

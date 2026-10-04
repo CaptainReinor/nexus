@@ -5,8 +5,28 @@ import { openDatabase } from './database';
 import type { SettingsRepository } from './settings';
 import type { WorkRepository } from './work';
 import { wellbeingInstructions } from '../shared/wellbeing';
+import {DayLifeRepository} from './life';
 
 afterEach(()=>vi.unstubAllGlobals());
+
+it('passes saved expense comments and diary text from the repository to the mentor provider',async()=>{
+  const db=openDatabase(':memory:');
+  const complete=vi.fn<AIProvider['complete']>().mockResolvedValue({content:JSON.stringify({headline:'Тест',wins:[],problems:[],actions:[],closing:'Тест'}),requestId:'synthetic-review',inputTokens:1,outputTokens:1,costMicrousd:0});
+  const settings={get:()=>({aiEnabled:true,aiBudgetCents:1000,standardModel:'test/model'}),usedMicrousd:()=>({known:0,unknown:0}),getApiKey:()=> 'synthetic-key'} as unknown as SettingsRepository;
+  try{
+    db.prepare("INSERT OR IGNORE INTO finance_accounts(id,name) VALUES (1,'Дебет')").run();
+    db.prepare("INSERT OR IGNORE INTO finance_categories(id,name,kind) VALUES (1,'Еда','expense')").run();
+    db.prepare("INSERT INTO finance_transactions(occurred_at,type,amount_cents,account_id,category_id,note) VALUES ('2026-10-06T12:00:00','expense',70000,1,1,'Обед с другом')").run();
+    db.prepare("INSERT INTO daily_journals(day,raw_text,source,created_at) VALUES ('2026-10-06','Погулял после работы','text','2026-10-06T12:00:00')").run();
+    const ai=new AIGateway(db,settings,{} as WorkRepository,{complete} as unknown as AIProvider);
+    await ai.reviewLife(new DayLifeRepository(db).facts('2026-10-06','2026-10-06'));
+    const sent=JSON.parse(complete.mock.calls[0][3]);
+    expect(sent.finance[0]).toMatchObject({note:'Обед с другом',amount_cents:70000,account_name:'Дебет'});
+    expect(sent.journals[0].raw_text).toBe('Погулял после работы');
+    expect(complete.mock.calls[0][2]).toContain('Обязательно учитывай пояснения в комментариях');
+    expect(complete).toHaveBeenCalledOnce();
+  }finally{db.close();}
+});
 
 it('distinguishes a network rejection from an invalid key during connection checks',async()=>{
   const provider=new OpenRouterProvider();

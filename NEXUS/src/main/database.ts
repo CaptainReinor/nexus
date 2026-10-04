@@ -1,3 +1,4 @@
+import {journalRetentionCutoff} from '../shared/journal-retention';
 import {dailyTables} from '../shared/daily-core';
 import Database from 'better-sqlite3';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -134,6 +135,7 @@ export function openDatabase(path: string,options:{seedFinance?:boolean}={}): DB
 
 const backupSchema = z.object({ format: z.literal('nexus-backup'), version: z.number().int().min(1).max(schemaVersion), exportedAt: z.string(), tables: z.record(z.string(), z.array(z.record(z.string(), z.unknown()))) });
 export function serializeBackup(db: DB): string {
+  db.prepare('DELETE FROM daily_journals WHERE julianday(created_at)<julianday(?)').run(journalRetentionCutoff());
   const tables: Record<string,unknown[]> = {};
   for (const table of backupTables) tables[table] = db.prepare(`SELECT * FROM ${table}`).all();
   return JSON.stringify({format:'nexus-backup',version:schemaVersion,exportedAt:new Date().toISOString(),tables});
@@ -153,7 +155,7 @@ export function importBackupText(db: DB, content: string): void {
     }
     if (parsed.version < 9) db.exec('INSERT INTO weekly_plan_tasks (id,plan_id,task_id) SELECT task_id,id,task_id FROM weekly_plans WHERE task_id IN (SELECT id FROM day_tasks)');
     if (parsed.version < 4) db.exec('UPDATE habits SET sort_order=-id');
-    db.exec('DELETE FROM daily_journals WHERE id NOT IN (SELECT id FROM daily_journals ORDER BY created_at DESC,id DESC LIMIT 3)');
+    db.prepare('DELETE FROM daily_journals WHERE julianday(created_at)<julianday(?)').run(journalRetentionCutoff());
     if(starterDatabases.has(db))seedFinance(db);
     const violations = db.pragma('foreign_key_check') as unknown[];
     if (violations.length) throw new Error('Резервная копия содержит нарушенные связи.');

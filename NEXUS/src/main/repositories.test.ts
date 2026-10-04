@@ -32,12 +32,15 @@ describe('repositories',()=>{
     expect(i.list().entries).toHaveLength(2);expect(investmentSummary(i.list().entries).profit).toBe(5000);
     expect(f.list().accounts).toHaveLength(0);expect(f.list().today_expense).toBe(0);
   });
-  it('keeps only three recent journal inputs while retaining applied financial records',()=>{
+  it('shows only three recent journal inputs but retains thirty days for the mentor',()=>{
     const h=new HealthRepository(db),f=new FinanceRepository(db),w=new WorkRepository(db),j=new JournalService(db,null as unknown as AIGateway,h,f,w);
     f.saveAccount({name:'Карта',opening_cents:0,active:1});
     f.saveTransaction({occurred_at:localDateTime(),type:'income',account_id:f.list().accounts[0].id,amount_cents:1234,target_account_id:null,category_id:null,note:''});
     for(let n=0;n<5;n++)j.save('2026-09-29',`Запись ${n}`,'text');
     expect(j.list().map(x=>x.raw_text)).toEqual(['Запись 4','Запись 3','Запись 2']);
+    expect((db.prepare('SELECT COUNT(*) AS n FROM daily_journals').get() as {n:number}).n).toBe(5);
+    db.prepare("INSERT INTO daily_journals(day,raw_text,source,created_at) VALUES ('2026-08-01','Старый текст','text','2026-08-01T12:00:00Z')").run();
+    j.list();expect((db.prepare('SELECT COUNT(*) AS n FROM daily_journals').get() as {n:number}).n).toBe(5);
     expect(f.list().transactions).toHaveLength(1);
   });
   it('does not apply an AI avoidance incident as a successful habit',()=>{

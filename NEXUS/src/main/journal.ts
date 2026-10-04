@@ -1,3 +1,4 @@
+import {journalRetentionCutoff} from '../shared/journal-retention';
 import {knownCare} from '../shared/care';
 import {knownMetrics} from '../shared/growth';
 import { journalAnalysisSchema,isPositiveJournalAmount,hasIncompleteSelectedFinance } from '../shared/journal-schema';
@@ -14,7 +15,7 @@ import type { SettingsRepository } from './settings';
 
 export class JournalService {
   constructor(private db:DB,private ai:AIGateway,private health:HealthRepository,private finance:FinanceRepository,private work:WorkRepository,private settings?:SettingsRepository,private life=new DayLifeRepository(db)){}
-  private prune():void{this.db.prepare('DELETE FROM daily_journals WHERE id NOT IN (SELECT id FROM daily_journals ORDER BY created_at DESC,id DESC LIMIT 3)').run();}
+  private prune():void{this.db.prepare('DELETE FROM daily_journals WHERE julianday(created_at)<julianday(?)').run(journalRetentionCutoff());}
   list():JournalEntry[]{this.prune();return this.db.prepare('SELECT * FROM daily_journals ORDER BY created_at DESC,id DESC LIMIT 3').all() as JournalEntry[];}
   save(day:string,text:string,source:'text'|'voice'):JournalEntry {
     const latest=this.db.prepare('SELECT MAX(created_at) AS value FROM daily_journals').get() as {value:string|null};

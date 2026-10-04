@@ -1,3 +1,4 @@
+import {retainedJournalInputs} from '../../NEXUS/src/shared/journal-retention';
 import {ensureDaily} from '../../NEXUS/src/shared/daily-core';
 import {materializePayments} from '../../NEXUS/src/shared/payments';
 import {ensureFinanceOrder} from '../../NEXUS/src/shared/finance-order';
@@ -49,8 +50,8 @@ export class OfflineSync {
     const next=structuredClone(this.local);change(next);
     for(const table of ['day_details','day_tasks','day_memories','assistant_reviews'])next.tables[table]??=[];
     ensureGrowth(next);ensureFinanceOrder(next);ensureDaily(next);materializeRepeats(next);materializePayments(next);
+    next.tables.daily_journals=retainedJournalInputs(next.tables.daily_journals??[]);
     if(sameSnapshot(next,this.local)&&this.status!=='storage-error')return;
-    next.tables.daily_journals=[...(next.tables.daily_journals??[])].sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))||Number(b.id)-Number(a.id)).slice(0,3);
     stampRecordChanges(this.local,next,rowKey);
     next.exportedAt=new Date().toISOString();
     this.local=next;this.setStatus(this.conflicts.length?'conflict':'pending');

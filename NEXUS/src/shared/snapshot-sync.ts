@@ -1,3 +1,4 @@
+import {retainedJournalInputs} from './journal-retention';
 import {reconcileCareLogs} from './care';
 import { fingerprint,isClockRow,readRecordClocks,recordKey,recordTime,writeRecordClocks } from "./record-clocks";
 import { alignNewParents } from './id-alignment';
@@ -85,7 +86,7 @@ export function mergeSnapshots(base:Snapshot,local:Snapshot,remote:Snapshot,choi
   if(snapshot.tables.weekly_plan_tasks){const plans=new Set((snapshot.tables.weekly_plans??[]).map(p=>p.id)),tasks=new Set((snapshot.tables.day_tasks??[]).map(t=>t.id));const orphanTasks=new Set(snapshot.tables.weekly_plan_tasks.filter(l=>!plans.has(l.plan_id)).map(l=>l.task_id));snapshot.tables.day_tasks=(snapshot.tables.day_tasks??[]).filter(t=>!orphanTasks.has(t.id));snapshot.tables.weekly_plan_tasks=snapshot.tables.weekly_plan_tasks.filter(l=>plans.has(l.plan_id)&&tasks.has(l.task_id));}
   if(snapshot.tables.care_checks)reconcileCareLogs(snapshot);
   normalizeSleep(snapshot,base);
-  if(snapshot.tables.daily_journals)snapshot.tables.daily_journals.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))||Number(b.id)-Number(a.id)).splice(3);
+  if(snapshot.tables.daily_journals)snapshot.tables.daily_journals=retainedJournalInputs(snapshot.tables.daily_journals);
   const clocks={...remoteClocks};
   for(const table of new Set([...Object.keys(local.tables),...Object.keys(remote.tables)])){
     const left=new Map((local.tables[table]??[]).filter(row=>!isClockRow(table,row)).map(row=>[rowKey(table,row),row]));

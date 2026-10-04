@@ -92,19 +92,18 @@ it('allows additional tasks, moving and reopening them on the same date',()=>{
  expect(()=>updateTask(snapshot,{...repo.list().tasks.find(x=>x.title==='Позже')!,due_day:'2026-10-01'})).not.toThrow();
  expect(repo.list().tasks).toHaveLength(5);
 });
-it('omits raw diary text from mentor input and preserves unknown sleep duration',()=>{
+it('includes the selected diary text in mentor input and preserves unknown sleep duration',()=>{
  service().save('2026-09-30','Приватный текст','text');db.prepare("INSERT INTO health_daily_entries(day,sleep_end) VALUES ('2026-09-30','08:00')").run();
- const facts=coachFacts(JSON.parse(serializeBackup(db)) as Snapshot,'2026-09-30','2026-09-30');expect(JSON.stringify(facts)).not.toContain('Приватный текст');expect(facts.health[0].sleep_minutes).toBeNull();
+ const facts=coachFacts(JSON.parse(serializeBackup(db)) as Snapshot,'2026-09-30','2026-09-30');expect(facts.journals[0].raw_text).toBe('Приватный текст');expect(facts.health[0].sleep_minutes).toBeNull();
 });
-it('detects the user tone without forwarding raw diary text or confusing normal words with profanity',()=>{
+it('detects user tone and includes user-authored diary context',()=>{
  expect(containsProfanity('Учёба, хлеб и хороший день')).toBe(false);
  expect(containsProfanity('Сука, опять проебал прогулку')).toBe(true);
  expect(containsProfanity('Нахуй этот срыв, завтра исправлю')).toBe(true);
  service().save('2026-09-30','Сука, опять проебал прогулку','text');
  const facts=coachFacts(JSON.parse(serializeBackup(db)) as Snapshot,'2026-09-30','2026-09-30');
  expect(facts.communication.userUsesProfanity).toBe(true);
- expect(JSON.stringify(facts)).not.toContain('Сука, опять проебал прогулку');
- expect(JSON.stringify(facts)).not.toContain('raw_text');
+ expect(facts.journals[0].raw_text).toBe('Сука, опять проебал прогулку');
 });
 it('passes qualitative wellbeing and closed-day failures to the mentor without inventing incidents',()=>{
  db.prepare("INSERT INTO health_daily_entries(day,mood,energy) VALUES ('2026-10-06',7,3)").run();
