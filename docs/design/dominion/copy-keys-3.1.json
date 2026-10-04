@@ -788,8 +788,8 @@
   {
     "scope": "insights-ui",
     "source": "Выполненные дела",
-    "windows": "Выполнено",
-    "android": "Выполнено"
+    "windows": "Завершено дел",
+    "android": "Завершено дел"
   },
   {
     "scope": "insights-ui",
@@ -800,8 +800,8 @@
   {
     "scope": "insights-ui",
     "source": "Сравнить с прошлой неделей",
-    "windows": "К прошлой неделе",
-    "android": "К прошлой неделе"
+    "windows": "Сравнение с прошлой неделей",
+    "android": "Сравнение с прошлой неделей"
   },
   {
     "scope": "insights-ui",

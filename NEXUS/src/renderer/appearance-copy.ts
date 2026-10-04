@@ -558,16 +558,16 @@ export const appearanceCopy:Record<string,Record<string,{windows:string;android:
   },
   "insights-ui": {
     "Выполненные дела": {
-      "windows": "Выполнено",
-      "android": "Выполнено"
+      "windows": "Завершено дел",
+      "android": "Завершено дел"
     },
     "Закономерности": {
       "windows": "Аналитика",
       "android": "Аналитика"
     },
     "Сравнить с прошлой неделей": {
-      "windows": "К прошлой неделе",
-      "android": "К прошлой неделе"
+      "windows": "Сравнение с прошлой неделей",
+      "android": "Сравнение с прошлой неделей"
     },
     "Успех привычек": {
       "windows": "Выполнение протоколов",
