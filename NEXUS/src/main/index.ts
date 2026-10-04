@@ -33,6 +33,7 @@ import { DesktopUpdates } from './updates';
 import type { DashboardData } from '../shared/models';
 
 app.commandLine.appendSwitch('lang','ru');
+const windowsAppId=app.isPackaged&&!process.env.NEXUS_TEST_USER_DATA?'ru.nexus.desktop':'ru.nexus.desktop.preview';
 
 let window: BrowserWindow | null = null;
 let notifyLocalChange=()=>{};
@@ -69,6 +70,7 @@ const settingsSchema=z.object({autostart:z.boolean().optional(),currency:z.strin
 
 function createWindow():void {
   window=new BrowserWindow({width:1480,height:920,minWidth:980,minHeight:660,backgroundColor:'#14191e',title:'NEXUS',icon:join(app.getAppPath(),'assets/nexus-icon.png'),show:false,webPreferences:{preload:join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true}});
+  if(process.platform==='win32')window.setAppDetails({appId:windowsAppId,appIconPath:process.execPath,appIconIndex:0,relaunchCommand:`"${process.execPath}"`,relaunchDisplayName:'NEXUS'});
   window.webContents.session.setPermissionRequestHandler((contents,permission,callback,details)=>{const mediaTypes=(details as {mediaTypes?:string[]}).mediaTypes??[];callback(contents===window?.webContents&&permission==='media'&&!mediaTypes.includes('video'));});
   window.webContents.session.setPermissionCheckHandler((contents,permission)=>contents===window?.webContents&&permission==='media');
   window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
@@ -84,7 +86,7 @@ const profiles=new ProfileManager(app.getPath('userData'));
 mkdirSync(profiles.directory(),{recursive:true});app.setPath('userData',profiles.directory());
 app.setPath('sessionData',profiles.directory());
 void app.whenReady().then(()=>{
-  if(process.platform==='win32')app.setAppUserModelId('ru.nexus.desktop');
+  if(process.platform==='win32')app.setAppUserModelId(windowsAppId);
   Menu.setApplicationMenu(null);
   const dbPath=join(app.getPath('userData'),'nexus.sqlite');
   const db=openDatabase(dbPath,{seedFinance:true});
