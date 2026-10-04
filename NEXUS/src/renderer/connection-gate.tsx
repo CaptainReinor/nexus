@@ -1,8 +1,11 @@
+import {useSystemCopy} from './appearance';
 import { useEffect, useState } from 'react';
 import { defaultServerEndpoint } from '../shared/accounts';
 import { Field, Modal, errorText } from './ui';
 
 export function ConnectionGate(){
+  const copy=useSystemCopy("connection-gate");
+
   const [open,setOpen]=useState(false),[code,setCode]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
   useEffect(()=>{let active=true;void window.nexus.data.remoteConfig().then(config=>{if(active)setOpen(!config.configured);}).catch(()=>{});return()=>{active=false;};},[]);
   async function connect(){
@@ -12,7 +15,7 @@ export function ConnectionGate(){
     catch(cause){setError(errorText(cause));setBusy(false);}
   }
   if(!open)return null;
-  return <Modal title="Вход в NEXUS" onClose={()=>{if(!busy)setOpen(false);}}>
+  return <Modal title={copy("Вход в NEXUS")} onClose={()=>{if(!busy)setOpen(false);}}>
     <form className="form-stack" onSubmit={event=>{event.preventDefault();void connect();}}>
       <Field label="Код доступа"><input autoFocus type="password" autoComplete="off" value={code} onChange={event=>setCode(event.target.value)} disabled={busy}/></Field>
       {error&&<p className="error" role="alert">{error}</p>}

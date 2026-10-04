@@ -1,3 +1,5 @@
+import {useNavigationCopy} from '../appearance';
+import {useSystemCopy} from '../appearance';
 import {DailyLaunchpad} from '../components/daily-ui';
 import { WeeklyPlans,useGrowth } from '../components/growth-ui';
 import { askConfirm } from '../confirm';
@@ -15,6 +17,9 @@ import { dashboardWidgetRegistry } from './dashboard-widgets';
 import { WeeklySummaryDialog } from './weekly-summary';
 
 export function DashboardPage(){
+  const navCopy=useNavigationCopy();
+  const copy=useSystemCopy("dashboard");
+
   const growth=useGrowth();
 
   const navigate=useNavigate(),[view,setView]=useState<'day'|'journal'>('day'),[journalLoaded,setJournalLoaded]=useState(false),[summaryOpen,setSummaryOpen]=useState(false);
@@ -33,14 +38,14 @@ export function DashboardPage(){
   }
   async function reviewDay(date:string,overrideBudget=false):Promise<void>{try{await window.nexus.life.review({kind:'day',start:date,end:date,overrideBudget});await life.reload();}catch(error){if(error instanceof Error&&error.message.includes('AI_BUDGET_CONFIRM')&&(await askConfirm('Продолжить разбор дня, несмотря на лимит AI или неизвестную стоимость прошлых запросов?')))return reviewDay(date,true);throw error;}}
   return <>
-    <div className="page-title today-page-head"><div><div className="eyebrow">{new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long'}).format(new Date(`${today}T12:00:00`))}</div><h1>Сегодня</h1></div><button className="button ghost small" onClick={()=>setSummaryOpen(true)}>Итоги недели →</button></div>
-    <nav className="today-views" aria-label="Режим сегодня"><button aria-pressed={view==='day'} onClick={()=>setView('day')}>Мой день</button><button aria-pressed={view==='journal'} onClick={openJournal}>Журнал</button></nav>
+    <div className="page-title today-page-head"><div><div className="eyebrow">{new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long'}).format(new Date(`${today}T12:00:00`))}</div><h1>{navCopy('today','Сегодня',true)}</h1></div><button className="button ghost small" onClick={()=>setSummaryOpen(true)}>{copy("Итоги недели →")}</button></div>
+    <nav className="today-views" aria-label="Режим сегодня"><button aria-pressed={view==='day'} onClick={()=>setView('day')}>{copy("Мой день")}</button><button aria-pressed={view==='journal'} onClick={openJournal}>{copy("Журнал")}</button></nav>
     {error&&<div className="error-banner">{error}</div>}
     <div className="today-view" hidden={view!=='day'}>
       <TodayCapture onOpen={openJournal}/><DailyLaunchpad onJournal={openJournal}/>
-      {loading&&!data?<div className="loading">Загрузка дня…</div>:data&&<><div className="today-metrics">{dashboardWidgetRegistry.map(({id,component:Widget})=><Widget key={id} data={data} currency={settings.data?.currency??'RUB'}/>)}</div><div className="today-layout"><TodayHabits habits={data.health.habits??[]} onMark={markHabit} onManage={()=>navigate('/health')}/>{life.data&&<TodayTasks onRemove={async id=>{await window.nexus.life.remove({table:'day_tasks',id});await life.reload();await growth.reload();}} data={life.data} day={today} onMore={openDetails} onTask={async input=>{await window.nexus.life.task(input);await life.reload();await growth.reload();}}/>}</div></>}
+      {loading&&!data?<div className="loading">{copy("Загрузка дня…")}</div>:data&&<><div className="today-metrics">{dashboardWidgetRegistry.map(({id,component:Widget})=><Widget key={id} data={data} currency={settings.data?.currency??'RUB'}/>)}</div><div className="today-layout"><TodayHabits habits={data.health.habits??[]} onMark={markHabit} onManage={()=>navigate('/health')}/>{life.data&&<TodayTasks onRemove={async id=>{await window.nexus.life.remove({table:'day_tasks',id});await life.reload();await growth.reload();}} data={life.data} day={today} onMore={openDetails} onTask={async input=>{await window.nexus.life.task(input);await life.reload();await growth.reload();}}/>}</div></>}
       {life.error&&<div className="error-banner">{life.error}</div>}
-      <WeeklyPlans/><details className="today-secondary" ref={detailsRef}><summary>Дополнительные отметки <small>Самочувствие, заметки и воспоминания</small></summary>{life.data&&<LifeBoard data={life.data} day={lifeDay} onDay={setLifeDay} onPatch={async(day,patch)=>{await window.nexus.life.patch({day,patch});await life.reload();}} onMarkers={async fields=>{await window.nexus.life.markers(fields);await life.reload();}} onTask={async input=>{await window.nexus.life.task(input);await life.reload();await growth.reload();}} onMemory={async input=>{await window.nexus.life.memory(input);await life.reload();}} onRemove={async(table,id)=>{await window.nexus.life.remove({table,id});await life.reload();await growth.reload();}} onReview={reviewDay}/>}</details>
+      <WeeklyPlans/><details className="today-secondary" ref={detailsRef}><summary>{copy("Дополнительные отметки")}<small>{copy("Самочувствие, заметки и воспоминания")}</small></summary>{life.data&&<LifeBoard data={life.data} day={lifeDay} onDay={setLifeDay} onPatch={async(day,patch)=>{await window.nexus.life.patch({day,patch});await life.reload();}} onMarkers={async fields=>{await window.nexus.life.markers(fields);await life.reload();}} onTask={async input=>{await window.nexus.life.task(input);await life.reload();await growth.reload();}} onMemory={async input=>{await window.nexus.life.memory(input);await life.reload();}} onRemove={async(table,id)=>{await window.nexus.life.remove({table,id});await life.reload();await growth.reload();}} onReview={reviewDay}/>}</details>
     </div>
     {journalLoaded&&<div ref={journalRef} className="today-view today-journal" hidden={view!=='journal'}><ReflectionPanel/><JournalPanel onApplied={()=>{void reload();void life.reload();void growth.reload();}}/></div>}
     {summaryOpen&&<WeeklySummaryDialog currency={settings.data?.currency??'RUB'} onClose={()=>setSummaryOpen(false)}/>}</>;

@@ -7,4 +7,7 @@ import { GrowthProvider } from './components/growth-ui';
 import { UpdatesProvider } from './components/updates';
 import './styles.css';
 import './components/design.css';
+import {initializeAppearance} from './appearance';
+import './dominion.css';
+initializeAppearance('windows');
 createRoot(document.getElementById('root')!).render(<React.StrictMode><UpdatesProvider api={window.nexus.updates}><GrowthProvider api={window.nexus.growth}><DailyProvider api={window.nexus.daily} reminders={window.nexus.reminders}><HashRouter><App/><FocusDock/></HashRouter></DailyProvider></GrowthProvider></UpdatesProvider></React.StrictMode>);

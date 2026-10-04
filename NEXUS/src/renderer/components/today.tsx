@@ -1,3 +1,5 @@
+import {acceptedFeedback} from '../feedback';
+import {useSystemCopy} from '../appearance';
 import {CareChecks} from './care-ui';
 import {useDaily} from './daily-context';
 import { useState } from 'react';
@@ -13,10 +15,14 @@ type Mark={value:number;status:HabitLog['status']};
 const success=(habit:TodayHabit)=>habit.status==='done'&&(habit.kind==='avoid'?habit.value===0:(habit.value??0)>=habit.target);
 
 export function TodayCapture({onOpen}:{onOpen:()=>void}){
-  return <section className="today-capture"><div className="today-capture-icon" aria-hidden="true">✎</div><div><h2>Что было сегодня?</h2></div><button className="today-button primary" onClick={onOpen}>Записать день <span aria-hidden="true">→</span></button></section>;
+  const copy=useSystemCopy("today");
+
+  return <section className="today-capture"><div className="today-capture-icon" aria-hidden="true">✎</div><div><h2>{copy("Что было сегодня?")}</h2></div><button className="today-button primary" onClick={onOpen}>{copy("Записать день")}<span aria-hidden="true">→</span></button></section>;
 }
 
 export function TodayHabits({habits,onMark,onManage}:{habits:TodayHabit[];onMark:(habit:TodayHabit,value:number,status:HabitLog['status'])=>Promise<void|boolean>;onManage:()=>void}){
+  const copy=useSystemCopy("today");
+
   const {data:dailyData}=useDaily();
   const [changes,setChanges]=useState<Record<number,Mark>>({});
   const {queue,status}=useAutoSave();
@@ -25,7 +31,7 @@ export function TodayHabits({habits,onMark,onManage}:{habits:TodayHabit[];onMark
   const completed=daily.filter(success),pending=daily.filter(habit=>!success(habit));
   function mark(habit:TodayHabit,value:number,nextStatus:HabitLog['status'],delay=0){
     const patch={value,status:nextStatus};setChanges(previous=>({...previous,[habit.id]:patch}));
-    queue.enqueue(`today-habit:${habit.id}`,async()=>{await onMark(habit,value,nextStatus);setChanges(previous=>{if(previous[habit.id]!==patch)return previous;const next={...previous};delete next[habit.id];return next;});},delay);
+    queue.enqueue(`today-habit:${habit.id}`,async()=>{const accepted=await onMark(habit,value,nextStatus);if(accepted!==false&&habit.format!=='quantity'&&habit.format!=='duration')acceptedFeedback(nextStatus==='done'?'check':'selection');setChanges(previous=>{if(previous[habit.id]!==patch)return previous;const next={...previous};delete next[habit.id];return next;});},delay);
   }
   function row(habit:TodayHabit&{careProgress?:string}){return <div className={`today-habit ${success(habit)?'complete':''}`} key={habit.id}>
     <span className="today-habit-name">{habit.name}{habit.careProgress&&<small>{habit.careProgress}</small>}{habit.format==='duration'&&<small>Цель: {habit.target} мин</small>}{habit.format==='quantity'&&<small>Цель: {habit.target}</small>}</span>
@@ -36,7 +42,7 @@ export function TodayHabits({habits,onMark,onManage}:{habits:TodayHabit[];onMark
       {habit.status&&habit.status!=='skipped'&&<button className="today-reset" aria-label={`Сбросить ${habit.name}`} onClick={()=>mark(habit,0,'skipped')}>↺</button>}
     </div>}
   </div>;}
-  return <section className="today-card today-habits"><header className="today-card-head"><h2>Уход и привычки</h2><span className="today-count">{completed.length} / {daily.length}</span></header>
+  return <section className="today-card today-habits"><header className="today-card-head"><h2>{copy("Уход и привычки")}</h2><span className="today-count">{completed.length} / {daily.length}</span></header>
     {daily.length>0&&<div className="today-progress" aria-label={`Ежедневные привычки: ${completed.length} из ${daily.length}`}><span style={{width:`${completed.length/daily.length*100}%`}}/></div>}
     {pending.slice(0,6).map(row)}
     {pending.length>6&&<details className="today-fold"><summary>Ещё привычки · {pending.length-6}</summary>{pending.slice(6).map(row)}</details>}
@@ -44,11 +50,13 @@ export function TodayHabits({habits,onMark,onManage}:{habits:TodayHabit[];onMark
     {daily.length>0&&!pending.length&&<p className="today-done">✓ На сегодня всё сделано</p>}
     {completed.length>0&&<details className="today-fold"><summary>Выполнено · {completed.length}</summary>{completed.map(row)}</details>}
     {weekly.length>0&&<details className="today-fold"><summary>На этой неделе · {weekly.length}</summary>{weekly.map(row)}</details>}
-    <footer className="today-card-footer"><button className="today-text-button" onClick={onManage}>Все привычки →</button>{status.state==='saving'&&<span className="today-save" role="status">Сохранение…</span>}{status.state==='error'&&<div className="today-error" role="alert">{status.error}<button className="today-text-button" onClick={()=>queue.retry()}>Повторить</button></div>}</footer>
+    <footer className="today-card-footer"><button className="today-text-button" onClick={onManage}>{copy("Все привычки →")}</button>{status.state==='saving'&&<span className="today-save" role="status">Сохранение…</span>}{status.state==='error'&&<div className="today-error" role="alert">{status.error}<button className="today-text-button" onClick={()=>queue.retry()}>Повторить</button></div>}</footer>
   </section>;
 }
 
 export function TodayTasks({data,day,onTask,onRemove,onMore}:{data:DayLifeData;day:string;onTask:(input:Pick<DayTask,'id'|'title'|'day'|'due_day'|'status'>|{title:string;day:string;due_day:string})=>Promise<void>;onRemove:(id:string)=>Promise<void>;onMore:()=>void}){
+  const copy=useSystemCopy("today");
+
   const [adding,setAdding]=useState(false),[title,setTitle]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState<string|null>(null),[editing,setEditing]=useState<string|null>(null),[due,setDue]=useState(day);
   const tasks=data.tasks.filter(task=>task.status==='open'&&task.due_day<=day).sort((a,b)=>a.due_day.localeCompare(b.due_day)||a.created_at.localeCompare(b.created_at));
   const done=data.tasks.filter(task=>task.status==='done'&&task.due_day===day);
@@ -61,12 +69,12 @@ export function TodayTasks({data,day,onTask,onRemove,onMore}:{data:DayLifeData;d
     {task.status==='done'&&<button className="today-text-button" disabled={!!busy} onClick={()=>void change(task,'open')}>Вернуть</button>}
     <button className="today-task-options" aria-label={`Действия: ${task.title}`} aria-expanded={editing===task.id} disabled={!!busy} onClick={()=>{setEditing(editing===task.id?null:task.id);setDue(task.due_day);}}>⋯</button>
     </div>{editing===task.id&&<form className="today-task-editor" onSubmit={event=>{event.preventDefault();if(due)void change(task,task.status,due);}}><label>На другой день<input aria-label={`Перенести: ${task.title}`} type="date" required value={due} onChange={event=>setDue(event.target.value)}/></label><button className="today-button" disabled={!!busy||!due||due===task.due_day}>Перенести</button><button type="button" className="today-text-button today-task-delete" disabled={!!busy} onClick={()=>void remove(task)}>Удалить</button></form>}</div>;}
-  return <section className="today-card today-tasks"><header className="today-card-head"><h2>Главные дела</h2><button className="today-text-button" aria-expanded={adding} onClick={()=>setAdding(!adding)}>+ Добавить</button></header>
-    {tasks.length?tasks.slice(0,5).map(row):<p className="today-empty">На сегодня дел нет.</p>}
+  return <section className="today-card today-tasks"><header className="today-card-head"><h2>{copy("Главные дела")}</h2><button className="today-text-button" aria-expanded={adding} onClick={()=>setAdding(!adding)}>+ Добавить</button></header>
+    {tasks.length?tasks.slice(0,5).map(row):<p className="today-empty">{copy("На сегодня дел нет.")}</p>}
     {tasks.length>5&&<details className="today-fold"><summary>Ещё дела · {tasks.length-5}</summary>{tasks.slice(5).map(row)}</details>}
-    {adding&&<form className="today-task-add" onSubmit={event=>{event.preventDefault();void add();}}><input aria-label="Новое дело на сегодня" autoFocus value={title} maxLength={300} onChange={event=>setTitle(event.target.value)} placeholder="Что хотите сделать сегодня?"/><button className="today-button" disabled={!!busy||!title.trim()}>Добавить</button></form>}
+    {adding&&<form className="today-task-add" onSubmit={event=>{event.preventDefault();void add();}}><input aria-label="Новое дело на сегодня" autoFocus value={title} maxLength={300} onChange={event=>setTitle(event.target.value)} placeholder={copy("Что хотите сделать сегодня?")}/><button className="today-button" disabled={!!busy||!title.trim()}>Добавить</button></form>}
     {done.length>0&&<details className="today-fold"><summary>Сделано · {done.length}</summary>{done.map(row)}</details>}
     {error&&<p className="today-error" role="alert">{error}</p>}
-    <footer className="today-card-footer"><button className="today-text-button" onClick={onMore}>Планы и заметки →</button></footer>
+    <footer className="today-card-footer"><button className="today-text-button" onClick={onMore}>{copy("Планы и заметки →")}</button></footer>
   </section>;
 }

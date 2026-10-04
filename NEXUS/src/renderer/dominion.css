@@ -1,0 +1,161 @@
+@font-face{font-family:SectorDominion;src:url('./assets/SectorDominion-Heavy.ttf') format('truetype');font-display:swap;unicode-range:U+0400-04FF}
+.compact-navigation{display:none}
+html[data-theme-switching] :is(body,.sidebar,.topbar,.top,.bottom,.panel,.card,.today-card,.daily-panel,.life-board,.button,.today-button,.daily-button){transition:color 180ms ease-out,background-color 180ms ease-out,border-color 180ms ease-out}
+@media(prefers-reduced-motion:reduce){html[data-theme-switching] *{transition:none!important}}
+.metric-delta{position:relative;display:inline-block;font-family:inherit;font-weight:500;line-height:1.3;font-size:14px;margin-top:8px;white-space:nowrap;color:var(--muted)}.metric-delta.favorable{color:var(--favorable)}.metric-delta.unfavorable{color:var(--unfavorable)}.metric-comparison-date{position:absolute;top:calc(100% + 6px);left:0;padding:7px 10px;background:var(--inset);border:1px solid var(--control-border);color:var(--text);z-index:25;white-space:nowrap;font-size:12px}.chart-announcement{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+html[data-theme=dominion] .date-chart{display:block;min-height:0;height:auto;margin:8px 0 16px;padding:0;background:transparent;--series:var(--info)}
+html[data-theme=dominion] .date-chart.series-income{--series:var(--favorable)}
+html[data-theme=dominion] .date-chart.series-expense{--series:var(--unfavorable)}
+html[data-theme=dominion] .date-chart svg{display:block;width:100%;overflow:visible;touch-action:pan-y;background:var(--inset)}
+html[data-theme=dominion] .date-chart polyline{fill:none;stroke:var(--series);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+html[data-theme=dominion] .date-chart .chart-bar{fill:var(--series)}
+html[data-theme=dominion] .date-chart circle{fill:var(--series);stroke:var(--inset);stroke-width:1.5}
+html[data-theme=dominion] .date-chart .chart-selected{fill:var(--text);stroke:var(--series);stroke-width:2}
+html[data-theme=dominion] .date-chart .chart-grid{stroke:var(--line);stroke-opacity:.65}
+html[data-theme=dominion] .date-chart .chart-zero{stroke:var(--control-border);stroke-width:1.5}
+html[data-theme=dominion] .date-chart .chart-cursor{stroke:var(--textSecondary,#b1bec7);stroke-dasharray:none;stroke-opacity:.6}
+html[data-theme=dominion] .date-chart :is(.chart-axis,.chart-date){fill:var(--muted);font-family:inherit;font-size:12px}
+html[data-theme=dominion][data-platform=android] .date-chart polyline{stroke-width:2}
+html[data-theme=dominion] .date-chart .chart-inspection{background:transparent;display:flex;justify-content:space-between;gap:12px;padding:8px 0;flex-wrap:wrap}
+html[data-theme=dominion] .date-chart .chart-slider{padding:0;box-shadow:none;min-height:24px;height:24px;background:transparent;width:100%;border:0}
+
+.appearance-panel{margin-bottom:20px}.appearance-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.appearance-option{margin:0;padding:14px;border:1px solid var(--line,#45575f);border-radius:8px;background:#131c22;cursor:pointer;display:grid;gap:14px;min-height:176px}.appearance-option.selected{border-color:var(--amber,#d8ad63);box-shadow:inset 0 0 0 1px var(--amber,#d8ad63)}.appearance-option:focus-within{outline:2px solid #f4e2b8;outline-offset:3px}.appearance-preview{display:grid;grid-template-columns:22% 1fr;gap:10px;padding:8px;height:112px;min-width:0;border:1px solid #45575f;background:#0e161c}.appearance-preview>i{display:block;background:linear-gradient(#d8ad63,#d8ad63) 10px 14px/calc(100% - 20px) 4px no-repeat,#1d282e;border-radius:4px}.appearance-preview>span{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:10px}.appearance-preview b{display:block;background:#253138;border:1px solid #45575f;border-radius:5px}.appearance-preview.dominion>i{background:linear-gradient(#d95760,#d95760) 10px 14px/calc(100% - 20px) 4px no-repeat,#1a232b;border-radius:0}.appearance-preview.dominion b{border-radius:0;border-color:#6f808d}.appearance-name{display:flex;align-items:center;gap:10px;color:#e6ecef;font-size:16px;line-height:1.5}.appearance-name input[type=radio]{width:20px;height:20px;min-height:20px;margin:0;flex:none;accent-color:var(--amber,#d8ad63)}.appearance-error{color:#ffc9c2;margin:14px 0 0}.appearance-error button{color:inherit;text-decoration:underline;background:transparent;border:0;padding:4px}
+html[data-theme=dominion]{--bg:#10161b;--surface:#1a232b;--surface2:#26333d;--line:#52616c;--muted:#b1bec7;--text:#e6ecef;--accent:#b92e35;--accent-hover:#ce3942;--accent-pressed:#92232c;--accent-edge:#d95760;--control-border:#6f808d;--inset:#0c1116;--favorable:#76c49b;--unfavorable:#e99a92;--warning:#e8b35a;--info:#80bfd0;--focus:#f4e2b8;--green:#76c49b;--red:#e99a92;--blue:#80bfd0;--radius:2px;color:var(--text);background:var(--bg)}
+html[data-theme=dominion] body{background:var(--bg);color:var(--text);line-height:1.5}
+html[data-theme=dominion] :is(.app-shell,.app,.main-area){background:var(--bg)}
+html[data-theme=dominion] :is(.sidebar,.topbar,.top,.bottom){background:#10191f;border-color:var(--line);box-shadow:none;backdrop-filter:none}
+html[data-theme=dominion] .app-shell{grid-template-columns:248px minmax(0,1fr)}
+html[data-theme=dominion] .sidebar{width:auto;padding:24px 12px}
+html[data-theme=dominion] .brand{border-bottom:3px solid var(--accent);padding-bottom:24px}
+html[data-theme=dominion] :is(.brand-emblem,.mark){border-color:var(--accent-edge);color:var(--text);border-radius:2px;background:var(--surface2);box-shadow:none}
+html[data-theme=dominion] .sidebar-section-label{display:none}
+html[data-theme=dominion] .sidebar nav{margin-top:28px;gap:8px}
+html[data-theme=dominion] .nav-item{height:auto;min-height:48px;margin:0;border-radius:0;padding:12px 14px;gap:12px;border-left:3px solid transparent;color:var(--muted);font-size:14px;white-space:normal}
+html[data-theme=dominion] .nav-item.active{background:var(--surface2);color:var(--text);border-left-color:var(--accent-edge)}
+html[data-theme=dominion] .nav-glyph{flex:none;color:inherit}
+html[data-theme=dominion] .nav-chevron{display:none}
+html[data-theme=dominion] .topbar{height:64px;padding:0 32px}
+html[data-theme=dominion] .breadcrumb{font-family:inherit;font-size:14px;letter-spacing:0;color:var(--muted)}
+html[data-theme=dominion] .page{padding:32px;max-width:1720px}
+html[data-theme=dominion] :is(.page-title,.heading){padding:20px 0;border-bottom:1px solid var(--line);position:relative;margin:0 0 24px}
+html[data-theme=dominion] :is(.page-title,.heading)::after{content:'';position:absolute;left:0;bottom:-1px;width:88px;height:3px;background:var(--accent);pointer-events:none}
+html[data-theme=dominion] :is(.page-title h1,.heading h1){font-family:SectorDominion,Bahnschrift,'Segoe UI',sans-serif;font-size:32px;line-height:1.15;letter-spacing:0;font-weight:normal;overflow-wrap:anywhere}
+html[data-theme=dominion] :is(.panel,.card,.today-card,.daily-panel,.life-board,.growth-panel,.growth-goals,.today-secondary,.mobile-fold,.experiment-card){position:relative;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:2px;padding:20px;box-shadow:0 6px 16px #00000026;clip-path:none;min-width:0}
+html[data-theme=dominion] :is(.panel,.card,.today-card,.daily-panel,.life-board,.experiment-card)::before{display:block;content:'';position:absolute;left:8px;top:-2px;width:40px;height:3px;background:var(--accent);pointer-events:none}
+html[data-theme=dominion] :is(.panel,.card,.today-card,.daily-panel,.life-board)::after{display:block;content:'';position:absolute;right:-1px;bottom:-1px;width:8px;height:8px;background:linear-gradient(135deg,transparent 45%,var(--line) 46%,var(--line) 54%,var(--bg) 55%);pointer-events:none}
+html[data-theme=dominion] :is(.panel h2,.card h2,.today-card h2,.daily-heading h2){font-family:inherit;font-size:18px;font-weight:650;line-height:1.3;letter-spacing:0}
+html[data-theme=dominion] :is(.button,button,.daily-button,.today-button,.life-board button){border-radius:2px;clip-path:none;min-height:40px;line-height:1.4;transition:background 120ms ease-out,border-color 120ms ease-out,color 120ms ease-out;white-space:normal;overflow-wrap:anywhere}
+html[data-theme=dominion] :is(.button.primary,.today-button.primary,.daily-button.primary,.life-primary,.confirm-accept){background:var(--accent);border:1px solid var(--accent-edge);color:#fff;box-shadow:inset 0 1px 0 #ffffff18}
+html[data-theme=dominion] :is(.button.primary,.today-button.primary,.daily-button.primary,.life-primary,.confirm-accept):hover:not(:disabled){background:var(--accent-hover);filter:none}
+html[data-theme=dominion] :is(.button,.daily-button,.today-button,.life-board button):active:not(:disabled){transform:translateY(1px);transition-duration:80ms}
+html[data-theme=dominion] :is(.button.primary,.today-button.primary,.daily-button.primary,.life-primary,.confirm-accept):active:not(:disabled){background:var(--accent-pressed)}
+html[data-theme=dominion] :is(.button.secondary,.button.ghost,.daily-button,.today-button,.nexus-confirm-actions button){background:var(--surface2);border-color:var(--control-border);color:var(--text)}
+html[data-theme=dominion] :is(.button,.daily-button,.today-button,.life-board button):disabled{background:var(--surface2);border-color:var(--line);color:var(--muted);transform:none;box-shadow:none}
+html[data-theme=dominion] :is(input,select,textarea,.field input,.field select,.field textarea,.daily-form input,.daily-dialog input,.life-board input,.life-board select,.life-board textarea){background:var(--inset);color:var(--text);border:1px solid var(--control-border);border-radius:2px;min-height:40px;padding:10px 12px;box-shadow:inset 0 1px 2px #00000040;line-height:1.5}
+html[data-theme=dominion] :is(textarea,.field textarea){min-height:160px;max-width:100%;font-family:inherit}
+html[data-theme=dominion] :is(input[type=checkbox],input[type=radio]){min-height:18px;width:18px;height:18px;padding:0;box-shadow:none;accent-color:var(--accent-edge);flex:none}
+html[data-theme=dominion] :is(input,select,textarea):focus{border-color:var(--control-border);box-shadow:inset 0 1px 2px #00000040}
+html[data-theme=dominion] :is(button,a,input,select,textarea,summary,[tabindex]):focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+html[data-theme=dominion] :is(.field,.daily-form label){color:var(--muted)}
+html[data-theme=dominion] :is(.tabs,.today-views,.life-tabs){border-color:var(--line)}
+html[data-theme=dominion] :is(.tabs button,.today-views button,.life-tabs button,.daily-tabs button){background:transparent;color:var(--muted);border-radius:0}
+html[data-theme=dominion] :is(.tabs button.active,.today-views button[aria-pressed=true],.life-tabs button.active){border-bottom-color:var(--accent-edge);color:var(--text)}
+html[data-theme=dominion] :is(.segmented,.daily-tabs){background:var(--inset);border-color:var(--control-border);border-radius:2px}
+html[data-theme=dominion] :is(.segmented button.active,.segmented button.selected,.daily-tabs button[aria-pressed=true]){background:var(--surface2);color:var(--text);box-shadow:inset 0 -2px var(--accent-edge)}
+html[data-theme=dominion] :is(.choice,.today-choice,.care-chip,.daily-tabs button,.segmented button){transition:background-color 160ms ease-out,border-color 160ms ease-out,color 160ms ease-out}
+html[data-theme=dominion] :is(.stat,.stats>div,.life-section,.growth-stat,.experiment-comparison>div,.vacancy-text,.job-original){background:var(--inset);border-color:var(--line);border-radius:2px;color:var(--text)}
+html[data-theme=dominion] :is(.stat-value,.stats strong,.today-metric strong){font-family:inherit;font-size:28px;line-height:1.2;font-variant-numeric:tabular-nums;color:var(--text);white-space:normal;overflow:visible;overflow-wrap:anywhere;text-overflow:clip;letter-spacing:0}
+html[data-theme=dominion] :is(.stat-sub,.stat-label,.muted,.daily-caption,.daily-empty,.listrow small,.list-row small,.daily-row small,.daily-heading small,.today-metric small,.today-habit-name small){color:var(--muted)}
+html[data-theme=dominion] :is(.list-row,.transaction-row,.habit-check,.job-row,.journal-entry-list button,.daily-launch,.care-chip,.today-choice,.choice,.journal-suggestion,.suggestion){background:var(--inset);color:var(--text);border-color:var(--control-border);border-radius:2px}
+html[data-theme=dominion] :is(.list-row.selected,.job-row.selected,.journal-entry-list button.selected){border-color:var(--accent-edge);background:var(--surface2)}
+html[data-theme=dominion] :is(.care-chip.done,.daily-button.done,.today-choice.chosen.good,.choice.selected:not(.negative),.habit-cell.success){background:#203c31;border-color:var(--favorable);color:var(--favorable)}
+html[data-theme=dominion] :is(.care-chip.missed,.daily-button.missed,.today-choice.chosen.bad,.choice.selected.negative,.habit-cell.failure){background:#402528;border-color:var(--unfavorable);color:var(--unfavorable)}
+html[data-theme=dominion] :is(.progress,.today-progress){background:var(--inset);height:6px;border-radius:2px}
+html[data-theme=dominion] .progress span{background:var(--info)}
+html[data-theme=dominion] .today-progress span{background:var(--favorable)}
+html[data-theme=dominion] :is(.today-text-button,.text-link,.daily-button.subtle){color:var(--muted);background:transparent}
+html[data-theme=dominion] .today-capture{background:var(--surface);border-color:var(--line);border-radius:2px;box-shadow:none;padding:20px}
+html[data-theme=dominion] .today-capture-icon{border-color:var(--control-border);color:var(--info);background:var(--inset);border-radius:2px}
+html[data-theme=dominion] .today-count{background:#203c31;color:var(--favorable);border-radius:2px}
+html[data-theme=dominion] :is(.today-task,.today-habit,.daily-row,.listrow,.divider,.journal-review,.detail-section){border-color:var(--line)}
+html[data-theme=dominion] :is(.today-metric,.today-metrics){border-color:var(--line)}
+html[data-theme=dominion] :is(.today-done,.good,.positive,.amount-income,.today-complete-mark){color:var(--favorable)}
+html[data-theme=dominion] :is(.negative,.amount-expense,.danger,.button.danger){color:var(--unfavorable)}
+html[data-theme=dominion] :is(.today-overdue,.payment-row.overdue>div small,.focus-clock,.routine-step-label){color:var(--warning)}
+html[data-theme=dominion] :is(.modal,.daily-dialog,.nexus-confirm,.growth-dialog){background:var(--surface);color:var(--text);border-color:var(--control-border);border-radius:2px;clip-path:none}
+html[data-theme=dominion] .modal-backdrop,html[data-theme=dominion] .daily-dialog::backdrop,html[data-theme=dominion] .nexus-confirm::backdrop,html[data-theme=dominion] .growth-dialog::backdrop{background:#070c10cc;backdrop-filter:none}
+html[data-theme=dominion] :is(.notice,.error-banner,.daily-error,.today-error,.appearance-error){color:#ffc9c2;background:#402528;border-color:var(--unfavorable);border-radius:2px}
+html[data-theme=dominion] :is(.daily-error,.today-error,.appearance-error){padding:10px 12px}
+html[data-theme=dominion] .help-warning{color:#f4e2b8;background:#342c20;border-color:var(--warning)}
+html[data-theme=dominion] :is(.journal-summary,.ai-result,.payment-summary,.focus-dock){background:var(--surface2);border-color:var(--info);border-radius:2px;color:var(--text)}
+html[data-theme=dominion] :is(.focus-live,.daily-launch-icon){color:var(--info);box-shadow:none}
+html[data-theme=dominion] .appearance-option{border-radius:2px;border-color:var(--control-border);background:var(--inset)}
+html[data-theme=dominion] .appearance-option.selected{border-color:var(--accent-edge);box-shadow:inset 0 0 0 1px var(--accent-edge)}
+html[data-theme=dominion] .appearance-name input{accent-color:var(--accent-edge)}
+html[data-theme=dominion] .today-layout{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+html[data-theme=dominion] .chart-inspection{color:var(--muted)}
+html[data-theme=dominion] .chart-slider{accent-color:var(--info)}
+html[data-theme=dominion] .recording{animation:none;background:var(--accent);color:#fff}
+@media(min-width:980px) and (max-width:1199px){html[data-theme=dominion] .page{padding:24px}}
+@media(max-width:1111px){html[data-theme=dominion] :is(.today-layout,.content-grid,.settings-columns,.settings-grid,.journal-grid,.work-grid){grid-template-columns:1fr}}
+@media(max-width:979px){html[data-theme=dominion][data-platform=windows] body{min-width:0}html[data-theme=dominion][data-platform=windows] .app-shell{grid-template-columns:1fr}html[data-theme=dominion][data-platform=windows] .sidebar{display:none}html[data-theme=dominion][data-platform=windows] .compact-navigation{display:inline-flex}html[data-theme=dominion][data-platform=windows] .topbar{padding:0 16px;gap:10px}html[data-theme=dominion][data-platform=windows] .breadcrumb{flex:1}html[data-theme=dominion][data-platform=windows] .topbar-date{display:none}html[data-theme=dominion][data-platform=windows] .page{padding:16px}html[data-theme=dominion][data-platform=windows] .stats-grid{grid-template-columns:1fr}}
+html[data-theme=dominion][data-platform=android]{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px}
+html[data-theme=dominion][data-platform=android] .app{max-width:1040px;padding-bottom:calc(90px + env(safe-area-inset-bottom))}
+html[data-theme=dominion][data-platform=android] .main{padding:16px max(16px,env(safe-area-inset-right)) 16px max(16px,env(safe-area-inset-left))}
+html[data-theme=dominion][data-platform=android] .page{padding:0}
+html[data-theme=dominion][data-platform=android] .top{min-height:64px;height:auto;padding:12px max(16px,env(safe-area-inset-right)) 12px max(16px,env(safe-area-inset-left));z-index:10}
+html[data-theme=dominion][data-platform=android] .brand{border:0;padding:0}
+html[data-theme=dominion][data-platform=android] :is(.heading h1,.page-title h1){font-size:24px;line-height:1.2}
+html[data-theme=dominion][data-platform=android] :is(.card,.panel,.daily-panel,.today-card,.life-board,.growth-panel,.experiment-card){padding:16px;margin-top:12px;margin-bottom:12px;box-shadow:inset 0 1px #ffffff0a;border-radius:4px}
+html[data-theme=dominion][data-platform=android] :is(button,.button,.daily-button,.today-button,.choice,.today-choice,input,select){min-height:48px}
+html[data-theme=dominion][data-platform=android] :is(input,select,textarea){border-radius:4px;font-size:16px}
+html[data-theme=dominion][data-platform=android] :is(input[type=checkbox],input[type=radio]){min-height:20px;height:20px;width:20px}
+html[data-theme=dominion][data-platform=android] :is(.daily-checkbox,.check-row){min-height:48px}
+html[data-theme=dominion][data-platform=android] textarea{min-height:144px}
+html[data-theme=dominion][data-platform=android] .bottom{height:auto;min-height:calc(68px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);justify-content:flex-start;overflow-x:auto;scrollbar-width:none;z-index:20}
+html[data-theme=dominion][data-platform=android] .bottom button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:1 0 52px;max-width:none;border-top:2px solid transparent;border-radius:0;font-size:12px;line-height:1.2;padding:8px 2px;white-space:normal;overflow-wrap:normal;color:var(--muted)}
+html[data-theme=dominion][data-platform=android] .bottom button.active{border-top-color:var(--accent-edge);color:var(--text);background:var(--surface2)}
+html[data-theme=dominion][data-platform=android] .bottom .nexus-nav-icon{color:var(--accent-edge)}
+html[data-theme=dominion][data-platform=android] :is(.today-layout,.today-metrics){display:grid;grid-template-columns:1fr;gap:12px}
+html[data-theme=dominion][data-platform=android] .today-metric{padding:8px 0;border-right:0;border-bottom:1px solid var(--line);text-align:left;background:transparent;border-radius:0}
+html[data-theme=dominion][data-platform=android] .today-metric:last-child{border:0}
+html[data-theme=dominion][data-platform=android] .today-metric strong{font-size:28px}
+html[data-theme=dominion][data-platform=android] .today-metric small{font-size:13px}
+html[data-theme=dominion][data-platform=android] .today-habit-actions{flex-wrap:wrap}
+html[data-theme=dominion][data-platform=android] .today-task-check{width:48px;height:48px}
+html[data-theme=dominion][data-platform=android] .today-capture{padding:16px;grid-template-columns:32px minmax(0,1fr)}
+html[data-theme=dominion][data-platform=android] .today-capture-icon{width:32px;height:32px}
+html[data-theme=dominion][data-platform=android] :is(.daily-fields,.two){grid-template-columns:1fr}
+html[data-theme=dominion][data-platform=android] .notice{position:relative;bottom:auto;right:auto;max-width:100%;z-index:30}
+html[data-theme=dominion][data-platform=android] .appearance-options{grid-template-columns:1fr;gap:12px}
+html[data-theme=dominion][data-platform=android] .appearance-option{min-height:136px;margin:0}
+html[data-theme=dominion][data-platform=android] .appearance-preview{height:80px}
+html[data-theme=dominion][data-platform=android] .daily-dialog{max-height:calc(100dvh - 32px)}
+html[data-theme=dominion][data-platform=android] :is(.daily-dialog-body,.daily-dialog>header){padding:16px}
+html[data-theme=dominion][data-platform=android] .focus-dock{bottom:calc(86px + env(safe-area-inset-bottom))}
+@media(max-width:599px){.appearance-options{grid-template-columns:1fr}.appearance-option{min-height:136px}.appearance-preview{height:80px}}
+@media(min-width:600px){html[data-theme=dominion][data-platform=android] .appearance-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){html[data-theme=dominion] *,html[data-theme=dominion] *::before,html[data-theme=dominion] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;transform:none!important}}
+
+html[data-theme=dominion] :is(.update-panel,.update-toast){background:var(--surface);border-color:var(--control-border);border-radius:2px;color:var(--text)}
+html[data-theme=dominion] .update-action{background:var(--accent);border-color:var(--accent-edge);color:#fff}
+html[data-theme=dominion] .heading:has(+.finance-views)>p{display:none}
+html[data-theme=dominion] .nav-item.active .nav-glyph{color:var(--accent-edge)}
+html[data-theme=dominion] :is(.daily-button.primary,.today-button.primary){background:var(--accent);color:white;border-color:var(--accent-edge)}
+html[data-theme=dominion] :is(.daily-button.primary,.today-button.primary):hover:not(:disabled){background:var(--accent-hover)}
+html[data-theme=dominion] :is(.daily-button.primary,.today-button.primary):active:not(:disabled){background:var(--accent-pressed)}
+html[data-theme=dominion] :is(.daily-button.primary,.today-button.primary):disabled{background:var(--surface2);color:var(--muted);border-color:var(--line)}
+html[data-theme=dominion] .eyebrow{color:var(--muted)}
+html[data-theme=dominion] :is(.muted,.life-next-heading,.life-options>span,.today-secondary summary small):empty{display:none}
+html[data-theme=dominion][data-platform=android] .bottom button{min-width:max-content}
+html[data-theme=dominion] .metric-delta{font-family:inherit;font-weight:500;line-height:1.3}
+html[data-theme=dominion] .stat-value .metric-delta{display:block;font-size:14px}
+@media(max-width:359px){html[data-theme=dominion][data-platform=android] .daily-launchpad{grid-template-columns:1fr}html[data-theme=dominion][data-platform=android] .daily-launch{min-height:64px;overflow-wrap:normal}}
+html[data-theme=dominion] .life-board button{background:var(--accent);border-color:var(--accent-edge);color:#fff}
+html[data-theme=dominion] :is(.life-board .life-secondary,.life-board .life-icon,.life-tabs button,.life-tags button){background:var(--surface2);border-color:var(--control-border);color:var(--text)}
+html[data-theme=dominion] .life-tabs button.active{box-shadow:inset 0 -2px var(--accent-edge)}
+html[data-theme=dominion] .growth-panel .button.primary{background:var(--accent);border-color:var(--accent-edge);color:#fff}
+html[data-theme=dominion] :is(.growth-days button.selected,.growth-plan-picker button.selected){background:var(--surface2);border-color:var(--accent-edge);color:var(--text)}
+
+html[data-theme=dominion][data-platform=android] :is(.card>button:not(.ghost),.card .inline>button:not(.ghost),.habit-form>button){background:var(--accent);border-color:var(--accent-edge);color:#fff}
+html[data-theme=dominion][data-platform=android] :is(.card>button,.card .inline>button,.habit-form>button):disabled{background:var(--surface2);color:var(--muted);border-color:var(--line)}

@@ -1,8 +1,11 @@
+import {useSystemCopy} from '../appearance';
 import { useEffect,useState } from 'react';
 import type { RemoteProfile,UserInvitation } from '../../shared/accounts';
 import { Field,Panel,Notice,errorText,useData } from '../ui';
 
 export function AccountsPanel(){
+  const copy=useSystemCopy("profiles");
+
   const config=useData(window.nexus.data.remoteConfig);
   const management=useData(window.nexus.accounts.managementStatus);
   const [managementKey,setManagementKey]=useState('');
@@ -20,7 +23,7 @@ export function AccountsPanel(){
   const userRow=(user:RemoteProfile)=><div className="compact-list" key={user.id}><div><strong>{user.name}</strong><span>{user.usedMicrousd===undefined?'Расход недоступен':`$${(user.usedMicrousd/1_000_000).toFixed(4)}`} / ${((user.monthlyLimitCents??0)/100).toFixed(2)}</span><button type="button" className="button secondary small" disabled={busy} onClick={()=>void showCode(user)}>Показать код</button><button type="button" className="button ghost small" disabled={busy} onClick={()=>void toggle(user)}>{user.active?'Отключить доступ и AI':'Восстановить доступ и AI'}</button>{user.active&&<button type="button" className="button ghost small" onClick={()=>hide(user)}>{hiddenIds.includes(user.id)?'Вернуть в список':'Скрыть'}</button>}</div></div>;
   if(!config.data?.configured||profile?.role!=='owner')return null;
   const code=invitation?(invitation.code??JSON.stringify({format:'nexus-invite',version:1,name:invitation.user.name,endpoint:invitation.endpoint,token:invitation.token})):'';
-  return <Panel title="Доступы друзей" className="settings-wide">
+  return <Panel title={copy("Доступы друзей")} className="settings-wide">
     {notice&&<Notice message={notice} onClose={()=>setNotice('')}/>}
     <>
 
@@ -29,7 +32,7 @@ export function AccountsPanel(){
           <Field label="Ключ управления OpenRouter" hint="Хранится только на этом ПК."><input type="password" autoComplete="off" value={managementKey} onChange={e=>setManagementKey(e.target.value)}/></Field>
           <button type="button" className="button secondary small" disabled={busy||!managementKey.trim()} onClick={()=>void saveManagement()}>Подключить выдачу ключей</button>
         </>}
-        <Field label="Имя друга"><input maxLength={80} value={name} onChange={e=>setName(e.target.value)}/></Field>
+        <Field label={copy("Имя друга")}><input maxLength={80} value={name} onChange={e=>setName(e.target.value)}/></Field>
         <button type="button" disabled={busy||!name.trim()||!management.data?.configured} className="button secondary small" onClick={()=>void create()}>{busy?'Подготовка…':'Создать код'}</button>
       </div>
       {invitation&&<><Field label={`Код для ${invitation.user.name}`} hint="Передайте только этому человеку."><textarea readOnly rows={2} value={code} onFocus={e=>e.target.select()} spellCheck={false}/></Field><div className="button-row"><button type="button" className="button secondary small" onClick={()=>void copyCode()}>Скопировать код</button><button type="button" className="button ghost small" onClick={()=>setInvitation(null)}>Скрыть код</button></div></>}

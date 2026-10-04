@@ -1,3 +1,4 @@
+import {useSystemCopy} from '../appearance';
 import { createContext,useCallback,useContext,useEffect,useState,type ReactNode } from 'react';
 import type { UpdateAPI,UpdateState } from '../../shared/updates';
 import { flushPendingEdits } from '../autosave';
@@ -26,9 +27,10 @@ export function UpdatesProvider({api,children}:{api:UpdateAPI;children:ReactNode
   return <Context.Provider value={{state,busy,check,update}}>{children}{visible&&<aside className="update-toast" aria-label="Обновление NEXUS"><div><strong>{state.phase==='downloading'?`Скачивание · ${state.percent??0}%`:`NEXUS ${state.version}`}</strong><small>{state.message??(state.phase==='ready'?'Готово к установке':'Доступно обновление')}</small></div><button className="update-action" disabled={busy||state.phase==='downloading'} onClick={()=>void update()}>{state.phase==='ready'?'Установить':'Скачать'}</button><button className="update-close" aria-label="Отложить обновление" onClick={()=>setDismissed(state.version??'')}>×</button></aside>}</Context.Provider>;
 }
 export function UpdatePanel(){
+ const copy=useSystemCopy('updates');
   const value=useContext(Context);if(!value)return null;
   const {state,busy,check,update}=value;
   const available=['available','ready'].includes(state.phase);
-  const label=state.phase==='current'?'Установлена последняя версия':state.phase==='checking'?'Проверяем…':state.phase==='downloading'?`Скачивание · ${state.percent??0}%`:state.message??(available?`Доступна версия ${state.version}`:'');
+  const label=state.phase==='current'?'Установлена последняя версия':state.phase==='checking'?copy('Проверяем…'):state.phase==='downloading'?`Скачивание · ${state.percent??0}%`:state.message??(available?`Доступна версия ${state.version}`:'');
   return <section className="update-panel"><div><h2>Обновления</h2><span>NEXUS {state.currentVersion}</span>{label&&<p role="status">{label}</p>}</div><button type="button" className="update-action" disabled={busy||state.phase==='checking'||state.phase==='downloading'} onClick={()=>void(available?update():check())}>{state.phase==='ready'?'Установить':state.phase==='available'?'Скачать':'Проверить обновления'}</button></section>;
 }

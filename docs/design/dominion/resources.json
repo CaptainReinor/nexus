@@ -1,0 +1,22 @@
+{
+  "specVersion": "3.0",
+  "baselineRevision": "d919d8e2b29748ac46d094cd8533be2c68d71653",
+  "resources": [
+    {
+      "path": "NEXUS/src/renderer/assets/SectorDominion-Heavy.ttf",
+      "source": "User-supplied NEXUS-Dominion-3.0-Design-Kit.zip/NEXUS-Dominion-3.0/SectorDominion-Heavy.ttf",
+      "bytes": 6620,
+      "sha256": "40ab07877d00b4fed0c250cc739ac7b35729720105ad954ac4ff79702a9a26cc",
+      "role": "Short Cyrillic screen headings only; system fallback",
+      "status": "prototype font from the supplied design kit"
+    }
+  ],
+  "backgrounds": {
+    "CITY": "steel fallback; no production artwork supplied",
+    "MACHINE": "steel fallback; no production artwork supplied"
+  },
+  "referenceOnlyAssetsIncluded": false,
+  "generatedScenesIncluded": false,
+  "systemCopyScopes": 31,
+  "systemCopyKeys": 213
+}

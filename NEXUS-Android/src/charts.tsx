@@ -1,8 +1,12 @@
+import {DateChart,type SeriesRole} from '../../NEXUS/src/renderer/date-chart';
+import {useTheme} from '../../NEXUS/src/renderer/appearance';
 import { displayDay } from '../../NEXUS/src/shared/domain';
 import { useState } from 'react';
 
-export function MobileChart({points,formatValue,kind='line'}:{points:{day:string;value:number}[];formatValue:(value:number)=>string;kind?:'line'|'bar'}){
+export function MobileChart({points,formatValue,kind='line',role='neutral',label='Показатель'}:{points:{day:string;value:number}[];formatValue:(value:number)=>string;kind?:'line'|'bar';role?:SeriesRole;label?:string}){
+ const theme=useTheme();
  const [selected,setSelected]=useState<number|null>(null);
+ if(theme==='dominion')return <DateChart points={points} formatValue={formatValue} kind={kind} role={role} label={label} mobile selectionIndex={selected} onSelect={setSelected}/>;
  if(points.length<2)return <p className="muted">Добавьте ещё одну запись для графика.</p>;
  const min=kind==='bar'?Math.min(0,...points.map(x=>x.value)):Math.min(...points.map(x=>x.value)),max=Math.max(...points.map(x=>x.value)),span=max-min||1;
  const first=Date.parse(points[0].day),last=Date.parse(points.at(-1)!.day),range=last-first||1;

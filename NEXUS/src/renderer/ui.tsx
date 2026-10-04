@@ -1,3 +1,6 @@
+import {DateChart,type SeriesRole} from './date-chart';
+import {useTheme} from './appearance';
+import {useSystemCopy} from './appearance';
 import { displayDay } from '../shared/domain';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AutoSaveStatus } from './autosave';
@@ -28,9 +31,14 @@ export function Modal({title,onClose,children,wide=false}:{title:string;onClose:
 }
 export function Field({label,children,hint}:{label:string;children:ReactNode;hint?:string}) {return <label className="field"><span>{label}</span>{children}{hint&&<small>{hint}</small>}</label>}
 export function Notice({message,onClose}:{message:string;onClose:()=>void}) {return <div className="notice" role="status"><span>{message}</span><button className="icon-button" onClick={onClose} aria-label="Закрыть">×</button></div>}
-export function SaveIndicator({status,onRetry}:{status:AutoSaveStatus;onRetry:()=>void}) {return <div className={`autosave-status ${status.state}`} role="status" aria-live="polite">{status.state==='saving'?'Сохраняется…':status.state==='saved'?'Сохранено автоматически':<>Не удалось сохранить: {errorText(status.error)} <button type="button" onClick={onRetry}>Повторить</button></>}</div>}
+export function SaveIndicator({status,onRetry}:{status:AutoSaveStatus;onRetry:()=>void}) {
+  const copy=useSystemCopy("ui");
+return <div className={`autosave-status ${status.state}`} role="status" aria-live="polite">{status.state==='saving'?copy("Сохраняется…"):status.state==='saved'?copy("Сохранено автоматически"):<>Не удалось сохранить: {errorText(status.error)} <button type="button" onClick={onRetry}>Повторить</button></>}</div>}
 export function Progress({value,max}:{value:number;max:number}) {return <div className="progress"><span style={{width:`${max>0?Math.min(100,Math.max(0,value/max*100)):0}%`}}/></div>}
-export function LineChart({values,labels,formatValue=(value)=>String(value),kind='line'}:{values:number[];labels?:string[];formatValue?:(value:number)=>string;kind?:'line'|'bar'}) {
+export function LineChart({values,labels,formatValue=(value)=>String(value),kind='line',role='neutral',label='Показатель'}:{values:number[];labels?:string[];formatValue?:(value:number)=>string;kind?:'line'|'bar';role?:SeriesRole;label?:string}) {
+  const copy=useSystemCopy("ui");
+
+  const theme=useTheme();
   const [selected,setSelected]=useState<number|null>(null);
   const [chartWidth,setChartWidth]=useState(600),chartRef=useRef<SVGSVGElement>(null),hasChart=values.length>=2;
   useEffect(()=>{
@@ -39,7 +47,8 @@ export function LineChart({values,labels,formatValue=(value)=>String(value),kind
     const observer=new ResizeObserver(entries=>{const width=entries[0]?.contentRect.width;if(width>0)setChartWidth(Math.max(240,width));});
     observer.observe(svg);return ()=>observer.disconnect();
   },[hasChart]);
-  if(values.length<2)return <div className="chart-empty">Добавьте ещё одно измерение, чтобы увидеть динамику.</div>;
+  if(theme==='dominion')return <DateChart points={values.map((value,i)=>({value,day:labels?.[i]??String(i+1)}))} formatValue={formatValue} kind={kind} role={role} label={label} selectionIndex={selected} onSelect={setSelected}/>;
+  if(values.length<2)return <div className="chart-empty">{copy("Добавьте ещё одно измерение, чтобы увидеть динамику.")}</div>;
   const min=kind==='bar'?Math.min(0,...values):Math.min(...values),max=Math.max(...values),span=max-min||1;
   const times=labels?.map(x=>Date.parse(`${x}T12:00:00`));
   const chronological=times?.every(Number.isFinite)&&times.at(-1)!>times[0];
