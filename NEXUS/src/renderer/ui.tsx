@@ -1,3 +1,5 @@
+import {carryChartValues} from '../shared/chart-series';
+import {localDay} from '../shared/domain';
 import {chartKeyIndex} from '../shared/chart-keyboard';
 import {DateChart,type SeriesRole} from './date-chart';
 import {useTheme} from './appearance';
@@ -36,7 +38,9 @@ export function SaveIndicator({status,onRetry}:{status:AutoSaveStatus;onRetry:()
   const copy=useSystemCopy("ui");
 return <div className={`autosave-status ${status.state}`} role="status" aria-live="polite">{status.state==='saving'?copy("Сохраняется…"):status.state==='saved'?copy("Сохранено автоматически"):<>Не удалось сохранить: {errorText(status.error)} <button type="button" onClick={onRetry}>Повторить</button></>}</div>}
 export function Progress({value,max}:{value:number;max:number}) {return <div className="progress"><span style={{width:`${max>0?Math.min(100,Math.max(0,value/max*100)):0}%`}}/></div>}
-export function LineChart({values,labels,formatValue=(value)=>String(value),kind='line',role='neutral',label='Показатель'}:{values:number[];labels?:string[];formatValue?:(value:number)=>string;kind?:'line'|'bar';role?:SeriesRole;label?:string}) {
+export function LineChart({values:sourceValues,labels:sourceLabels,carryForward=false,formatValue=(value)=>String(value),kind='line',role='neutral',label='Показатель'}:{values:number[];labels?:string[];carryForward?:boolean;formatValue?:(value:number)=>string;kind?:'line'|'bar';role?:SeriesRole;label?:string}) {
+  const points=carryForward&&sourceLabels?carryChartValues(sourceValues.map((value,i)=>({day:sourceLabels[i],value})),localDay()).filter(p=>p.value!==null):null;
+  const values=points?points.map(p=>p.value!):sourceValues,labels=points?points.map(p=>p.day):sourceLabels;
   const copy=useSystemCopy("ui");
 
   const theme=useTheme();

@@ -30,6 +30,7 @@ public class MainActivity extends BridgeActivity {
   }
   @Override public void onResume(){
     super.onResume();
+    NexusReminderReceiver.restore(this);
     applyTextScale();
     getWindow().getDecorView().post(this::hideStatusBar);
   }

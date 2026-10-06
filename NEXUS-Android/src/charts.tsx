@@ -1,10 +1,13 @@
+import {carryChartValues} from '../../NEXUS/src/shared/chart-series';
+import {localDay} from '../../NEXUS/src/shared/domain';
 import {chartKeyIndex} from '../../NEXUS/src/shared/chart-keyboard';
 import {DateChart,type SeriesRole} from '../../NEXUS/src/renderer/date-chart';
 import {useTheme} from '../../NEXUS/src/renderer/appearance';
 import { displayDay } from '../../NEXUS/src/shared/domain';
 import { useState } from 'react';
 
-export function MobileChart({points,formatValue,kind='line',role='neutral',label='Показатель'}:{points:{day:string;value:number}[];formatValue:(value:number)=>string;kind?:'line'|'bar';role?:SeriesRole;label?:string}){
+export function MobileChart({points:sourcePoints,carryForward=false,formatValue,kind='line',role='neutral',label='Показатель'}:{points:{day:string;value:number}[];carryForward?:boolean;formatValue:(value:number)=>string;kind?:'line'|'bar';role?:SeriesRole;label?:string}){
+ const points=carryForward?carryChartValues(sourcePoints,localDay()).filter((p):p is {day:string;value:number}=>p.value!==null):sourcePoints;
  const theme=useTheme();
  const [selected,setSelected]=useState<number|null>(null);
  if(theme==='dominion')return <DateChart points={points} formatValue={formatValue} kind={kind} role={role} label={label} mobile selectionIndex={selected} onSelect={setSelected}/>;

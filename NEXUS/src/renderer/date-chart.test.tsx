@@ -2,9 +2,20 @@ import {afterEach,describe,it,expect} from 'vitest';
 import {cleanup,fireEvent,render,screen} from '@testing-library/react';
 import {chartGeometry} from '../shared/chart-geometry';
 import {DateChart} from './date-chart';
+import {LineChart} from './ui';
+import {MobileChart} from '../../../NEXUS-Android/src/charts';
 import {setTheme} from './appearance';
 afterEach(()=>{cleanup();setTheme('standard');});
 describe('actual dated charts',()=>{
+ it('carries weight and portfolio values into missing days on both platforms',()=>{
+   setTheme('dominion');
+   for(const chart of [<LineChart carryForward label="Вес" values={[145,147]} labels={['2026-10-02','2026-10-04']}/>,<MobileChart carryForward label="Инвестиции" points={[{day:'2026-10-02',value:0},{day:'2026-10-04',value:2000}]} formatValue={String}/>]){
+     const {container}=render(chart);expect(container.querySelectorAll('polyline')).toHaveLength(1);
+     const svg=screen.getByRole('group');fireEvent.keyDown(svg,{key:'Home'});fireEvent.keyDown(svg,{key:'ArrowRight'});
+     expect(svg.getAttribute('aria-label')).toContain('03.10.2026');
+     expect(container.querySelector('.chart-inspection strong')?.textContent).toBe(chart.props.label==='Вес'?'145':'0');cleanup();
+   }
+ });
  it('uses the same currency units on the scale and in the inspector',()=>{const {container}=render(<DateChart points={[{day:'2026-10-01',value:10000},{day:'2026-10-02',value:20000}]} formatValue={cents=>`${cents/100} ₽`}/>);expect(container.querySelector('.chart-axis')?.textContent).toContain('₽');expect(container.querySelector('.chart-inspection strong')?.textContent).toBe('200 ₽');expect(container.querySelector('.chart-axis')?.textContent).not.toContain('10000');});
  it('keeps the value scale readable across fractional and signed ranges',()=>{for(const values of [[78.2,78.9],[.01,.06],[-23,31],[9000,150000],[0,0]]){const g=chartGeometry(values.map((value,i)=>({day:`2026-10-0${i+1}`,value})),320,242,'bar')!;expect(g.ticks.length).toBeGreaterThanOrEqual(3);expect(g.ticks.length).toBeLessThanOrEqual(5);}});
  it('uses zero baseline for positive, negative and genuine zero bars',()=>{const g=chartGeometry([{day:'2026-10-01',value:20},{day:'2026-10-02',value:-10},{day:'2026-10-03',value:0}],600,274,'bar')!;expect(g.positions[0].y!).toBeLessThan(g.baseline);expect(g.positions[1].y!).toBeGreaterThan(g.baseline);expect(g.positions[2].y).toBe(g.baseline);setTheme('dominion');const {container}=render(<DateChart kind="bar" points={[{day:'2026-10-01',value:20},{day:'2026-10-02',value:-10},{day:'2026-10-03',value:0}]}/>);expect(container.querySelector('rect[data-value="0"]')?.getAttribute('height')).toBe('0');});
