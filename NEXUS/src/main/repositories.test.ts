@@ -156,6 +156,9 @@ describe('repositories',()=>{
     const result=w.list();
     expect(result.weeklyApplications).toBe(1);expect(result.history.filter(e=>e.job_id===job.id)).toHaveLength(2);
     expect(result.links).toEqual([{job_id:job.id,case_id:experienceCase.id}]);
+    expect(()=>w.saveJob({...job,id:999999})).toThrow('Вакансия не найдена');
+    expect(()=>w.saveJob({...job,salary_from:200000,salary_to:100000})).toThrow();
+    expect(w.list().jobs[0].salary_from).toBeNull();
   });
   it('applies diary suggestions only once after review',()=>{
     const h=new HealthRepository(db),f=new FinanceRepository(db),w=new WorkRepository(db);

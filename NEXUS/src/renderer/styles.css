@@ -32,3 +32,8 @@
 .finance-overview>.panel{grid-column:1/-1}
 
 .settings-grid>.settings-wide{grid-column:1/-1}
+.vacancy-review{border:1px solid var(--border);padding:16px;border-radius:8px}
+.vacancy-review-field{display:flex;align-items:flex-start;gap:10px;min-width:0}
+.vacancy-review-field input[type=checkbox]{width:18px;min-width:18px;height:18px;margin-top:3px}
+.vacancy-review-field span{min-width:0;display:grid;gap:4px;overflow-wrap:anywhere}
+.vacancy-review .button-row{margin-top:12px}

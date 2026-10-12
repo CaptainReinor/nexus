@@ -6,6 +6,7 @@ import type { SettingsRepository } from './settings';
 import type { WorkRepository } from './work';
 import { wellbeingInstructions } from '../shared/wellbeing';
 import {DayLifeRepository} from './life';
+import {vacancyInstructions,vacancyResponseFormat} from '../shared/vacancy';
 
 afterEach(()=>vi.unstubAllGlobals());
 
@@ -37,6 +38,11 @@ it('distinguishes a network rejection from an invalid key during connection chec
 });
 
 describe('structured AI output',()=>{
+  it('uses the shared vacancy contract and the explicit work format from the source',async()=>{
+    const db=openDatabase(':memory:'),complete=vi.fn<AIProvider['complete']>().mockResolvedValue({content:JSON.stringify({title:'Аналитик',company:'Компания',url:null,source:null,city:'Москва',work_mode:'Полная занятость',salary_from:120000,salary_to:null,currency:'RUB'}),requestId:'synthetic-vacancy',inputTokens:10,outputTokens:10,costMicrousd:1});
+    const settings={get:()=>({aiEnabled:true,aiBudgetCents:1000,cheapModel:'test/model'}),usedMicrousd:()=>({known:0,unknown:0}),getApiKey:()=> 'synthetic-key'} as unknown as SettingsRepository;
+    try{const ai=new AIGateway(db,settings,{} as WorkRepository,{complete} as unknown as AIProvider);expect((await ai.parseVacancy('Аналитик. Полная занятость. Формат работы: гибрид')).work_mode).toBe('Гибрид');expect(complete.mock.calls[0][2]).toBe(vacancyInstructions);expect(complete.mock.calls[0][5]).toEqual(vacancyResponseFormat);expect(db.prepare("SELECT COUNT(*) AS count FROM ai_usage WHERE feature='vacancy-import'").get()).toEqual({count:1});}finally{db.close();}
+  });
   it('uses the default account when daily text omits an account and accepts a single wake time',async()=>{
     const db=openDatabase(':memory:');
     const complete=vi.fn<AIProvider['complete']>().mockResolvedValue({content:JSON.stringify({summary:'Расход и сон',health:{weightKg:null,sleepStart:null,sleepEnd:'08:00',mood:null,energy:null,nutrition:null,workout:null,habits:[]},finance:[{type:'expense',amountCents:500000,categoryId:3,accountId:null,note:'Еда'}],work:[],uncertain:[]}),requestId:'test',inputTokens:1,outputTokens:1,costMicrousd:1});

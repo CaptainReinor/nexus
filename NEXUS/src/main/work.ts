@@ -2,6 +2,7 @@ import type { DB } from './database';
 import type { ExperienceCase, ExperienceEntry, Job, JobInput, JobStatus, WorkData } from '../shared/models';
 import { jobStatuses } from '../shared/models';
 import { localDateTime, localDay, monthOf, weekStart } from '../shared/domain';
+import {jobInputSchema} from '../shared/vacancy';
 
 export class WorkRepository {
   constructor(private db: DB,private firstDay:()=>0|1=()=>1) {}
@@ -15,8 +16,9 @@ export class WorkRepository {
     return { jobs,history,entries:this.db.prepare('SELECT * FROM experience_entries ORDER BY start_date DESC,id DESC').all() as ExperienceEntry[],cases:this.db.prepare('SELECT * FROM experience_cases ORDER BY id DESC').all() as ExperienceCase[],links:this.db.prepare('SELECT * FROM job_experience_links').all() as WorkData['links'],aiResults:this.db.prepare('SELECT * FROM job_ai_analyses ORDER BY created_at DESC,id DESC LIMIT 100').all() as WorkData['aiResults'],weeklyApplications:applications.filter(h=>h.occurred_at.slice(0,10)>=weekStart(new Date(),this.firstDay())).length,monthlyApplications:applications.filter(h=>h.occurred_at.startsWith(monthOf(today))).length,counts,stageTotals };
   }
   saveJob(input: JobInput & {id?:number}): void {
+    input=jobInputSchema.parse(input);
     const now=localDateTime();
-    if (input.id) this.db.prepare(`UPDATE jobs SET title=@title,company=@company,url=@url,source=@source,city=@city,work_mode=@work_mode,salary_from=@salary_from,salary_to=@salary_to,currency=@currency,original_text=@original_text,notes=@notes,updated_at=@now WHERE id=@id`).run({...input,now});
+    if (input.id) {const result=this.db.prepare(`UPDATE jobs SET title=@title,company=@company,url=@url,source=@source,city=@city,work_mode=@work_mode,salary_from=@salary_from,salary_to=@salary_to,currency=@currency,original_text=@original_text,notes=@notes,updated_at=@now WHERE id=@id`).run({...input,now});if(!result.changes)throw new Error('Вакансия не найдена.');}
     else this.db.transaction(()=>{ const result=this.db.prepare(`INSERT INTO jobs(id,title,company,url,source,city,work_mode,salary_from,salary_to,currency,original_text,notes,status,created_at,updated_at) VALUES (nexus_id(),@title,@company,@url,@source,@city,@work_mode,@salary_from,@salary_to,@currency,@original_text,@notes,@status,@now,@now)`).run({...input,now}); this.db.prepare('INSERT INTO job_status_history(id,job_id,old_status,new_status,occurred_at,comment) VALUES (nexus_id(),?,NULL,?,?,?)').run(result.lastInsertRowid,input.status,now,'Создана вакансия'); })();
   }
   changeStatus(id:number,status:JobStatus,comment:string): void {
