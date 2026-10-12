@@ -7,8 +7,8 @@ import {jobInputSchema} from '../shared/vacancy';
 export class WorkRepository {
   constructor(private db: DB,private firstDay:()=>0|1=()=>1) {}
   list(): WorkData {
-    const jobs=this.db.prepare('SELECT * FROM jobs ORDER BY updated_at DESC,id DESC LIMIT 1000').all() as Job[];
-    const history=this.db.prepare('SELECT * FROM job_status_history ORDER BY occurred_at DESC,id DESC LIMIT 2000').all() as WorkData['history'];
+    const jobs=this.db.prepare('SELECT * FROM jobs ORDER BY updated_at DESC,id DESC').all() as Job[];
+    const history=this.db.prepare('SELECT * FROM job_status_history ORDER BY occurred_at DESC,id DESC').all() as WorkData['history'];
     const today=localDay();
     const applications=history.filter(h=>h.new_status==='applied');
     const counts=Object.fromEntries(jobStatuses.map(status=>[status,jobs.filter(j=>j.status===status).length])) as WorkData['counts'];
@@ -20,6 +20,13 @@ export class WorkRepository {
     const now=localDateTime();
     if (input.id) {const result=this.db.prepare(`UPDATE jobs SET title=@title,company=@company,url=@url,source=@source,city=@city,work_mode=@work_mode,salary_from=@salary_from,salary_to=@salary_to,currency=@currency,original_text=@original_text,notes=@notes,updated_at=@now WHERE id=@id`).run({...input,now});if(!result.changes)throw new Error('Вакансия не найдена.');}
     else this.db.transaction(()=>{ const result=this.db.prepare(`INSERT INTO jobs(id,title,company,url,source,city,work_mode,salary_from,salary_to,currency,original_text,notes,status,created_at,updated_at) VALUES (nexus_id(),@title,@company,@url,@source,@city,@work_mode,@salary_from,@salary_to,@currency,@original_text,@notes,@status,@now,@now)`).run({...input,now}); this.db.prepare('INSERT INTO job_status_history(id,job_id,old_status,new_status,occurred_at,comment) VALUES (nexus_id(),?,NULL,?,?,?)').run(result.lastInsertRowid,input.status,now,'Создана вакансия'); })();
+  }
+  deleteJob(id:number): void {
+    this.db.transaction(()=>{
+      if(!this.db.prepare('SELECT id FROM jobs WHERE id=?').get(id))throw new Error('Вакансия уже удалена.');
+      for(const table of ['job_status_history','job_experience_links','job_ai_analyses'])this.db.prepare(`DELETE FROM ${table} WHERE job_id=?`).run(id);
+      this.db.prepare('DELETE FROM jobs WHERE id=?').run(id);
+    })();
   }
   changeStatus(id:number,status:JobStatus,comment:string): void {
     this.db.transaction(()=>{ const job=this.db.prepare('SELECT status FROM jobs WHERE id=?').get(id) as {status:JobStatus}|undefined; if (!job) throw new Error('Вакансия не найдена.'); if (job.status===status) return; const now=localDateTime(); this.db.prepare('UPDATE jobs SET status=?,updated_at=? WHERE id=?').run(status,now,id); this.db.prepare('INSERT INTO job_status_history(id,job_id,old_status,new_status,occurred_at,comment) VALUES (nexus_id(),?,?,?,?,?)').run(id,job.status,status,now,comment); })();

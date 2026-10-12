@@ -10,6 +10,19 @@ import {vacancyInstructions,vacancyResponseFormat} from '../shared/vacancy';
 
 afterEach(()=>vi.unstubAllGlobals());
 
+it('does not save an AI answer for a vacancy deleted while the provider is responding',async()=>{
+ const {WorkRepository:Work}=await import('./work');const db=openDatabase(':memory:');
+ try{
+  const work=new Work(db);work.saveJob({title:'Аналитик',company:'Тест',url:'',source:'',city:'',work_mode:'',salary_from:null,salary_to:null,currency:'RUB',original_text:'Тест вакансии',notes:'',status:'saved'});const id=work.list().jobs[0].id;
+  let finish!:(response:Awaited<ReturnType<AIProvider['complete']>>)=>void;
+  const complete=vi.fn<AIProvider['complete']>(()=>new Promise(resolve=>{finish=resolve;}));
+  const settings={get:()=>({aiEnabled:true,aiBudgetCents:1000,standardModel:'synthetic/model'}),usedMicrousd:()=>({known:0,unknown:0}),getApiKey:()=> 'synthetic-key'} as unknown as SettingsRepository;
+  const gateway=new AIGateway(db,settings,work,{complete} as unknown as AIProvider);
+  const pending=gateway.run(id,'cover');work.deleteJob(id);finish({content:'Тестовое письмо',requestId:'synthetic',inputTokens:1,outputTokens:1,costMicrousd:1});
+  await expect(pending).rejects.toThrow('Вакансия удалена во время запроса');expect(work.list().aiResults).toEqual([]);expect(db.prepare('SELECT cost_microusd FROM ai_usage').get()).toEqual({cost_microusd:1});
+ }finally{db.close();}
+});
+
 it('passes saved expense comments and diary text from the repository to the mentor provider',async()=>{
   const db=openDatabase(':memory:');
   const complete=vi.fn<AIProvider['complete']>().mockResolvedValue({content:JSON.stringify({headline:'Тест',wins:[],problems:[],actions:[],closing:'Тест'}),requestId:'synthetic-review',inputTokens:1,outputTokens:1,costMicrousd:0});

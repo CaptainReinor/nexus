@@ -74,6 +74,7 @@ export interface NexusAPI {
   work: {
     list(): Promise<WorkData>;
     saveJob(input: JobInput & { id?: number }): Promise<void>;
+    deleteJob(input: { id: number }): Promise<void>;
     changeStatus(input: { id: number; status: JobStatus; comment: string }): Promise<void>;
     saveEntry(input: Omit<ExperienceEntry,'id'> & { id?: number }): Promise<void>;
     saveCase(input: Omit<ExperienceCase,'id'> & { id?: number }): Promise<void>;

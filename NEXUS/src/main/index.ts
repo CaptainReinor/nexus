@@ -38,7 +38,7 @@ const windowsAppId=app.isPackaged&&!process.env.NEXUS_TEST_USER_DATA?'ru.nexus.d
 
 let window: BrowserWindow | null = null;
 let notifyLocalChange=()=>{};
-const changes=/^(?:daily:(?:careConfig|careRole|careMark|routine|routineEntry|payment|paymentAction|experiment|experimentMark|focus|reflection)|growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|changeStatus|linkCase)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
+const changes=/^(?:daily:(?:careConfig|careRole|careMark|routine|routineEntry|payment|paymentAction|experiment|experimentMark|focus|reflection)|growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|deleteJob|changeStatus|linkCase)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
 const id=z.number().int().positive();
 const day=z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const text=z.string().max(100000);
@@ -176,6 +176,7 @@ void app.whenReady().then(()=>{
   handle('finance:setBudget',z.object({month:z.string().regex(/^\d{4}-\d{2}$/),amount_cents:z.number().int().nonnegative().safe()}),input=>finance.setBudget(input));
   handle('work:list',z.undefined(),()=>work.list());
   handle('work:saveJob',jobSchema,input=>work.saveJob(input));
+  handle('work:deleteJob',z.object({id}),input=>work.deleteJob(input.id));
   handle('work:changeStatus',z.object({id,status:jobSchema.shape.status,comment:text}),input=>work.changeStatus(input.id,input.status,input.comment));
   handle('work:saveEntry',entrySchema,input=>work.saveEntry(input));
   handle('work:saveCase',caseSchema,input=>work.saveCase(input));

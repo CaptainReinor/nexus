@@ -1,3 +1,4 @@
+import {removeJob} from '../../NEXUS/src/shared/work-removal';
 import {SleepInput} from './sleep-input';
 import {MetricDelta} from '../../NEXUS/src/renderer/metric-delta';
 import {metricComparison} from '../../NEXUS/src/shared/metric-delta';
@@ -33,7 +34,7 @@ import { MobileFinance } from './finance-page';
 import { HabitStatistics } from './habit-stats';
 import { MobileChart } from './charts';
 import { AIStatus } from './ai-status';
-import { ConfirmHost } from '../../NEXUS/src/renderer/confirm';
+import { askConfirm,ConfirmHost } from '../../NEXUS/src/renderer/confirm';
 
 import { UpdatePanel } from '../../NEXUS/src/renderer/components/updates';
 type Section='today'|'health'|'finance'|'work'|'journal'|'settings';
@@ -171,9 +172,17 @@ function Finance({snapshot,commitLatest}:PanelProps){return <MobileFinance snaps
 
 const statuses:[string,string][]=[['saved','Сохранена'],['planned','В планах'],['applied','Отклик'],['viewed','Просмотрена'],['invited','Приглашение'],['interview','Интервью'],['next','Следующий этап'],['offer','Оффер'],['rejected','Отказ'],['withdrawn','Отозвана'],['archived','Архив']];
 function Work({snapshot,commitLatest}:PanelProps){
- const copy=useSystemCopy("App"),[archive,setArchive]=useState(false);
+ const copy=useSystemCopy("App"),[archive,setArchive]=useState(false),[removing,setRemoving]=useState<number|null>(null);
+ const deleting=useRef(false);
+ async function deleteVacancy(job:Row){
+  if(deleting.current)return;deleting.current=true;
+  try{
+   if(!await askConfirm(`Удалить «${str(job.title)}» (${str(job.company)}) навсегда? История статусов и результаты ИИ тоже будут удалены.`))return;
+   setRemoving(num(job.id));await commitLatest(s=>removeJob(s,num(job.id)));
+  }finally{deleting.current=false;setRemoving(null);}
+ }
  const jobs=[...current(snapshot,'jobs')].filter(x=>archive?x.status==='archived':x.status!=='archived').sort((a,b)=>str(b.updated_at).localeCompare(str(a.updated_at))||num(b.id)-num(a.id));
- return <><SectionHeading eyebrow="04 / РАБОТА" title={copy("Работа")}/><div className="segmented"><button className={!archive?'selected':''} onClick={()=>setArchive(false)}>Вакансии</button><button className={archive?'selected':''} onClick={()=>setArchive(true)}>Архив</button></div><Card title={`Вакансии · ${jobs.length}`}>{jobs.length?jobs.map(job=><details className="work-vacancy" key={str(job.id)}><summary><span style={{display:'inline-grid',gap:4,minWidth:0}}><strong>{str(job.title)}</strong><small>{[str(job.company),statuses.find(([key])=>key===job.status)?.[1]].filter(Boolean).join(' · ')}</small></span></summary><div className="form-stack">{Boolean(job.city||job.work_mode)&&<p>{[str(job.city),str(job.work_mode)].filter(Boolean).join(' · ')}</p>}{(job.salary_from!=null||job.salary_to!=null)&&<p>{job.salary_from===job.salary_to?groupNumber(str(job.salary_from)):[job.salary_from!=null?`от ${groupNumber(str(job.salary_from))}`:'',job.salary_to!=null?`до ${groupNumber(str(job.salary_to))}`:''].filter(Boolean).join(' ')} {str(job.currency)}</p>}<label>Статус<select value={str(job.status)} aria-label={`Статус ${str(job.title)}`} onChange={e=>{const status=e.target.value;void commitLatest(s=>{const item=current(s,'jobs').find(x=>x.id===job.id);if(!item||item.status===status)return;const old=item.status,now=stamp();item.status=status;item.updated_at=now;const history=current(s,'job_status_history');history.push({id:nextId(history),job_id:item.id,old_status:old,new_status:status,occurred_at:now,comment:''});});}}>{statuses.map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>{Boolean(job.url)&&/^https?:\/\//i.test(str(job.url))&&<a href={str(job.url)} target="_blank" rel="noreferrer">Открыть вакансию</a>}{Boolean(job.notes)&&<p style={{whiteSpace:'pre-wrap'}}>{str(job.notes)}</p>}{Boolean(job.original_text)&&<details><summary>Текст вакансии</summary><p style={{whiteSpace:'pre-wrap'}}>{str(job.original_text)}</p></details>}</div></details>):<Empty>{archive?'Архив пуст':'Вакансий пока нет.'}</Empty>}</Card></>;
+ return <><SectionHeading eyebrow="04 / РАБОТА" title={copy("Работа")}/><div className="segmented"><button className={!archive?'selected':''} onClick={()=>setArchive(false)}>Вакансии</button><button className={archive?'selected':''} onClick={()=>setArchive(true)}>Архив</button></div><Card title={`Вакансии · ${jobs.length}`}>{jobs.length?jobs.map(job=><details className="work-vacancy" key={str(job.id)}><summary><span style={{display:'inline-grid',gap:4,minWidth:0}}><strong>{str(job.title)}</strong><small>{[str(job.company),statuses.find(([key])=>key===job.status)?.[1]].filter(Boolean).join(' · ')}</small></span></summary><div className="form-stack">{Boolean(job.city||job.work_mode)&&<p>{[str(job.city),str(job.work_mode)].filter(Boolean).join(' · ')}</p>}{(job.salary_from!=null||job.salary_to!=null)&&<p>{job.salary_from===job.salary_to?groupNumber(str(job.salary_from)):[job.salary_from!=null?`от ${groupNumber(str(job.salary_from))}`:'',job.salary_to!=null?`до ${groupNumber(str(job.salary_to))}`:''].filter(Boolean).join(' ')} {str(job.currency)}</p>}<label>Статус<select value={str(job.status)} aria-label={`Статус ${str(job.title)}`} disabled={removing===job.id} onChange={e=>{const status=e.target.value;void commitLatest(s=>{const item=current(s,'jobs').find(x=>x.id===job.id);if(!item||item.status===status)return;const old=item.status,now=stamp();item.status=status;item.updated_at=now;const history=current(s,'job_status_history');history.push({id:nextId(history),job_id:item.id,old_status:old,new_status:status,occurred_at:now,comment:''});});}}>{statuses.map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>{Boolean(job.url)&&/^https?:\/\//i.test(str(job.url))&&<a href={str(job.url)} target="_blank" rel="noreferrer">Открыть вакансию</a>}{Boolean(job.notes)&&<p style={{whiteSpace:'pre-wrap'}}>{str(job.notes)}</p>}{Boolean(job.original_text)&&<details><summary>Текст вакансии</summary><p style={{whiteSpace:'pre-wrap'}}>{str(job.original_text)}</p></details>}<button className="button danger" disabled={removing!==null} onClick={()=>void deleteVacancy(job)}>Удалить вакансию</button></div></details>):<Empty>{archive?'Архив пуст':'Вакансий пока нет.'}</Empty>}</Card></>;
 }
 
 function Settings({snapshot,commit,onConnected}:PanelProps&{onConnected:()=>void}){

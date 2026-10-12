@@ -127,6 +127,7 @@ export class AIGateway {
       } else if (kind==='interview') {
         const parsed=interviewSchema.parse(JSON.parse(content)); const ids=new Set(data.cases.map(c=>c.id)); parsed.questions=parsed.questions.map(q=>({...q,caseId:q.caseId!==null&&ids.has(q.caseId)?q.caseId:null})); content=JSON.stringify(parsed);
       }
+      if(!this.db.prepare('SELECT id FROM jobs WHERE id=?').get(jobId))throw new Error('Вакансия удалена во время запроса. Ответ не сохранён.');
       const createdAt=new Date().toISOString();
       const inserted=this.db.transaction(()=>{
         const r=this.db.prepare('INSERT INTO job_ai_analyses(id,job_id,kind,content,created_at) VALUES (nexus_id(),?,?,?,?)').run(jobId,kind,content,createdAt);

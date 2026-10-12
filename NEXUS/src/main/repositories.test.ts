@@ -160,6 +160,25 @@ describe('repositories',()=>{
     expect(()=>w.saveJob({...job,salary_from:200000,salary_to:100000})).toThrow();
     expect(w.list().jobs[0].salary_from).toBeNull();
   });
+  it('permanently deletes a vacancy and its history, links and AI without deleting experience',()=>{
+    const w=new WorkRepository(db);
+    const input={title:'Аналитик',company:'Компания',url:'',source:'',city:'',work_mode:'',salary_from:null,salary_to:null,currency:'RUB',original_text:'SQL',notes:'',status:'saved' as const};
+    w.saveJob(input);const job=w.list().jobs[0];w.saveJob({...input,title:'Оставить'});
+    w.changeStatus(job.id,'applied','');
+    w.saveCase({entry_id:null,title:'Кейс',situation:'',task:'',actions:'',result:'',skills:'',tools:'',tags:''});
+    const caseId=w.list().cases[0].id;w.linkCase(job.id,caseId,true);
+    db.prepare("INSERT INTO job_ai_analyses(id,job_id,kind,content,created_at) VALUES (nexus_id(),?,'cover','Тест','2026-10-12')").run(job.id);
+    w.deleteJob(job.id);const result=w.list();
+    expect(result.jobs.map(j=>j.title)).toEqual(['Оставить']);expect(result.history.some(h=>h.job_id===job.id)).toBe(false);
+    expect(result.links).toEqual([]);expect(result.aiResults).toEqual([]);expect(result.cases[0].id).toBe(caseId);expect(result.weeklyApplications).toBe(0);
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+    expect(()=>w.deleteJob(job.id)).toThrow('Вакансия уже удалена');
+  });
+  it('rolls back the whole vacancy deletion if one dependent table cannot be cleared',()=>{
+    const w=new WorkRepository(db);w.saveJob({title:'Аналитик',company:'Компания',url:'',source:'',city:'',work_mode:'',salary_from:null,salary_to:null,currency:'RUB',original_text:'SQL',notes:'',status:'saved'});
+    const job=w.list().jobs[0];db.exec("CREATE TRIGGER abort_job_delete BEFORE DELETE ON jobs BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END;");
+    expect(()=>w.deleteJob(job.id)).toThrow('synthetic failure');expect(w.list().jobs).toHaveLength(1);expect(w.list().history).toHaveLength(1);
+  });
   it('applies diary suggestions only once after review',()=>{
     const h=new HealthRepository(db),f=new FinanceRepository(db),w=new WorkRepository(db);
     f.saveAccount({name:'Карта',opening_cents:50000,active:1});f.saveCategory({name:'Еда',kind:'expense',active:1});
