@@ -1,3 +1,4 @@
+import {initializeFocus} from '../../NEXUS/src/shared/focus-isolation';
 import { defaultServerEndpoint,remoteProfileSchema,normalizeInvitationToken } from '../../NEXUS/src/shared/accounts';
 import { ensureFinanceDefaults } from '../../NEXUS/src/shared/finance-defaults';
 import { syncStateSchema } from '../../NEXUS/src/shared/sync-state';
@@ -113,7 +114,7 @@ export async function mobileSync(){
   const resume=()=>{if(document.hidden||!navigator.onLine)disconnect();else{void engine.refresh().then(()=>engine.flush());connect();}};
   document.addEventListener('visibilitychange',resume);window.addEventListener('online',resume);window.addEventListener('offline',disconnect);
   const lifecycle=Capacitor.isNativePlatform()?await registerPlugin<{addListener(event:string,listener:(state:{active:boolean})=>void):Promise<{remove():Promise<void>}>}>('NexusLocalStore').addListener('appStateChange',({active})=>{if(!active)disconnect();else resume();}):null;
-  return {engine,start:async()=>{await engine.start();if(engine.state.snapshot){await engine.change(snapshot=>{ensureFinanceDefaults(snapshot);});}connect();},dispose:()=>{stopped=true;disconnect();engine.stop();document.removeEventListener('visibilitychange',resume);window.removeEventListener('online',resume);window.removeEventListener('offline',disconnect);void lifecycle?.remove();}};
+  return {engine,start:async()=>{await engine.start();if(engine.state.snapshot){await engine.change(snapshot=>{ensureFinanceDefaults(snapshot);initializeFocus(snapshot);});}connect();},dispose:()=>{stopped=true;disconnect();engine.stop();document.removeEventListener('visibilitychange',resume);window.removeEventListener('online',resume);window.removeEventListener('offline',disconnect);void lifecycle?.remove();}};
 }
 
 export function rows(snapshot:Snapshot,name:string):Row[]{return snapshot.tables[name]??[];}

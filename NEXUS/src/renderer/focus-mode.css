@@ -8,3 +8,5 @@ html[data-theme=standard]{--favorable:#9ac9b3;--unfavorable:#e5a89c;--inset:#172
 @media(max-width:600px){.focus-macros{grid-template-columns:repeat(3,minmax(0,1fr))}.focus-macros strong{font-size:14px}.focus-vitamins>div{grid-template-columns:repeat(2,minmax(0,1fr))}.work-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.focus-page .focus-date{max-width:145px}.focus-page .focus-record{align-items:flex-start}}
 
 .date-chart>.chart-inspection{background:none;border-radius:0;flex:none;min-width:0}.focus-page .mentor-send{display:block;color:#171b1d;background:#d2a454;min-width:115px}.focus-page .focus-audio-upload{margin:0}.app.focus-active .main.focus-shell{padding-top:calc(18px + var(--safe-area-inset-top,env(safe-area-inset-top,0px)));padding-bottom:calc(16px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))}
+
+.focus-page,.focus-settings{--amber:#d2a454;--amber2:#e2b663}

@@ -1,3 +1,4 @@
+import {focusSourceTables} from '../shared/focus-isolation';
 import {focusTables} from '../shared/focus-mode';
 import {journalRetentionCutoff} from '../shared/journal-retention';
 import {dailyTables} from '../shared/daily-core';
@@ -9,7 +10,7 @@ import { randomInt } from 'node:crypto';
 import { defaultDebit, defaultCategories } from '../shared/finance-defaults';
 
 export type DB = Database.Database;
-export const schemaVersion = 12;
+export const schemaVersion = 13;
 export const backupTables = [
   'settings','habits','habit_logs','health_daily_entries','weight_entries','workouts',
   'finance_accounts','finance_categories','finance_transactions','finance_budgets',
@@ -113,7 +114,10 @@ const migrations: string[] = [
   CREATE TABLE activity_entries(id TEXT PRIMARY KEY,day TEXT NOT NULL,title TEXT NOT NULL,minutes INTEGER,type TEXT NOT NULL,impact TEXT NOT NULL DEFAULT 'neutral',note TEXT NOT NULL,updated_at TEXT NOT NULL);
   CREATE INDEX idx_food_day ON food_entries(day);
   CREATE INDEX idx_activity_day ON activity_entries(day);
-  CREATE INDEX idx_mentor_day ON mentor_turns(day,created_at);`
+  CREATE INDEX idx_mentor_day ON mentor_turns(day,created_at);`,
+  `CREATE TABLE focus_weights(id INTEGER PRIMARY KEY,day TEXT NOT NULL UNIQUE,weight_kg REAL NOT NULL);
+  CREATE TABLE focus_sleep(day TEXT PRIMARY KEY,mood TEXT,energy TEXT,nutrition TEXT,comment TEXT NOT NULL,sleep_start TEXT,sleep_end TEXT,sleep_minutes INTEGER);
+  CREATE TABLE focus_money(id INTEGER PRIMARY KEY,occurred_at TEXT NOT NULL,created_at TEXT NOT NULL,type TEXT NOT NULL,amount_cents INTEGER NOT NULL CHECK(amount_cents>0),account_id INTEGER NOT NULL,target_account_id INTEGER,category_id INTEGER,note TEXT NOT NULL);`
 ];
 
 const starterDatabases=new WeakSet<DB>();
@@ -150,7 +154,7 @@ export function serializeBackup(db: DB): string {
 export function exportBackup(db: DB, path: string): void {writeFileSync(path,serializeBackup(db),'utf8');}
 export function importBackupText(db: DB, content: string): void {
   const parsed = backupSchema.parse(JSON.parse(content));
-  for (const table of backupTables) if (!Array.isArray(parsed.tables[table])) {if((focusTables.some(t=>t===table)&&parsed.version<12)||(dailyTables.some(t=>t===table)&&parsed.version<11)||(table==='weekly_plan_tasks'&&parsed.version<9)||(['financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries'].includes(table)&&parsed.version<8)||(table==='daily_journals'&&parsed.version<3)||(table.startsWith('investment_')&&parsed.version<5)||(['day_details','day_tasks','day_memories','assistant_reviews'].includes(table)&&parsed.version<6))parsed.tables[table]=[];else throw new Error(`В копии отсутствует таблица ${table}.`);}
+  for (const table of backupTables) if (!Array.isArray(parsed.tables[table])) {if((focusSourceTables.some(t=>t===table)&&parsed.version<13)||(focusTables.some(t=>t===table)&&parsed.version<12)||(dailyTables.some(t=>t===table)&&parsed.version<11)||(table==='weekly_plan_tasks'&&parsed.version<9)||(['financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries'].includes(table)&&parsed.version<8)||(table==='daily_journals'&&parsed.version<3)||(table.startsWith('investment_')&&parsed.version<5)||(['day_details','day_tasks','day_memories','assistant_reviews'].includes(table)&&parsed.version<6))parsed.tables[table]=[];else throw new Error(`В копии отсутствует таблица ${table}.`);}
   const allowed = new Map<string,Set<string>>();
   for (const table of backupTables) allowed.set(table,new Set((db.pragma(`table_info(${table})`) as {name:string}[]).map(c=>c.name)));
   db.transaction(()=>{

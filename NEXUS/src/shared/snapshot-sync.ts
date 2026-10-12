@@ -9,7 +9,7 @@ export type State={revision:number;snapshot:Snapshot|null};
 export type LocalEnvelope={base:State;local:Snapshot|null;conflicts?:Conflict[]};
 export type Conflict={table:string;key:string;fields:string[];local:Row|null;remote:Row|null};
 export type SyncStatus='loading'|'saved'|'pending'|'syncing'|'offline'|'conflict'|'storage-error';
-const naturalKeys:Record<string,string[]>={settings:['key'],day_details:['day'],habit_logs:['habit_id','day'],health_daily_entries:['day'],weight_entries:['day'],finance_budgets:['month'],investment_entries:['account_id','day'],job_experience_links:['job_id','case_id']};
+const naturalKeys:Record<string,string[]>={settings:['key'],focus_weights:['day'],focus_sleep:['day'],day_details:['day'],habit_logs:['habit_id','day'],health_daily_entries:['day'],weight_entries:['day'],finance_budgets:['month'],investment_entries:['account_id','day'],job_experience_links:['job_id','case_id']};
 export const rowKey=(table:string,row:Row)=>JSON.stringify((naturalKeys[table]??['id']).map(key=>row[key]));
 const equal=(a:unknown,b:unknown):boolean=>JSON.stringify(a)===JSON.stringify(b);
 const fieldsEqual=(a:Row|undefined|null,b:Row|undefined|null)=>a===b||Boolean(a&&b&&[...new Set([...Object.keys(a),...Object.keys(b)])].every(k=>equal(a[k],b[k])));

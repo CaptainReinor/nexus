@@ -1,18 +1,19 @@
 import type {Snapshot,Row} from './snapshot-sync';
 import {nutritionTotals} from './nutrition';
 import {focusConfig} from './focus-mode';
+import {focusSnapshot,focusBoundary} from './focus-isolation';
 import {localDay,weekStart} from './domain';
 import {shiftDay} from './daily-core';
 import {carryChartValues} from './chart-series';
 export function focusStats(s:Snapshot,end=localDay(),days:number|null=7){
- const config=focusConfig(s),start=days===null?config.startDay:shiftDay(end,-days+1);
+ s=focusSnapshot(s);const config={...focusConfig(s),startDay:focusBoundary(s)?.day??localDay()},start=days===null?config.startDay:[config.startDay,shiftDay(end,-days+1)].sort().at(-1)!;
  const range=(table:string,key='day')=>(s.tables[table]??[]).filter(r=>String(r[key]).slice(0,10)>=start&&String(r[key]).slice(0,10)<=end);
  const money=range('finance_transactions','occurred_at'),foods=range('food_entries'),activities=range('activity_entries'),sleep=range('health_daily_entries').filter(r=>typeof r.sleep_minutes==='number'),weights=(s.tables.weight_entries??[]).filter(r=>String(r.day)<=end).sort((a,b)=>String(a.day).localeCompare(String(b.day)));
  const sums=(type:string,rows=money)=>rows.filter(r=>r.type===type).reduce((n,r)=>n+Number(r.amount_cents),0);
  const daysList:string[]=[];for(let day=start;day<=end;day=shiftDay(day,1))daysList.push(day);
  const byDay=(rows:Row[],value:(r:Row)=>number,key='day')=>{const totals=new Map<string,number>();for(const row of rows){const day=String(row[key]).slice(0,10);totals.set(day,(totals.get(day)??0)+value(row));}return daysList.map(day=>{return {day,value:totals.get(day)??null};});};
  const gymDays=new Set((s.tables.activity_entries??[]).filter(r=>r.type==='gym'&&String(r.day)<=end).map(r=>String(r.day)));
- for(const row of s.tables.workouts??[])if(row.done===1&&/зал|gym/i.test(String(row.type))&&String(row.day)<=end)gymDays.add(String(row.day));
+
  const goalMoney=(s.tables.finance_transactions??[]).filter(r=>String(r.occurred_at).slice(0,10)>=config.startDay&&String(r.occurred_at).slice(0,10)<=end);
  const week=weekStart(new Date(`${end}T12:00:00`),1);
  const knownFoods=foods.filter(r=>typeof r.kcal==='number'),knownActivities=activities.filter(r=>typeof r.minutes==='number');

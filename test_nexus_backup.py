@@ -26,6 +26,19 @@ class BackupApiTest(unittest.TestCase):
             self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=1)
         self.assertEqual(invalid.exception.code,426)
 
+    def test_isolated_focus_sources_require_upgraded_clients(self):
+        tables = nexus_backup.SYNC_TABLES | nexus_backup.INVESTMENT_TABLES | nexus_backup.LIFE_TABLES | nexus_backup.GROWTH_TABLES | {'weekly_plan_tasks'} | nexus_backup.DAILY_TABLES | nexus_backup.FOCUS_TABLES | {'focus_weights','focus_sleep','focus_money'}
+        snapshot = {'format':'nexus-backup','version':13,'exportedAt':'2026-10-13T00:00:00Z','tables':{name:[] for name in tables}}
+        snapshot['tables']['focus_weights']=[{'id':1,'day':'2026-10-13','weight_kg':84}]
+        self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=0)
+        self.assertEqual(self.request('/v1/state')[1]['snapshot'],snapshot)
+        snapshot['version']=12
+        for table in ('focus_weights','focus_sleep','focus_money'):
+            del snapshot['tables'][table]
+        with self.assertRaises(urllib.error.HTTPError) as invalid:
+            self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=1)
+        self.assertEqual(invalid.exception.code,426)
+
     def test_ai_strict_format_is_forwarded_and_malformed_format_rejected(self):
         self.request('/v1/ai/key','PUT',json.dumps({'key':'sk-'+'test-key-'+'0'*10}).encode())
         fmt={'type':'json_schema','json_schema':{'name':'test','strict':True,'schema':{'type':'object','properties':{},'additionalProperties':False}}}
