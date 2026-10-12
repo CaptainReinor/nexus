@@ -27,7 +27,7 @@ export function normalizeSleep(snapshot:Snapshot,base:Snapshot){
     if(typeof row.sleep_start==='string'&&typeof row.sleep_end==='string'&&/^\d{2}:\d{2}$/.test(row.sleep_start)&&/^\d{2}:\d{2}$/.test(row.sleep_end)){
       const [sh,sm]=row.sleep_start.split(':').map(Number),[eh,em]=row.sleep_end.split(':').map(Number);
       row.sleep_minutes=((eh*60+em)-(sh*60+sm)+1440)%1440||1440;
-    }else row.sleep_minutes=null;
+    }else if(!(row.sleep_start===null&&row.sleep_end===null&&typeof row.sleep_minutes==='number'&&row.sleep_minutes!==old?.sleep_minutes))row.sleep_minutes=null;
   }
 }
 export function sameSnapshot(a:Snapshot|null,b:Snapshot|null):boolean{

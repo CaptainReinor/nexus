@@ -11,7 +11,7 @@ import { money } from '../../shared/domain';
 type WidgetProps={data:DashboardData;currency:string};
 type DashboardWidget={id:string;component:ComponentType<WidgetProps>};
 function HealthWidget({data}:WidgetProps){
-const theme=useTheme(),loader=useCallback(()=>theme==='dominion'?window.nexus.health.list():Promise.resolve(null),[theme]),history=useData(loader);
+const theme=useTheme(),loader=useCallback(()=>window.nexus.health.list(),[theme]),history=useData(loader);
 const weight=metricComparison('weight',weightObservations(history.data?.weights??[])),sleep=metricComparison('sleep',sleepObservations(history.data?.history??[]));
   const copy=useSystemCopy("dashboard-widgets");
 return <><Link className="today-metric" to="/health"><small>{copy("Последний вес")}</small><strong>{data.health.weight==null?'—':`${theme==='dominion'?data.health.weight.toLocaleString('ru-RU',{minimumFractionDigits:1,maximumFractionDigits:1}):data.health.weight} кг`}</strong><MetricDelta kind="weight" {...weight}/></Link><Link className="today-metric" to="/health"><small>{copy("Последний сон")}</small><strong>{data.health.sleepMinutes==null?'—':`${Math.floor(data.health.sleepMinutes/60)} ч ${data.health.sleepMinutes%60} мин`}</strong><MetricDelta kind="sleep" {...sleep}/></Link></>;}

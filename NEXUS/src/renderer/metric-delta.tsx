@@ -1,13 +1,13 @@
 import {useEffect,useId,useRef,useState} from 'react';
-import {useTheme} from './appearance';
+
 import {metricDelta,type MetricGoal,type MetricKind,type MetricObservation} from '../shared/metric-delta';
 export function MetricDelta({kind,current,previous,goal}:{kind:MetricKind;current?:MetricObservation;previous?:MetricObservation;goal?:MetricGoal}){
-  const theme=useTheme(),[open,setOpen]=useState(false),id=useId();
+  const [open,setOpen]=useState(false),id=useId();
   const change=metricDelta(kind,current?.value??null,previous?.value??null,goal);
   const element=useRef<HTMLSpanElement>(null),prior=useRef('');
-  const identity=`${theme}:${current?.day}:${current?.value}:${previous?.day}:${previous?.value}:${change?.text}:${change?.assessment}`;
-  useEffect(()=>{const changed=prior.current&&prior.current!==identity;prior.current=identity;if(!changed||theme!=='dominion'||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;const animation=element.current?.animate?.([{opacity:.6},{opacity:1}],{duration:220,easing:'ease-out'});return()=>animation?.cancel();},[identity,theme]);
-  if(theme!=='dominion'||!change||!previous)return null;
+  const identity=`${current?.day}:${current?.value}:${previous?.day}:${previous?.value}:${change?.text}:${change?.assessment}`;
+  useEffect(()=>{const changed=prior.current&&prior.current!==identity;prior.current=identity;if(!changed||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;const animation=element.current?.animate?.([{opacity:.6},{opacity:1}],{duration:220,easing:'ease-out'});return()=>animation?.cancel();},[identity]);
+  if(!change||!previous)return null;
   const date=new Date(`${previous.day}T12:00:00`).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}),label=kind==='weight'?'Вес':'Сон';
   const direction={up:'Рост',down:'Снижение',flat:'Без изменения'}[change.direction];
   const assessment={favorable:'Благоприятное изменение',unfavorable:'Неблагоприятное изменение',neutral:'Нейтральное изменение',unknown:'Оценка неизвестна'}[change.assessment];

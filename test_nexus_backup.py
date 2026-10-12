@@ -13,6 +13,34 @@ import nexus_backup
 
 
 class BackupApiTest(unittest.TestCase):
+    def test_focus_records_survive_sync_and_cannot_be_dropped_by_old_clients(self):
+        tables = nexus_backup.SYNC_TABLES | nexus_backup.INVESTMENT_TABLES | nexus_backup.LIFE_TABLES | nexus_backup.GROWTH_TABLES | {'weekly_plan_tasks'} | nexus_backup.DAILY_TABLES | nexus_backup.FOCUS_TABLES
+        snapshot = {'format':'nexus-backup','version':12,'exportedAt':'2026-10-12T00:00:00Z','tables':{name:[] for name in tables}}
+        snapshot['tables']['food_entries'] = [{'id':'12345678-1234-4234-8234-123456789012','day':'2026-10-12','name':'Куриное филе','grams':200,'kcal':330,'estimated':1,'protein_g':62,'fat_g':7.1,'carbs_g':0,'sugar_g':0,'fiber_g':0,'nutrition_estimated':1,'vitamins_json':'[{"id":"B12","amount":0.68}]'}]
+        self.assertEqual(self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=0)[0],200)
+        self.assertEqual(self.request('/v1/state')[1]['snapshot'],snapshot)
+        snapshot['version'] = 11
+        for table in nexus_backup.FOCUS_TABLES:
+            del snapshot['tables'][table]
+        with self.assertRaises(urllib.error.HTTPError) as invalid:
+            self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=1)
+        self.assertEqual(invalid.exception.code,426)
+
+    def test_ai_strict_format_is_forwarded_and_malformed_format_rejected(self):
+        self.request('/v1/ai/key','PUT',json.dumps({'key':'sk-'+'test-key-'+'0'*10}).encode())
+        fmt={'type':'json_schema','json_schema':{'name':'test','strict':True,'schema':{'type':'object','properties':{},'additionalProperties':False}}}
+        def upstream(handler, path, payload):
+            self.assertEqual(payload['response_format'],fmt)
+            self.assertEqual(payload['provider'],{'require_parameters':True})
+            handler.respond(200, {'content':'{}'})
+        body={'model':'test/model','system':'Return JSON','user':'example','structured':True,'responseFormat':fmt}
+        with mock.patch.object(nexus_backup.Handler,'openrouter',upstream):
+            self.assertEqual(self.request('/v1/ai/complete','POST',json.dumps(body).encode())[0],200)
+        body['responseFormat']='invalid'
+        with self.assertRaises(urllib.error.HTTPError) as invalid:
+            self.request('/v1/ai/complete','POST',json.dumps(body).encode())
+        self.assertEqual(invalid.exception.code,400)
+
     def test_daily_domains_sync_and_old_clients_cannot_drop_them(self):
         tables = nexus_backup.SYNC_TABLES | nexus_backup.INVESTMENT_TABLES | nexus_backup.LIFE_TABLES | nexus_backup.GROWTH_TABLES | {'weekly_plan_tasks'} | nexus_backup.DAILY_TABLES
         snapshot = {'format':'nexus-backup','version':11,'exportedAt':'2026-10-03T00:00:00Z','tables':{name:[] for name in tables}}

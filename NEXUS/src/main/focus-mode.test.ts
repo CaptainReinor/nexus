@@ -1,0 +1,8 @@
+import {expect,it} from 'vitest';
+import {openDatabase,serializeBackup,importBackupText} from './database';
+import {FocusModeRepository} from './focus-mode';
+import type {AIGateway} from './ai';
+import {localDay} from '../shared/domain';
+const id='12345678-1234-4234-8234-123456789012';
+it('persists through backups and prevents concurrent duplicate saves',async()=>{const db=openDatabase(':memory:',{seedFinance:true}),copy=openDatabase(':memory:');try{const repo=new FocusModeRepository(db,{} as AIGateway);const input={id,day:localDay(),text:'Тест',reply:'Тест',actions:[{kind:'weight' as const,day:localDay(),kg:84}],replace:false,expectedUpdatedAt:null};await Promise.all([repo.save(input),repo.save(input)]);expect((await repo.snapshot()).tables.mentor_turns).toHaveLength(1);importBackupText(copy,serializeBackup(db));expect(copy.prepare('SELECT weight_kg FROM weight_entries').get()).toEqual({weight_kg:84});expect(copy.prepare('PRAGMA foreign_key_check').all()).toEqual([]);}finally{db.close();copy.close();}});
+it('keeps manual corrections intact when a turn editor is stale',async()=>{const db=openDatabase(':memory:',{seedFinance:true});try{const repo=new FocusModeRepository(db,{} as AIGateway);const input={id,day:localDay(),text:'Тест',reply:'Тест',actions:[{kind:'weight' as const,day:localDay(),kg:84}],replace:false,expectedUpdatedAt:null};await repo.save(input);const before=(await repo.snapshot()).tables.mentor_turns[0];db.prepare('UPDATE weight_entries SET weight_kg=83').run();await expect(repo.save({...input,replace:true,expectedUpdatedAt:String(before.updated_at),actions:[]})).rejects.toThrow('исправлены отдельно');expect(db.prepare('SELECT weight_kg FROM weight_entries').get()).toEqual({weight_kg:83});}finally{db.close();}});

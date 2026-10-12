@@ -1,3 +1,4 @@
+import {mentorInstructions,mentorResponseFormat,parseMentorReply,type MentorReply} from '../shared/focus-mode';
 import {vacancyDraftSchema,vacancyInstructions,vacancyResponseFormat,parseVacancyResponse} from '../shared/vacancy';
 import {filterMetricSuggestions,type knownMetrics} from '../shared/growth';
 import { desktopFetch } from './desktop-fetch';
@@ -57,6 +58,14 @@ export class OpenRouterProvider implements AIProvider {
 export class AIGateway {
   constructor(private db:DB,private settings:SettingsRepository,private work:WorkRepository,private provider:AIProvider=new OpenRouterProvider(),private credentials:()=>string=()=>settings.getApiKey()) {}
   async testConnection():Promise<boolean> { return this.provider.test(this.credentials()); }
+  async mentor(model:string,facts:unknown,overrideBudget=false):Promise<MentorReply>{
+    this.assertBudget(overrideBudget);let result:Completion|undefined;
+    try{
+      result=await this.provider.complete(this.credentials(),model,mentorInstructions,JSON.stringify(facts),true,mentorResponseFormat);
+      const response=parseMentorReply(result.content,typeof facts==='object'&&facts&&'text' in facts?String(facts.text):'');
+      this.record('focus-mentor',model,result,'ok');return response;
+    }catch(error){this.record('focus-mentor',model,result,'error');if(error instanceof z.ZodError||error instanceof SyntaxError)throw new Error('Не удалось проверить записи наставника. Данные не изменены; повторите запрос.');if(error instanceof TypeError)throw new Error('Не удалось связаться с OpenRouter. Проверьте подключение.');throw error;}
+  }
   private assertBudget(override=false):void {const settings=this.settings.get(),usage=this.settings.usedMicrousd();if(!settings.aiEnabled)throw new Error('Включите AI в настройках.');if(!override&&(usage.unknown>0||usage.known>=settings.aiBudgetCents*10_000))throw new Error('AI_BUDGET_CONFIRM');}
   private record(feature:string,model:string,result:Completion|undefined,status:'ok'|'error'):void {this.db.prepare('INSERT INTO ai_usage(id,timestamp,provider,model,feature,input_tokens,output_tokens,cost_microusd,request_id,status) VALUES (nexus_id(),?,?,?,?,?,?,?,?,?)').run(localDateTime(),'OpenRouter',model,feature,result?.inputTokens??null,result?.outputTokens??null,result?.costMicrousd??null,result?.requestId??'',status);}
   async transcribe(base64:string,format:'webm'|'wav'|'mp3',overrideBudget=false):Promise<string> {

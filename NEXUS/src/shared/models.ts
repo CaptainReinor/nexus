@@ -26,7 +26,7 @@ export type ExperienceCase = { id: number; entry_id: number | null; title: strin
 export type JobAnalysis = { requirements: string[]; matches: { fact: string; source: string }[]; relevantCaseIds: number[]; gaps: string[]; emphasize: string[]; interviewQuestions: string[]; preparation: string[] };
 export type JobAIResult = { id: number; job_id: number; kind: 'analysis' | 'cover' | 'interview'; content: string; created_at: string };
 export type WorkData = { jobs: Job[]; history: JobStatusEvent[]; entries: ExperienceEntry[]; cases: ExperienceCase[]; links: { job_id: number; case_id: number }[]; aiResults: JobAIResult[]; weeklyApplications: number; monthlyApplications: number; counts: Record<JobStatus,number>; stageTotals:Record<JobStatus,number> };
-export type Settings = { autostart: boolean; currency: string; firstDayOfWeek: 0 | 1; primaryAccountId:number|null; weeklyTarget: number; aiEnabled: boolean; aiModelMode:'preset'|'custom'; cheapModel: string; standardModel: string; advancedModel: string; transcriptionModel: string; aiBudgetCents: number; hasApiKey: boolean; aiManaged: boolean; dbPath: string };
+export type Settings = { autostart: boolean; currency: string; firstDayOfWeek: 0 | 1; primaryAccountId:number|null; weeklyTarget: number; monthlyTarget?:number; aiEnabled: boolean; aiModelMode:'preset'|'custom'; cheapModel: string; standardModel: string; advancedModel: string; transcriptionModel: string; aiBudgetCents: number; hasApiKey: boolean; aiManaged: boolean; dbPath: string };
 export type AIUsage = { id: number; timestamp: string; provider: string; model: string; feature: string; input_tokens: number | null; output_tokens: number | null; cost_microusd: number | null; request_id: string; status: string };
 export type RemoteBackupInfo={id:string;createdAt:string;exportedAt:string;size:number;device:string};
 export type RemoteBackupConfig={endpoint:string;configured:boolean;lastUploadedAt:string|null;lastSyncedRevision:number|null;autoError:string|null;encryptedCopiesEnabled:boolean};
@@ -45,6 +45,7 @@ export type JournalEntry = {id:number;day:string;raw_text:string;source:'text'|'
 export type JobInput = Omit<Job,'id'|'created_at'|'updated_at'>;
 export type VacancyDraft = { title:string|null;company:string|null;url:string|null;source:string|null;city:string|null;work_mode:string|null;salary_from:number|null;salary_to:number|null;currency:string|null };
 export interface NexusAPI {
+  focus:import('./focus-mode').FocusAPI;
   daily:DailyAPI;
   growth:import('./growth').GrowthAPI;
   reminders:import('./reminders').ReminderAPI;

@@ -9,7 +9,7 @@ import type { AIUsage, Settings } from '../shared/models';
 import { monthOf, localDay } from '../shared/domain';
 import { economicalAIModels,resolveAIModels } from '../shared/ai-models';
 
-const defaults = { currency:'RUB', firstDayOfWeek:1, primaryAccountId:null, weeklyTarget:15, aiEnabled:false, aiModelMode:'preset', ...economicalAIModels, aiBudgetCents:1000 } as const;
+const defaults = { currency:'RUB', firstDayOfWeek:1, primaryAccountId:null, weeklyTarget:15, monthlyTarget:60, aiEnabled:false, aiModelMode:'preset', ...economicalAIModels, aiBudgetCents:1000 } as const;
 export class SettingsRepository {
   private keyPath: string;
   constructor(private db: DB, private dbPath: string,private isGuest:()=>boolean=()=>false) { this.keyPath=join(app.getPath('userData'),'openrouter-key.bin'); }
@@ -21,7 +21,7 @@ export class SettingsRepository {
   get(): Settings {
     const aiModelMode=!this.isGuest()&&this.value<string>('aiModelMode',defaults.aiModelMode)==='custom'?'custom':'preset';
     const models=resolveAIModels(aiModelMode,{cheapModel:this.value('cheapModel',''),standardModel:this.value('standardModel',''),advancedModel:this.value('advancedModel',''),transcriptionModel:this.value('transcriptionModel','')});
-    return { autostart: getAutostart(), currency:this.value('currency',defaults.currency), firstDayOfWeek:this.value('firstDayOfWeek',defaults.firstDayOfWeek) as 0|1, primaryAccountId:this.value('primaryAccountId',defaults.primaryAccountId) as number|null, weeklyTarget:this.value('weeklyTarget',defaults.weeklyTarget),aiEnabled:this.value('aiEnabled',defaults.aiEnabled),aiModelMode,...models,aiBudgetCents:this.value('aiBudgetCents',defaults.aiBudgetCents),aiManaged:this.isGuest(),hasApiKey:existsSync(this.keyPath),dbPath:this.dbPath };
+    return { autostart: getAutostart(), currency:this.value('currency',defaults.currency), firstDayOfWeek:this.value('firstDayOfWeek',defaults.firstDayOfWeek) as 0|1, primaryAccountId:this.value('primaryAccountId',defaults.primaryAccountId) as number|null, weeklyTarget:this.value('weeklyTarget',defaults.weeklyTarget),monthlyTarget:this.value('monthlyTarget',this.value('weeklyTarget',defaults.weeklyTarget)*4),aiEnabled:this.value('aiEnabled',defaults.aiEnabled),aiModelMode,...models,aiBudgetCents:this.value('aiBudgetCents',defaults.aiBudgetCents),aiManaged:this.isGuest(),hasApiKey:existsSync(this.keyPath),dbPath:this.dbPath };
   }
   save(input: Partial<Omit<Settings,'hasApiKey'|'dbPath'|'aiManaged'>>): void {
     if(this.isGuest()&&(input.aiModelMode==='custom'||Object.keys(input).some(key=>key in economicalAIModels)))throw new Error('Для этого профиля используется готовый набор моделей.');

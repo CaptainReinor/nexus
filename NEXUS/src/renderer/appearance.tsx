@@ -9,7 +9,7 @@ const listeners=new Set<()=>void>();
 let feedback:()=>void=()=>{};
 let transition:ReturnType<typeof setTimeout>|undefined;
 export function configureAppearanceFeedback(callback:()=>void){feedback=callback;}
-export function readTheme(storage:Pick<Storage,'getItem'>):ThemeId{try{return storage.getItem(appearanceKey)==='dominion'?'dominion':'standard';}catch{return 'standard';}}
+export function readTheme(storage:Pick<Storage,'getItem'>):ThemeId{void storage;return 'standard';}
 declare global{interface Window{nexusCloseSurface?:()=>boolean;}}
 export function closeTopSurface(){
   const tooltip=document.querySelector('.metric-delta[aria-describedby]');
@@ -24,6 +24,7 @@ export function initializeAppearance(target:AppearancePlatform){platform=target;
 const subscribe=(listener:()=>void)=>{listeners.add(listener);return()=>{listeners.delete(listener);};};
 export function useTheme(){return useSyncExternalStore(subscribe,()=>theme,()=> 'standard' as ThemeId);}
 export function setTheme(next:ThemeId):boolean{
+  next='standard';
   if(next!==theme){
     // Keep each scroll container anchored when a shorter label changes its height.
     const scrolling=[document.scrollingElement,...document.querySelectorAll<HTMLElement>('.page,.main,.daily-dialog-body,.modal')].filter((node):node is Element=>!!node&&node.scrollHeight>node.clientHeight);
@@ -37,11 +38,4 @@ export function setTheme(next:ThemeId):boolean{
 export function useSystemCopy(scope:string){const current=useTheme();return useCallback((source:string)=>current==='standard'?source:(appearanceCopy[scope]?.[source]?.[platform]??source),[current,scope]);}
 const navigation={today:['Сводка','Оперативная сводка','Сводка'],health:['Жизнеобеспечение','Жизнеобеспечение','Состояние'],finance:['Ресурсы','Ресурсный контроль','Ресурсы'],work:['Карьера','Кадровые операции','Карьера'],journal:['Журнал','Личный журнал','Журнал'],settings:['Пульт','Командный пульт','Пульт']} as const;
 export function useNavigationCopy(){const current=useTheme();return (id:string,standard:string,title=false)=>{const value=navigation[id as keyof typeof navigation];return current==='standard'||!value?standard:value[platform==='android'?2:title?1:0];};}
-export function AppearancePanel(){
-  const current=useTheme();
-  const saved=useSyncExternalStore(errorSubscribe,()=>themeSaved,()=>true);
-  return <section className="appearance-panel panel card dominion-frame"><div className="panel-head"><h2>Оформление</h2></div><div className="appearance-options">{(['standard','dominion'] as const).map(value=><label key={value} className={`appearance-option ${current===value?'selected':''}`}><span className={`appearance-preview ${value}`} aria-hidden="true"><i/><span><b/><b/><b/><b/></span></span><span className="appearance-name"><input type="radio" name="nexus-appearance" value={value} checked={current===value} onChange={()=>{themeSaved=setTheme(value);errorListeners.forEach(fn=>fn());}}/>{value==='standard'?'Стандартная':'Доминион'}</span></label>)}</div>{!saved&&<p className="appearance-error" role="alert">Выбор не сохранён после закрытия приложения. <button type="button" onClick={()=>{themeSaved=setTheme(current);errorListeners.forEach(fn=>fn());}}>Повторить</button></p>}</section>;
-}
-let themeSaved=true;
-const errorListeners=new Set<()=>void>();
-const errorSubscribe=(listener:()=>void)=>{errorListeners.add(listener);return()=>{errorListeners.delete(listener);};};
+export function AppearancePanel(){return null;}

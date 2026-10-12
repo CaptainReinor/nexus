@@ -1,3 +1,5 @@
+import {FocusModeRepository} from './focus-mode';
+import {focusConfigSchema,mentorRequestSchema,focusTurnSchema} from '../shared/focus-mode';
 import {jobInputSchema} from '../shared/vacancy';
 import {DailyRepository} from './daily';
 import {careConfigSchema,careRoleSchema,careMarkSchema} from '../shared/care';
@@ -38,7 +40,7 @@ const windowsAppId=app.isPackaged&&!process.env.NEXUS_TEST_USER_DATA?'ru.nexus.d
 
 let window: BrowserWindow | null = null;
 let notifyLocalChange=()=>{};
-const changes=/^(?:daily:(?:careConfig|careRole|careMark|routine|routineEntry|payment|paymentAction|experiment|experimentMark|focus|reflection)|growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|deleteJob|changeStatus|linkCase)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
+const changes=/^(?:daily:(?:careConfig|careRole|careMark|routine|routineEntry|payment|paymentAction|experiment|experimentMark|focus|reflection)|growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|deleteJob|changeStatus|linkCase)|focus:(?:save|configure)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
 const id=z.number().int().positive();
 const day=z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const text=z.string().max(100000);
@@ -67,7 +69,7 @@ const transactionSchema=z.object({occurred_at:z.string().min(10).max(30),amount_
 const jobSchema=jobInputSchema;
 const entrySchema=z.object({id:id.optional(),organization:nonEmpty,position:nonEmpty,start_date:text,end_date:text,description:text,skills:text,tools:text});
 const caseSchema=z.object({id:id.optional(),entry_id:id.nullable(),title:nonEmpty,situation:text,task:text,actions:text,result:text,skills:text,tools:text,tags:text});
-const settingsSchema=z.object({autostart:z.boolean().optional(),currency:z.string().length(3).optional(),firstDayOfWeek:z.union([z.literal(0),z.literal(1)]).optional(),primaryAccountId:id.nullable().optional(),weeklyTarget:z.number().int().min(0).max(1000).optional(),aiEnabled:z.boolean().optional(),aiModelMode:z.enum(['preset','custom']).optional(),cheapModel:text.optional(),standardModel:text.optional(),advancedModel:text.optional(),transcriptionModel:text.optional(),aiBudgetCents:z.number().int().min(0).max(10_000_000).optional()});
+const settingsSchema=z.object({autostart:z.boolean().optional(),currency:z.string().length(3).optional(),firstDayOfWeek:z.union([z.literal(0),z.literal(1)]).optional(),primaryAccountId:id.nullable().optional(),weeklyTarget:z.number().int().min(0).max(1000).optional(),monthlyTarget:z.number().int().min(0).max(1000).optional(),aiEnabled:z.boolean().optional(),aiModelMode:z.enum(['preset','custom']).optional(),cheapModel:text.optional(),standardModel:text.optional(),advancedModel:text.optional(),transcriptionModel:text.optional(),aiBudgetCents:z.number().int().min(0).max(10_000_000).optional()});
 
 function createWindow():void {
   window=new BrowserWindow({width:1480,height:920,minWidth:980,minHeight:660,backgroundColor:'#14191e',title:'NEXUS',icon:join(app.getAppPath(),'assets/nexus-icon.png'),show:false,webPreferences:{preload:join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true}});
@@ -98,6 +100,12 @@ void app.whenReady().then(()=>{
   handle('updates:install',z.undefined(),()=>updates.install());
   const remoteBackup=new RemoteBackupService(db,()=>window?.webContents.reload());
   const settings=new SettingsRepository(db,dbPath,()=>remoteBackup.isGuest()),health=new HealthRepository(db),finance=new FinanceRepository(db,()=>settings.get().firstDayOfWeek),work=new WorkRepository(db,()=>settings.get().firstDayOfWeek),ai=new AIGateway(db,settings,work,new ProfileAIProvider(remoteBackup),()=>!remoteBackup.isGuest()&&settings.get().hasApiKey?settings.getApiKey():''),journal=new JournalService(db,ai,health,finance,work,settings);
+  const focusMode=new FocusModeRepository(db,ai);
+  handle('focus:snapshot',z.undefined(),()=>focusMode.snapshot());
+  handle('focus:configure',z.object({config:focusConfigSchema,enableAI:z.boolean().default(false)}),input=>focusMode.configure(input.config,input.enableAI));
+  handle('focus:send',mentorRequestSchema,input=>focusMode.send(input));
+  handle('focus:save',focusTurnSchema,input=>focusMode.save(input));
+  handle('focus:transcribe',z.object({base64:z.string().max(28000000),format:z.enum(['webm','wav','mp3']),overrideBudget:z.boolean().optional()}),input=>focusMode.transcribe(input));
   handle('profiles:list',z.undefined(),()=>profiles.list());
   handle('profiles:create',z.string().trim().min(1).max(80),name=>{profiles.create(name);return profiles.list();});
   handle('profiles:select',z.union([z.literal('local'),z.string().uuid()]),identity=>{remoteBackup.stopAutoUpload();profiles.select(identity);setTimeout(()=>{app.relaunch();app.quit();},300);});

@@ -66,7 +66,7 @@ export async function aiStatus():Promise<boolean>{
 }
 export async function aiComplete(model:string,system:string,user:string,structured:boolean,responseFormat?:Record<string,unknown>):Promise<AIReply>{
   if(Capacitor.isNativePlatform()){const config=connection();return nativeAI.run({...config,mode:'complete',model,system,user,structured,responseFormat});}
-  const response=await request('/v1/ai/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,system,user,structured})},120_000);
+  const response=await request('/v1/ai/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,system,user,structured,...(responseFormat?{responseFormat}:{})})},120_000);
   if(response.status===409)throw new Error('Сначала подключите AI на компьютере в разделе «Сервер и синхронизация».');
   if(!response.ok)throw await aiError(response);
   return response.json() as Promise<AIReply>;

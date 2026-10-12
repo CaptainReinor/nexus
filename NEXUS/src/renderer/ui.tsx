@@ -1,10 +1,7 @@
 import {carryChartValues} from '../shared/chart-series';
 import {localDay} from '../shared/domain';
-import {chartKeyIndex} from '../shared/chart-keyboard';
 import {DateChart,type SeriesRole} from './date-chart';
-import {useTheme} from './appearance';
 import {useSystemCopy} from './appearance';
-import { displayDay } from '../shared/domain';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AutoSaveStatus } from './autosave';
 
@@ -39,28 +36,6 @@ export function SaveIndicator({status,onRetry}:{status:AutoSaveStatus;onRetry:()
 return <div className={`autosave-status ${status.state}`} role="status" aria-live="polite">{status.state==='saving'?copy("Сохраняется…"):status.state==='saved'?copy("Сохранено автоматически"):<>Не удалось сохранить: {errorText(status.error)} <button type="button" onClick={onRetry}>Повторить</button></>}</div>}
 export function Progress({value,max}:{value:number;max:number}) {return <div className="progress"><span style={{width:`${max>0?Math.min(100,Math.max(0,value/max*100)):0}%`}}/></div>}
 export function LineChart({values:sourceValues,labels:sourceLabels,carryForward=false,formatValue=(value)=>String(value),kind='line',role='neutral',label='Показатель'}:{values:number[];labels?:string[];carryForward?:boolean;formatValue?:(value:number)=>string;kind?:'line'|'bar';role?:SeriesRole;label?:string}) {
-  const points=carryForward&&sourceLabels?carryChartValues(sourceValues.map((value,i)=>({day:sourceLabels[i],value})),localDay()).filter(p=>p.value!==null):null;
-  const values=points?points.map(p=>p.value!):sourceValues,labels=points?points.map(p=>p.day):sourceLabels;
-  const copy=useSystemCopy("ui");
-
-  const theme=useTheme();
-  const [selected,setSelected]=useState<number|null>(null);
-  const [chartWidth,setChartWidth]=useState(600),chartRef=useRef<SVGSVGElement>(null),hasChart=values.length>=2;
-  useEffect(()=>{
-    const svg=chartRef.current;if(!svg)return;
-    if(typeof ResizeObserver==='undefined')return;
-    const observer=new ResizeObserver(entries=>{const width=entries[0]?.contentRect.width;if(width>0)setChartWidth(Math.max(240,width));});
-    observer.observe(svg);return ()=>observer.disconnect();
-  },[hasChart]);
-  if(theme==='dominion')return <DateChart points={values.map((value,i)=>({value,day:labels?.[i]??String(i+1)}))} formatValue={formatValue} kind={kind} role={role} label={label} selectionIndex={selected} onSelect={setSelected}/>;
-  if(values.length<2)return <div className="chart-empty">{copy("Добавьте ещё одно измерение, чтобы увидеть динамику.")}</div>;
-  const min=kind==='bar'?Math.min(0,...values):Math.min(...values),max=Math.max(...values),span=max-min||1;
-  const times=labels?.map(x=>Date.parse(`${x}T12:00:00`));
-  const chronological=times?.every(Number.isFinite)&&times.at(-1)!>times[0];
-  const x=(i:number)=>24+(chronological?(times![i]-times![0])/(times!.at(-1)!-times![0]):i/(values.length-1))*(chartWidth-48);
-  const y=(v:number)=>132-(v-min)/span*104;
-  const chosen=Math.min(selected??values.length-1,values.length-1);
-  const ticks=[...new Set(Array.from({length:5},(_,i)=>Math.round(i*(values.length-1)/4)))];
-  const shortDate=(label:string)=>/^\d{4}-\d{2}-\d{2}$/.test(label)?`${label.slice(8,10)}.${label.slice(5,7)}`:label;
-  return <div className="chart" data-no-swipe><div className="chart-levels"><span>Макс: {formatValue(max)}</span><span>Мин: {formatValue(min)}</span></div><svg ref={chartRef} viewBox={`0 0 ${chartWidth} 172`} preserveAspectRatio="xMidYMid meet" tabIndex={0} role="group" aria-roledescription="График" aria-label={`${label}, ${displayDay(labels?.[chosen]??'')}, ${formatValue(values[chosen])}`} onKeyDown={event=>{if(event.key==='Escape'){event.preventDefault();setSelected(null);return;}const index=chartKeyIndex(event.key,chosen,values.length);if(index!==null){event.preventDefault();setSelected(index);}}} onPointerMove={event=>{const rect=event.currentTarget.getBoundingClientRect(),position=(event.clientX-rect.left)/rect.width*chartWidth;setSelected(values.reduce((best,_,i)=>Math.abs(x(i)-position)<Math.abs(x(best)-position)?i:best,0));}}><line x1="24" y1="132" x2={chartWidth-24} y2="132"/><line x1="24" y1="80" x2={chartWidth-24} y2="80"/><line x1="24" y1="28" x2={chartWidth-24} y2="28"/>{kind==='bar'?values.map((v,i)=><rect key={i} className="chart-bar" x={x(i)-Math.min(10,480/values.length)/2} y={y(v)} width={Math.min(10,480/values.length)} height={Math.max(1,132-y(v))}><title>{displayDay(labels?.[i]??'')}: {formatValue(v)}</title></rect>):<polyline points={values.map((v,i)=>`${x(i)},${y(v)}`).join(' ')}/>}<line className="chart-cursor" x1={x(chosen)} x2={x(chosen)} y1="22" y2="132"/><circle cx={x(chosen)} cy={y(values[chosen])} r="4"/>{ticks.map(i=><text key={i} className="chart-date" x={x(i)} y="158" textAnchor={i===0?'start':i===values.length-1?'end':'middle'}>{shortDate(labels?.[i]??String(i+1))}</text>)}</svg><div className="chart-inspection" aria-live="off"><span>{displayDay(labels?.[chosen]??'')}</span><strong>{formatValue(values[chosen])}</strong></div></div>;
+  const points=carryForward&&sourceLabels?carryChartValues(sourceValues.map((value,i)=>({day:sourceLabels[i],value})),localDay()):sourceValues.map((value,i)=>({day:sourceLabels?.[i]??String(i+1),value}));
+  return <DateChart points={points} formatValue={formatValue} kind={kind} role={role} label={label}/>;
 }

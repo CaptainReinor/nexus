@@ -34,7 +34,8 @@ SYNC_TABLES = {
 ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 AI_KEY_FILE = "openrouter-key"
 DAILY_TABLES = {'habit_preferences','care_slots','care_checks','routines','scheduled_payments','payment_occurrences','experiments','experiment_logs','focus_sessions','evening_answers'}
-API_VERSION = "0.6.0"
+FOCUS_TABLES = {'mentor_turns','food_entries','activity_entries'}
+API_VERSION = "0.8.0"
 OPENROUTER_BASE = os.environ.get("NEXUS_OPENROUTER_BASE", "https://openrouter.ai/api/v1").rstrip("/")
 RELAY_KEY = os.environ.get("NEXUS_AI_RELAY_KEY", "")
 INVESTMENT_TABLES = {"investment_accounts", "investment_entries"}
@@ -84,7 +85,7 @@ def valid_envelope(value: object) -> bool:
 def valid_sync_snapshot(value: object) -> bool:
     if not isinstance(value, dict) or set(value) != {"format", "version", "exportedAt", "tables"}:
         return False
-    if value["format"] != "nexus-backup" or type(value["version"]) is not int or not 1 <= value["version"] <= 11:
+    if value["format"] != "nexus-backup" or type(value["version"]) is not int or not 1 <= value["version"] <= 12:
         return False
     if not isinstance(value["exportedAt"], str) or len(value["exportedAt"]) > 40:
         return False
@@ -96,6 +97,8 @@ def valid_sync_snapshot(value: object) -> bool:
         expected |= GROWTH_TABLES
     if value['version'] >= 11:
         expected |= DAILY_TABLES
+    if value['version'] >= 12:
+        expected |= FOCUS_TABLES
     if value['version'] >= 9:
         expected |= {'weekly_plan_tasks'}
     return isinstance(tables, dict) and set(tables) == expected and all(
@@ -473,7 +476,15 @@ class Handler(BaseHTTPRequestHandler):
             generation = {"max_tokens": 6000, "reasoning": {"effort": "low" if gpt6.group(1) == "luna" else "medium"}} if gpt6 else {"max_tokens": 6000, "temperature": 0.2}
             payload = {"model": model, "messages": [{"role": "system", "content": body["system"]}, {"role": "user", "content": body["user"]}], **generation, "stream": False, "usage": {"include": True}}
             if body["structured"]:
-                payload["response_format"] = {"type": "json_object"}
+                response_format = body.get("responseFormat")
+                if response_format is not None:
+                    if not isinstance(response_format, dict) or response_format.get("type") != "json_schema" or not isinstance(response_format.get("json_schema"), dict) or len(json.dumps(response_format)) > 64_000:
+                        self.respond(400, {"error": "invalid_response_format"})
+                        return
+                    payload["response_format"] = response_format
+                    payload["provider"] = {"require_parameters": True}
+                else:
+                    payload["response_format"] = {"type": "json_object"}
             self.openrouter("chat/completions", payload)
             return
         if self.path == "/v1/ai/transcribe":

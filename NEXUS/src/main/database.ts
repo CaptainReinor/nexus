@@ -1,3 +1,4 @@
+import {focusTables} from '../shared/focus-mode';
 import {journalRetentionCutoff} from '../shared/journal-retention';
 import {dailyTables} from '../shared/daily-core';
 import Database from 'better-sqlite3';
@@ -8,12 +9,12 @@ import { randomInt } from 'node:crypto';
 import { defaultDebit, defaultCategories } from '../shared/finance-defaults';
 
 export type DB = Database.Database;
-export const schemaVersion = 11;
+export const schemaVersion = 12;
 export const backupTables = [
   'settings','habits','habit_logs','health_daily_entries','weight_entries','workouts',
   'finance_accounts','finance_categories','finance_transactions','finance_budgets',
   'jobs','job_status_history','experience_entries','experience_cases','job_experience_links','job_ai_analyses','ai_usage','daily_journals','investment_accounts','investment_entries','day_details','day_tasks','day_memories','assistant_reviews',
-  'financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries','weekly_plan_tasks',...dailyTables
+  'financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries','weekly_plan_tasks',...dailyTables,...focusTables
 ] as const;
 
 const migrations: string[] = [
@@ -106,7 +107,13 @@ const migrations: string[] = [
   CREATE INDEX idx_care_checks_day ON care_checks(day);
   CREATE INDEX idx_payments_due ON payment_occurrences(status,due_day);
   CREATE INDEX idx_focus_day ON focus_sessions(day);
-`
+`,
+  `CREATE TABLE mentor_turns(id TEXT PRIMARY KEY,day TEXT NOT NULL,raw_text TEXT NOT NULL,reply TEXT NOT NULL,actions_json TEXT NOT NULL,links_json TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+  CREATE TABLE food_entries(id TEXT PRIMARY KEY,day TEXT NOT NULL,name TEXT NOT NULL,grams REAL,kcal INTEGER,kcal_low INTEGER,kcal_high INTEGER,estimated INTEGER NOT NULL,quality TEXT NOT NULL,protein_g REAL,fat_g REAL,carbs_g REAL,sugar_g REAL,fiber_g REAL,nutrition_estimated INTEGER NOT NULL DEFAULT 1,vitamins_json TEXT NOT NULL DEFAULT '[]',note TEXT NOT NULL,updated_at TEXT NOT NULL);
+  CREATE TABLE activity_entries(id TEXT PRIMARY KEY,day TEXT NOT NULL,title TEXT NOT NULL,minutes INTEGER,type TEXT NOT NULL,impact TEXT NOT NULL DEFAULT 'neutral',note TEXT NOT NULL,updated_at TEXT NOT NULL);
+  CREATE INDEX idx_food_day ON food_entries(day);
+  CREATE INDEX idx_activity_day ON activity_entries(day);
+  CREATE INDEX idx_mentor_day ON mentor_turns(day,created_at);`
 ];
 
 const starterDatabases=new WeakSet<DB>();
@@ -143,7 +150,7 @@ export function serializeBackup(db: DB): string {
 export function exportBackup(db: DB, path: string): void {writeFileSync(path,serializeBackup(db),'utf8');}
 export function importBackupText(db: DB, content: string): void {
   const parsed = backupSchema.parse(JSON.parse(content));
-  for (const table of backupTables) if (!Array.isArray(parsed.tables[table])) {if((dailyTables.some(t=>t===table)&&parsed.version<11)||(table==='weekly_plan_tasks'&&parsed.version<9)||(['financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries'].includes(table)&&parsed.version<8)||(table==='daily_journals'&&parsed.version<3)||(table.startsWith('investment_')&&parsed.version<5)||(['day_details','day_tasks','day_memories','assistant_reviews'].includes(table)&&parsed.version<6))parsed.tables[table]=[];else throw new Error(`В копии отсутствует таблица ${table}.`);}
+  for (const table of backupTables) if (!Array.isArray(parsed.tables[table])) {if((focusTables.some(t=>t===table)&&parsed.version<12)||(dailyTables.some(t=>t===table)&&parsed.version<11)||(table==='weekly_plan_tasks'&&parsed.version<9)||(['financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries'].includes(table)&&parsed.version<8)||(table==='daily_journals'&&parsed.version<3)||(table.startsWith('investment_')&&parsed.version<5)||(['day_details','day_tasks','day_memories','assistant_reviews'].includes(table)&&parsed.version<6))parsed.tables[table]=[];else throw new Error(`В копии отсутствует таблица ${table}.`);}
   const allowed = new Map<string,Set<string>>();
   for (const table of backupTables) allowed.set(table,new Set((db.pragma(`table_info(${table})`) as {name:string}[]).map(c=>c.name)));
   db.transaction(()=>{

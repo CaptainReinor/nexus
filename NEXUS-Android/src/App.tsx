@@ -1,8 +1,15 @@
 import {removeJob} from '../../NEXUS/src/shared/work-removal';
+import {FocusPage,FocusSettings} from '../../NEXUS/src/renderer/focus-mode';
+import {useFocusMode} from '../../NEXUS/src/renderer/focus-mode-state';
+import {focusFacts,focusConfig,mentorInstructions,mentorResponseFormat,parseMentorReply,configureFocus,saveFocusTurn,type FocusAPI} from '../../NEXUS/src/shared/focus-mode';
+import {aiEnabled,needsBudgetConfirmation,recordUsage,transcribeAudio} from './ai';
+import {aiComplete} from './sync';
+import {workStages,workStage,workStageLabels,workStatistics} from '../../NEXUS/src/shared/work-stages';
+import type {Job,JobStatus,JobStatusEvent} from '../../NEXUS/src/shared/models';
 import {SleepInput} from './sleep-input';
 import {MetricDelta} from '../../NEXUS/src/renderer/metric-delta';
 import {metricComparison} from '../../NEXUS/src/shared/metric-delta';
-import {AppearancePanel,useTheme,useNavigationCopy} from '../../NEXUS/src/renderer/appearance';
+import {useTheme,useNavigationCopy} from '../../NEXUS/src/renderer/appearance';
 import {useSystemCopy} from '../../NEXUS/src/renderer/appearance';
 import {DailyDialog} from '../../NEXUS/src/renderer/components/daily-context';
 import {DailyProvider,DailyLaunchpad,FocusDock,CareSettings,ExperimentsPanel} from '../../NEXUS/src/renderer/components/daily-ui';
@@ -55,6 +62,7 @@ function Card({title,children}:{title:string;children:React.ReactNode}){return <
 function Empty({children}:{children:React.ReactNode}){return <p className="empty">{children}</p>;}
 
 export function App(){
+  const focusMode=useFocusMode();
   const theme=useTheme(),navCopy=useNavigationCopy();
   const [section,setSection]=useState<Section>('today');
   useEffect(()=>{if(theme!=='dominion')return;const active=document.querySelector<HTMLElement>('.bottom button.active'),bar=active?.parentElement;if(active&&bar){const left=active.offsetLeft,right=left+active.offsetWidth;if(left<bar.scrollLeft)bar.scrollLeft=left;else if(right>bar.scrollLeft+bar.clientWidth)bar.scrollLeft=right-bar.clientWidth;}},[section,theme]);
@@ -97,24 +105,34 @@ export function App(){
   };
   const growthAPI=useMemo<GrowthAPI>(()=>{const read=()=>{const s=engine.current?.state.snapshot;if(!s)throw new Error('Данные загружаются.');return s;};const change=async(fn:(s:Snapshot)=>void)=>{if(!await commitLatest(fn))throw new Error('Не удалось сохранить.');};return {list:async()=>growthData(read()),insights:async(start,end)=>insights(read(),start,end),goal:x=>change(s=>saveGoal(s,x)),plan:x=>change(s=>savePlan(s,x)),repeat:x=>change(s=>saveRepeat(s,x)),metric:x=>change(s=>saveMetric(s,x)),entry:x=>change(s=>saveMetricEntry(s,x)),removePlan:id=>change(s=>removePlan(s,id))};},[commitLatest]);
   const dailyAPI=useMemo<DailyAPI>(()=>{const read=()=>engine.current?.state.snapshot;const change=async(fn:(s:Snapshot)=>void)=>{if(!await commitLatest(fn))throw new Error('Не удалось сохранить.');};return {list:async()=>dailyData(read()??{format:'nexus-backup',version:11,exportedAt:'',tables:{}}),careConfig:x=>change(s=>saveCareConfig(s,x)),careRole:x=>change(s=>saveCareRole(s,x)),careMark:x=>change(s=>markCare(s,x)),routine:x=>change(s=>saveRoutine(s,x)),routineEntry:x=>change(s=>recordRoutineEntry(s,x)),payment:x=>change(s=>savePayment(s,x)),paymentAction:x=>change(s=>paymentAction(s,x)),experiment:x=>change(s=>saveExperiment(s,x)),experimentMark:x=>change(s=>markExperiment(s,x)),focus:x=>change(s=>focusAction(s,x)),reflection:x=>change(s=>saveReflection(s,x))};},[commitLatest]);
+  const focusAPI=useMemo<FocusAPI>(()=>{
+    const read=()=>{const s=engine.current?.state.snapshot;if(!s)throw Error('Данные ещё загружаются.');return s;};
+    const change=async(fn:(s:Snapshot)=>void)=>{if(!await commitLatest(fn))throw Error('Не удалось сохранить изменения.');};
+    const allowed=(override=false)=>{if(!aiEnabled(read()))throw Error('Включите ИИ в настройках.');if(!override&&needsBudgetConfirmation(read()))throw Error('AI_BUDGET_CONFIRM');};
+    return {snapshot:async()=>read(),configure:(c,enableAI=false)=>change(s=>configureFocus(s,c,enableAI)),save:x=>change(s=>saveFocusTurn(s,x)),send:async input=>{
+      allowed(input.overrideBudget);const s=read(),model=focusConfig(s).model;const reply=await aiComplete(model,mentorInstructions,JSON.stringify(focusFacts(s,input.day,input.text)),true,mentorResponseFormat);let result;
+      try{result=parseMentorReply(reply.content,input.text);}catch{await change(s=>recordUsage(s,reply,'focus-mentor-error',model));throw Error('Не удалось проверить записи наставника. Данные не изменены.');}
+      await change(s=>recordUsage(s,reply,'focus-mentor',model));return result;
+    },transcribe:async input=>{allowed(input.overrideBudget);const result=await transcribeAudio(read(),input.base64,input.format);await change(s=>recordUsage(s,result.reply,'focus-transcription',result.model));return result.text;}};
+  },[commitLatest]);
   const snapshot=state?.snapshot;
   useEffect(()=>{updateReminders(snapshot??null);const refresh=()=>updateReminders(engine.current?.state.snapshot??null);window.addEventListener('focus',refresh);return()=>window.removeEventListener('focus',refresh);},[snapshot]);
   const statusLabel:Record<SyncStatus,string>={loading:'Загрузка',saved:'Сохранено',pending:'На телефоне',syncing:'Отправляется',offline:'Без связи',conflict:'Есть различия','storage-error':'Ошибка сохранения'};
-  return <GrowthProvider api={growthAPI} revision={snapshot}><DailyProvider api={dailyAPI} revision={snapshot} reminders={reminders}><ConfirmHost/><div className="app dominion-chassis">
+  return <GrowthProvider api={growthAPI} revision={snapshot}><DailyProvider api={dailyAPI} revision={snapshot} reminders={reminders}><ConfirmHost/><div className={`app dominion-chassis ${focusMode?"focus-active":""}`}>
     <header className="top"><div className="brand"><span className="mark">N</span><div><strong>NEXUS</strong>{theme==='dominion'&&<small className="dominion-brand-label">ДОМИНИОН</small>}</div></div><div className={`status ${message||status==='storage-error'?'bad':status==='saved'?'good':''}`} role="status"><span className="dot"/>{message?'Есть ошибка':statusLabel[status]}</div></header>
-    <main className="main" onTouchStart={event=>{const touch=event.touches[0],target=event.target as HTMLElement;gesture.current=event.touches.length===1&&touch.clientX>24&&touch.clientX<window.innerWidth-24&&!target.closest('input,textarea,select,button,[data-no-swipe]')?{x:touch.clientX,y:touch.clientY}:null;}} onTouchEnd={event=>{const start=gesture.current;gesture.current=null;if(!start)return;const touch=event.changedTouches[0],dx=touch.clientX-start.x,dy=touch.clientY-start.y;if(Math.abs(dx)>75&&Math.abs(dx)>Math.abs(dy)*1.8&&Math.abs(dy)<60){const next=nav[nav.findIndex(([key])=>key===section)+(dx<0?1:-1)];if(next)navigate(next[0]);}}} onTouchCancel={()=>{gesture.current=null;}}>
+    <main className={focusMode?"main focus-shell":"main"} onTouchStart={event=>{const touch=event.touches[0],target=event.target as HTMLElement;gesture.current=event.touches.length===1&&touch.clientX>24&&touch.clientX<window.innerWidth-24&&!target.closest('input,textarea,select,button,[data-no-swipe]')?{x:touch.clientX,y:touch.clientY}:null;}} onTouchEnd={event=>{const start=gesture.current;gesture.current=null;if(!start)return;const touch=event.changedTouches[0],dx=touch.clientX-start.x,dy=touch.clientY-start.y;if(Math.abs(dx)>75&&Math.abs(dx)>Math.abs(dy)*1.8&&Math.abs(dy)<60){const next=nav[nav.findIndex(([key])=>key===section)+(dx<0?1:-1)];if(next)navigate(next[0]);}}} onTouchCancel={()=>{gesture.current=null;}}>
       {message&&<div className="notice" role="alert">{message}<button onClick={()=>void refresh()}>Повторить</button></div>}
       {status==='storage-error'&&<div className="notice" role="alert">{engine.current?.error}</div>}
       {conflicts.length>0&&<ConflictReview conflicts={conflicts} resolve={choices=>engine.current!.resolve(choices)}/>}
       {!serverReady?<Connect onConnected={onConnected}/>:
        !snapshot?<div className="center"><SectionHeading eyebrow="ПОДКЛЮЧЕНИЕ" title={status==='offline'?'Нет связи с сервером':'Ждём данные с компьютера'} detail={status==='offline'?engine.current?.error:'После первого подключения данные сохранятся и на телефоне.'}/><button onClick={()=>void refresh()}>Проверить ещё раз</button><Connect onConnected={onConnected}/></div>:
-       visited.map(key=><div key={key} hidden={section!==key} className="page"><Page section={key} active={section===key} snapshot={snapshot} commit={commit} commitLatest={commitLatest} onConnected={onConnected} onNavigate={navigate}/></div>)}
+       focusMode?<FocusPage api={focusAPI} revision={snapshot} mobile/>:visited.map(key=><div key={key} hidden={section!==key} className="page"><Page section={key} active={section===key} snapshot={snapshot} commit={commit} commitLatest={commitLatest} onConnected={onConnected} onNavigate={navigate} focusAPI={focusAPI}/></div>)}
     </main>
-    <nav className="bottom" aria-label="Разделы" data-no-swipe>{nav.map(([key,label])=><button key={key} className={section===key?'active':''} aria-current={section===key?"page":undefined} onClick={()=>navigate(key)}><span>{navCopy(key,label)}</span></button>)}</nav>
-  </div><FocusDock/></DailyProvider></GrowthProvider>;
+    {!focusMode&&<nav className="bottom" aria-label="Разделы" data-no-swipe>{nav.map(([key,label])=><button key={key} className={section===key?'active':''} aria-current={section===key?"page":undefined} onClick={()=>navigate(key)}><span>{navCopy(key,label)}</span></button>)}</nav>}
+  </div>{!focusMode&&<FocusDock/>}</DailyProvider></GrowthProvider>;
 }
 
-const Page=memo(function Page(props:PanelProps&{section:Section;active:boolean;onConnected:()=>void;onNavigate:(section:Section)=>void}){
+const Page=memo(function Page(props:PanelProps&{section:Section;active:boolean;onConnected:()=>void;onNavigate:(section:Section)=>void;focusAPI:FocusAPI}){
   switch(props.section){case 'today':return <Today {...props}/>;case 'health':return <Health {...props}/>;case 'finance':return <Finance {...props}/>;case 'work':return <Work {...props}/>;case 'journal':return <JournalPage {...props}/>;case 'settings':return <Settings {...props}/>;}
 },(before,after)=>!after.active||(before.snapshot===after.snapshot&&before.active===after.active));
 
@@ -134,7 +152,7 @@ function Connect({onConnected}:{onConnected:()=>void}){
   return <Card title={copy("Вход в NEXUS")}><label>Код доступа<input autoFocus value={token} onChange={e=>setToken(e.target.value)} type="password" autoCapitalize="none" autoComplete="off"/></label>{error&&<p className="error">{error}</p>}<button disabled={busy||!token.trim()} onClick={()=>{void (async()=>{setBusy(true);try{await saveConnection(initial.endpoint,token);setError('');onConnected();}catch(e){setError(e instanceof Error?e.message:'Проверьте код.');}finally{setBusy(false);}})();}}>{busy?'Подключение…':'Войти'}</button></Card>;
 }
 
-function Today({snapshot,commit,commitLatest,onNavigate}:PanelProps&{onNavigate:(section:Section)=>void}){
+function Today({snapshot,commit,commitLatest,onNavigate}:PanelProps&{onNavigate:(section:Section)=>void;focusAPI:FocusAPI}){
 const theme=useTheme();
 const weightCompare=metricComparison('weight',current(snapshot,'weight_entries').map(r=>({id:num(r.id),day:str(r.day),value:r.weight_kg==null?null:num(r.weight_kg)}))),sleepCompare=metricComparison('sleep',current(snapshot,'health_daily_entries').map(r=>({id:str(r.day),day:str(r.day),value:r.sleep_minutes==null?null:num(r.sleep_minutes)})));
   const copy=useSystemCopy("App");
@@ -170,10 +188,12 @@ function moveHabit(s:Snapshot,id:number,step:number){const list=current(s,'habit
 
 function Finance({snapshot,commitLatest}:PanelProps){return <MobileFinance snapshot={snapshot} commitLatest={commitLatest}/>;}
 
-const statuses:[string,string][]=[['saved','Сохранена'],['planned','В планах'],['applied','Отклик'],['viewed','Просмотрена'],['invited','Приглашение'],['interview','Интервью'],['next','Следующий этап'],['offer','Оффер'],['rejected','Отказ'],['withdrawn','Отозвана'],['archived','Архив']];
+const legacyStatuses:[string,string][]=[['saved','Сохранена'],['planned','В планах'],['applied','Отклик'],['viewed','Просмотрена'],['invited','Приглашение'],['interview','Интервью'],['next','Следующий этап'],['offer','Оффер'],['rejected','Отказ'],['withdrawn','Отозвана'],['archived','Архив']];
+const statuses=workStages.map(stage=>[stage,workStageLabels[stage]] as [string,string]);
 function Work({snapshot,commitLatest}:PanelProps){
  const copy=useSystemCopy("App"),[archive,setArchive]=useState(false),[removing,setRemoving]=useState<number|null>(null);
- const deleting=useRef(false);
+ const deleting=useRef(false),[monthly,setMonthly]=useState(str(field(snapshot,'monthlyTarget',num(field(snapshot,'weeklyTarget',15))*4)));
+ const statistics=workStatistics(current(snapshot,'jobs') as unknown as Job[],current(snapshot,'job_status_history') as unknown as JobStatusEvent[]);
  async function deleteVacancy(job:Row){
   if(deleting.current)return;deleting.current=true;
   try{
@@ -181,15 +201,15 @@ function Work({snapshot,commitLatest}:PanelProps){
    setRemoving(num(job.id));await commitLatest(s=>removeJob(s,num(job.id)));
   }finally{deleting.current=false;setRemoving(null);}
  }
- const jobs=[...current(snapshot,'jobs')].filter(x=>archive?x.status==='archived':x.status!=='archived').sort((a,b)=>str(b.updated_at).localeCompare(str(a.updated_at))||num(b.id)-num(a.id));
- return <><SectionHeading eyebrow="04 / РАБОТА" title={copy("Работа")}/><div className="segmented"><button className={!archive?'selected':''} onClick={()=>setArchive(false)}>Вакансии</button><button className={archive?'selected':''} onClick={()=>setArchive(true)}>Архив</button></div><Card title={`Вакансии · ${jobs.length}`}>{jobs.length?jobs.map(job=><details className="work-vacancy" key={str(job.id)}><summary><span style={{display:'inline-grid',gap:4,minWidth:0}}><strong>{str(job.title)}</strong><small>{[str(job.company),statuses.find(([key])=>key===job.status)?.[1]].filter(Boolean).join(' · ')}</small></span></summary><div className="form-stack">{Boolean(job.city||job.work_mode)&&<p>{[str(job.city),str(job.work_mode)].filter(Boolean).join(' · ')}</p>}{(job.salary_from!=null||job.salary_to!=null)&&<p>{job.salary_from===job.salary_to?groupNumber(str(job.salary_from)):[job.salary_from!=null?`от ${groupNumber(str(job.salary_from))}`:'',job.salary_to!=null?`до ${groupNumber(str(job.salary_to))}`:''].filter(Boolean).join(' ')} {str(job.currency)}</p>}<label>Статус<select value={str(job.status)} aria-label={`Статус ${str(job.title)}`} disabled={removing===job.id} onChange={e=>{const status=e.target.value;void commitLatest(s=>{const item=current(s,'jobs').find(x=>x.id===job.id);if(!item||item.status===status)return;const old=item.status,now=stamp();item.status=status;item.updated_at=now;const history=current(s,'job_status_history');history.push({id:nextId(history),job_id:item.id,old_status:old,new_status:status,occurred_at:now,comment:''});});}}>{statuses.map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>{Boolean(job.url)&&/^https?:\/\//i.test(str(job.url))&&<a href={str(job.url)} target="_blank" rel="noreferrer">Открыть вакансию</a>}{Boolean(job.notes)&&<p style={{whiteSpace:'pre-wrap'}}>{str(job.notes)}</p>}{Boolean(job.original_text)&&<details><summary>Текст вакансии</summary><p style={{whiteSpace:'pre-wrap'}}>{str(job.original_text)}</p></details>}<button className="button danger" disabled={removing!==null} onClick={()=>void deleteVacancy(job)}>Удалить вакансию</button></div></details>):<Empty>{archive?'Архив пуст':'Вакансий пока нет.'}</Empty>}</Card></>;
+ const jobs=[...current(snapshot,'jobs')].filter(x=>archive?workStage(str(x.status) as JobStatus)==='archived':workStage(str(x.status) as JobStatus)!=='archived').sort((a,b)=>str(b.updated_at).localeCompare(str(a.updated_at))||num(b.id)-num(a.id));
+ return <><SectionHeading eyebrow="04 / РАБОТА" title={copy("Работа")}/><div className="segmented"><button className={!archive?'selected':''} onClick={()=>setArchive(false)}>Вакансии</button><button className={archive?'selected':''} onClick={()=>setArchive(true)}>Архив</button></div><Card title="Статистика поиска"><div className="work-statistics-grid">{[['Всего откликов',statistics.total],['Отказы на отклике',statistics.rejectedApplication],['Собеседования',statistics.interviews],['Отказы на собеседовании',statistics.rejectedInterview]].map(([label,value])=><div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div><details><summary>Цель откликов</summary><label>Откликов за месяц<input type="number" value={monthly} min="0" max="1000" onChange={e=>setMonthly(e.target.value)} onBlur={()=>{const value=Number(monthly);if(Number.isInteger(value)&&value>=0&&value<=1000)void commitLatest(s=>upsert(current(s,'settings'),{key:'monthlyTarget',value:JSON.stringify(value)},'key'));}}/></label></details></Card><Card title={`Вакансии · ${jobs.length}`}>{jobs.length?jobs.map(job=><details className="work-vacancy" key={str(job.id)}><summary><span style={{display:'inline-grid',gap:4,minWidth:0}}><strong>{str(job.title)}</strong><small>{[str(job.company),workStageLabels[workStage(str(job.status) as JobStatus)]??legacyStatuses.find(([key])=>key===job.status)?.[1]].filter(Boolean).join(' · ')}</small></span></summary><div className="form-stack">{Boolean(job.city||job.work_mode)&&<p>{[str(job.city),str(job.work_mode)].filter(Boolean).join(' · ')}</p>}{(job.salary_from!=null||job.salary_to!=null)&&<p>{job.salary_from===job.salary_to?groupNumber(str(job.salary_from)):[job.salary_from!=null?`от ${groupNumber(str(job.salary_from))}`:'',job.salary_to!=null?`до ${groupNumber(str(job.salary_to))}`:''].filter(Boolean).join(' ')} {str(job.currency)}</p>}<label>Статус<select value={workStage(str(job.status) as JobStatus)} aria-label={`Статус ${str(job.title)}`} disabled={removing===job.id} onChange={e=>{const status=e.target.value;void commitLatest(s=>{const item=current(s,'jobs').find(x=>x.id===job.id);if(!item||item.status===status)return;const old=item.status,now=stamp();item.status=status;item.updated_at=now;const history=current(s,'job_status_history');history.push({id:nextId(history),job_id:item.id,old_status:old,new_status:status,occurred_at:now,comment:''});});}}>{workStage(str(job.status) as JobStatus)==='archived'&&<option value="archived">Архив</option>}{statuses.map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>{Boolean(job.url)&&/^https?:\/\//i.test(str(job.url))&&<a href={str(job.url)} target="_blank" rel="noreferrer">Открыть вакансию</a>}{Boolean(job.notes)&&<p style={{whiteSpace:'pre-wrap'}}>{str(job.notes)}</p>}{Boolean(job.original_text)&&<details><summary>Текст вакансии</summary><p style={{whiteSpace:'pre-wrap'}}>{str(job.original_text)}</p></details>}<button className="button danger" disabled={removing!==null} onClick={()=>void deleteVacancy(job)}>Удалить вакансию</button></div></details>):<Empty>{archive?'Архив пуст':'Вакансий пока нет.'}</Empty>}</Card></>;
 }
 
-function Settings({snapshot,commit,onConnected}:PanelProps&{onConnected:()=>void}){
+function Settings({snapshot,onConnected,focusAPI}:PanelProps&{onConnected:()=>void;focusAPI:FocusAPI}){
   const copy=useSystemCopy("App");
 
   const [profile,setProfile]=useState<Awaited<ReturnType<typeof remoteProfile>>|null>(null);
   useEffect(()=>{void remoteProfile().then(setProfile).catch(()=>{});},[]);
-  const target=field(snapshot,'weeklyTarget',15),[weekly,setWeekly]=useState(str(target));
-  return <><SectionHeading eyebrow="06 / НАСТРОЙКИ" title={copy("Настройки")}/>{profile&&<div className="connection-summary"><span className="dot"/>Подключено · {profile.name}</div>}<details className="mobile-fold dominion-frame"><summary>Изменить подключение</summary><Connect onConnected={onConnected}/></details><AppearancePanel/><AIStatus/><UpdatePanel/><RemindersPanel api={reminders} habits={rows(snapshot,'habits').filter(x=>x.active).map(x=>({id:Number(x.id),name:String(x.name)}))}/><Card title={copy("Работа")}><label>Цель откликов за неделю<input type="number" min="0" max="1000" value={weekly} onChange={e=>setWeekly(e.target.value)} onBlur={()=>{const value=Number(weekly);if(Number.isInteger(value)&&value>=0&&value<=1000&&value!==target)void commit(s=>upsert(current(s,'settings'),{key:'weeklyTarget',value:JSON.stringify(value)},'key'));}}/></label></Card></>;
+  return <><SectionHeading eyebrow="06 / НАСТРОЙКИ" title={copy("Настройки")}/><FocusSettings api={focusAPI}/><UpdatePanel/><details className="mobile-fold"><summary>Уведомления</summary><RemindersPanel api={reminders} habits={rows(snapshot,'habits').filter(x=>x.active).map(x=>({id:Number(x.id),name:String(x.name)}))}/></details><details className="mobile-fold"><summary>ИИ</summary><AIStatus/></details><details className="mobile-fold"><summary>Подключение</summary>{profile&&<div className="connection-summary"><span className="dot"/>Подключено · {profile.name}</div>}<Connect onConnected={onConnected}/></details></>;
+
 }
