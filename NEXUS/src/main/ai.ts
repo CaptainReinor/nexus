@@ -1,4 +1,4 @@
-import {labelDraftSchema,labelRequestSchema,labelModel,labelInstructions,labelResponseFormat,type LabelDraft} from '../shared/focus-label';
+import {parsePhotoDraft,labelRequestSchema,labelModel,labelInstructions,foodPhotoInstructions,labelResponseFormat,type LabelDraft} from '../shared/focus-label';
 import {runFocusMentor} from '../shared/focus-mentor';
 import {recordFocusDiagnostic,type FocusDiagnostic} from '../shared/focus-diagnostics';
 import type {Snapshot} from '../shared/snapshot-sync';
@@ -73,8 +73,9 @@ export class AIGateway {
   }
   async scanLabel(input:z.infer<typeof labelRequestSchema>):Promise<LabelDraft>{
     input=labelRequestSchema.parse(input);this.assertBudget(input.overrideBudget);let result:Completion|undefined;
-    try{result=await this.provider.complete(this.credentials(),labelModel,labelInstructions,'Прочитай этикетку.',true,labelResponseFormat,input.image);const draft=labelDraftSchema.parse(JSON.parse(result.content.replace(/^\s*```(?:json)?\s*/i,'').replace(/\s*```\s*$/,'')));this.record('focus-label',labelModel,result,'ok');return draft;}
-    catch(error){this.record('focus-label',labelModel,result,'error');throw error instanceof z.ZodError||error instanceof SyntaxError?Error('Не удалось прочитать этикетку. Попробуйте более чёткое фото.'):error;}
+    const food=input.mode==='food',feature=food?'focus-food-photo':'focus-label';
+    try{result=await this.provider.complete(this.credentials(),labelModel,food?foodPhotoInstructions:labelInstructions,food?'Оцени видимую порцию еды.':'Прочитай этикетку.',true,labelResponseFormat,input.image);const draft=parsePhotoDraft(result.content);this.record(feature,labelModel,result,'ok');return draft;}
+    catch(error){this.record(feature,labelModel,result,'error');throw error instanceof z.ZodError||error instanceof SyntaxError?Error(food?'Не удалось распознать еду. Попробуйте более чёткое фото.':'Не удалось прочитать этикетку. Попробуйте более чёткое фото.'):error;}
   }
   private assertBudget(override=false):void {const settings=this.settings.get(),usage=this.settings.usedMicrousd();if(!settings.aiEnabled)throw new Error('Включите AI в настройках.');if(!override&&(usage.unknown>0||usage.known>=settings.aiBudgetCents*10_000))throw new Error('AI_BUDGET_CONFIRM');}
   private record(feature:string,model:string,result:Completion|undefined,status:'ok'|'error'):void {this.db.prepare('INSERT INTO ai_usage(id,timestamp,provider,model,feature,input_tokens,output_tokens,cost_microusd,request_id,status) VALUES (nexus_id(),?,?,?,?,?,?,?,?,?)').run(localDateTime(),'OpenRouter',model,feature,result?.inputTokens??null,result?.outputTokens??null,result?.costMicrousd??null,result?.requestId??'',status);}
