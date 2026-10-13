@@ -21,7 +21,7 @@ export function foodMeal(row:Row):string{
  if(/омлет/i.test(text))return 'Омлет';
  return '';
 }
-export function initializeFoodPortions(rows:Row[]){for(const row of rows){row.meal_name??=foodMeal(row);row.portion_fraction??=1;row.portion_base_json??=null;}}
+export function initializeFoodPortions(rows:Row[]){for(const row of rows){row.meal_name??=foodMeal(row);row.portion_fraction??=1;row.portion_base_json??=null;row.product_id??=null;row.nutrition_sources_json??=null;}}
 export function removeLegacyDeletedFoods(rows:Row[],turns:Row[]):Row[]{
  const requested=new Set<string>();
  for(const turn of turns){

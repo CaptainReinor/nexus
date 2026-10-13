@@ -35,7 +35,7 @@ ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 AI_KEY_FILE = "openrouter-key"
 DAILY_TABLES = {'habit_preferences','care_slots','care_checks','routines','scheduled_payments','payment_occurrences','experiments','experiment_logs','focus_sessions','evening_answers'}
 FOCUS_TABLES = {'mentor_turns','food_entries','activity_entries'}
-API_VERSION = "0.8.3"
+API_VERSION = "0.8.4"
 OPENROUTER_BASE = os.environ.get("NEXUS_OPENROUTER_BASE", "https://openrouter.ai/api/v1").rstrip("/")
 RELAY_KEY = os.environ.get("NEXUS_AI_RELAY_KEY", "")
 INVESTMENT_TABLES = {"investment_accounts", "investment_entries"}
@@ -85,7 +85,7 @@ def valid_envelope(value: object) -> bool:
 def valid_sync_snapshot(value: object) -> bool:
     if not isinstance(value, dict) or set(value) != {"format", "version", "exportedAt", "tables"}:
         return False
-    if value["format"] != "nexus-backup" or type(value["version"]) is not int or not 1 <= value["version"] <= 14:
+    if value["format"] != "nexus-backup" or type(value["version"]) is not int or not 1 <= value["version"] <= 15:
         return False
     if not isinstance(value["exportedAt"], str) or len(value["exportedAt"]) > 40:
         return False
@@ -99,6 +99,8 @@ def valid_sync_snapshot(value: object) -> bool:
         expected |= DAILY_TABLES
     if value['version'] >= 12:
         expected |= FOCUS_TABLES
+    if value['version'] >= 15:
+        expected |= {'focus_products'}
     if value['version'] >= 13:
         expected |= {'focus_weights','focus_sleep','focus_money'}
     if value['version'] >= 9:

@@ -11,7 +11,7 @@ export async function runFocusMentor(deps:Dependencies):Promise<MentorReply>{
   deps.beforeAttempt();let result:MentorCompletion|undefined;
   try{
    result=await deps.complete(mentorInstructions,JSON.stringify({...deps.facts,...(repair?{repair}: {})}));
-   const reply=validateMentorActions(parseMentorReply(result.content,deps.facts.text,deps.snapshot.tables.food_entries),deps.snapshot,deps.facts.text,deps.facts.selectedDay);
+   const reply=validateMentorActions(parseMentorReply(result.content,deps.facts.text,deps.snapshot.tables.food_entries,deps.snapshot.tables.focus_products??[]),deps.snapshot,deps.facts.text,deps.facts.selectedDay);
    await deps.record(result,'ok');return reply;
   }catch(error){
    await deps.record(result,'error');const invalid=error instanceof z.ZodError||error instanceof SyntaxError||error instanceof FocusActionError;

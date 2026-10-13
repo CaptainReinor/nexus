@@ -39,6 +39,18 @@ class BackupApiTest(unittest.TestCase):
             self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=1)
         self.assertEqual(invalid.exception.code,426)
 
+    def test_private_product_catalog_requires_schema15_and_survives_sync(self):
+        tables = nexus_backup.SYNC_TABLES | nexus_backup.INVESTMENT_TABLES | nexus_backup.LIFE_TABLES | nexus_backup.GROWTH_TABLES | {'weekly_plan_tasks'} | nexus_backup.DAILY_TABLES | nexus_backup.FOCUS_TABLES | {'focus_weights','focus_sleep','focus_money','focus_products'}
+        snapshot = {'format':'nexus-backup','version':15,'exportedAt':'2026-10-13T00:00:00Z','tables':{name:[] for name in tables}}
+        snapshot['tables']['focus_products']=[{'id':'12345678-1234-4234-8234-123456789012','name':'Филе','brand':'Тест','preparation':'raw','nutrients_json':'{"kcal":110}','aliases_json':'["Филе Тест"]'}]
+        self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=0)
+        self.assertEqual(self.request('/v1/state')[1]['snapshot'],snapshot)
+        snapshot['version']=14
+        del snapshot['tables']['focus_products']
+        with self.assertRaises(urllib.error.HTTPError) as invalid:
+            self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=1)
+        self.assertEqual(invalid.exception.code,426)
+
     def test_food_portions_and_diagnostics_survive_sync(self):
         tables = nexus_backup.SYNC_TABLES | nexus_backup.INVESTMENT_TABLES | nexus_backup.LIFE_TABLES | nexus_backup.GROWTH_TABLES | {'weekly_plan_tasks'} | nexus_backup.DAILY_TABLES | nexus_backup.FOCUS_TABLES | {'focus_weights','focus_sleep','focus_money'}
         snapshot = {'format':'nexus-backup','version':14,'exportedAt':'2026-10-13T00:00:00Z','tables':{name:[] for name in tables}}
