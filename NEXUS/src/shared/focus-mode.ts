@@ -1,25 +1,29 @@
+import {providerSchema} from './provider-schema';
+import {type LabelDraft,labelRequestSchema} from './focus-label';
 import {z} from './validation';
 import {dateSchema} from './growth';
 import {localDay,sleepDuration} from './domain';
 import {numericId,put,records,shiftDay} from './daily-core';
 import {fingerprint} from './record-clocks';
 import {focusSnapshot,initializeFocus,focusBoundary,storeFocusView,focusSourceTables} from './focus-isolation';
-import {foodMeal,preparedFood,scaleFood} from './food-portions';
+import {foodMeal,preparedFood,scaleFood,explicitFullIngredientMass} from './food-portions';
+import {weightTrend,savingsForecast} from './focus-progress';
 import {savingsBalance} from './focus-savings';
 import {productPreparation,normalizeProductName,learnProduct,matchProduct,nutritionForMass,selectedProducts,validateProductReference} from './product-catalog';
 import {FocusActionError} from './focus-diagnostics';
 import {nutritionFields,nutritionColumns,vitaminUnits,nutritionTotals} from './nutrition';
 import type {Row,Snapshot} from './snapshot-sync';
 import {foodContext,weightContext,sleepContext,moneyContext,activityContext,contextFields} from './focus-context';
+import {focusIdentity,learnRecipes,selectedRecipes,foodsFromRecipe} from './focus-recipes';
 export {mentorInstructions} from './focus-prompt';
 
-export const focusTables=['mentor_turns','food_entries','activity_entries',...focusSourceTables,'focus_products'] as const;
+export const focusTables=['mentor_turns','food_entries','activity_entries',...focusSourceTables,'focus_products','focus_recipes'] as const;
 import {defaultMentorModel} from './focus-model';
 export {defaultMentorModel} from './focus-model';
 const name=z.string().trim().min(1).max(300),note=z.string().max(2000),clock=z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable();
 const identity=z.string().uuid(),numberId=z.number().int().positive().safe();
 const financeFields={id:numberId.nullable(),day:dateSchema,amountCents:z.number().int().positive().safe().nullable(),accountId:numberId.nullable(),categoryId:numberId.nullable(),note};
-export const focusConfigSchema=z.object({startDay:dateSchema,days:z.number().int().min(1).max(3650).nullable(),targetCents:z.number().int().positive().safe().nullable(),gymPerWeek:z.number().int().min(1).max(7).nullable(),model:z.string().trim().min(1).max(120),dietNote:z.string().max(2000).default('')}).strict();
+export const focusConfigSchema=z.object({startDay:dateSchema,days:z.number().int().min(1).max(3650).nullable(),targetCents:z.number().int().positive().safe().nullable(),targetDay:dateSchema.nullable().optional(),gymPerWeek:z.number().int().min(1).max(7).nullable(),model:z.string().trim().min(1).max(120),dietNote:z.string().max(2000).default('')}).strict();
 export type FocusConfig=z.infer<typeof focusConfigSchema>;
 export const focusConfigPatchSchema=focusConfigSchema.omit({startDay:true,days:true}).partial().extend({dietNote:z.string().max(2000).optional()}).strict();
 export type FocusConfigPatch=z.infer<typeof focusConfigPatchSchema>;
@@ -30,6 +34,7 @@ export const focusActionSchema=z.discriminatedUnion('kind',[
  z.object({kind:z.literal('income'),...financeFields}).strict(),
  z.object({kind:z.literal('saving'),id:numberId.nullable(),day:dateSchema,amountCents:z.number().int().positive().safe(),direction:z.enum(['in','out']),note}).strict(),
  z.object({kind:z.literal('food'),id:identity.nullable(),day:dateSchema,name,productId:identity.nullable().default(null),brand:z.string().max(100).default(''),preparation:productPreparation.default('unknown'),meal:name.nullable().default(null),grams:z.number().positive().max(10000).nullable(),kcal:z.number().int().nonnegative().max(20000).nullable(),low:z.number().int().nonnegative().max(20000).nullable(),high:z.number().int().nonnegative().max(20000).nullable(),estimated:z.boolean(),quality:z.enum(['balanced','mixed','limited','unknown']),...nutritionFields,note}).strict().refine(x=>x.low===null||x.high===null||x.low<=x.high,'Проверьте диапазон калорий.').refine(x=>new Set(x.vitamins.map(v=>v.id)).size===x.vitamins.length,'Витамин указан дважды.'),
+ z.object({kind:z.literal('recipe'),recipeId:identity,day:dateSchema,fraction:z.number().min(.001).max(1)}).strict(),
  z.object({kind:z.literal('removeFood'),id:identity,day:dateSchema}).strict(),
  z.object({kind:z.literal('foodPortion'),ids:z.array(identity).min(1).max(30),day:dateSchema,fraction:z.number().min(.001).max(1),estimated:z.boolean().default(false)}).strict().refine(x=>new Set(x.ids).size===x.ids.length,'Ингредиент указан дважды.'),
  z.object({kind:z.literal('activity'),id:identity.nullable(),day:dateSchema,title:name,minutes:z.number().int().min(1).max(1440).nullable(),type:z.enum(['gym','walk','sport','other']),impact:z.enum(['helpful','neutral','hindering']).default('neutral'),note}).strict()
@@ -38,24 +43,6 @@ export type FocusAction=z.infer<typeof focusActionSchema>;
 export const mentorReplySchema=z.object({reply:z.string().trim().min(1).max(10000),actions:z.array(focusActionSchema).max(40)}).strict();
 // Keep provider schemas to broadly supported structural keywords; application
 // validation still checks dates, bounds and cross-field relationships.
-function providerSchema(value:unknown):unknown{
- if(Array.isArray(value))return value.map(providerSchema);if(!value||typeof value!=='object')return value;
- const source=value as Record<string,unknown>,result:Record<string,unknown>={},optional=new Set<string>();
- for(const [key,child] of Object.entries(source)){
-  if(key==='properties')result[key]=Object.fromEntries(Object.entries(child as Record<string,Record<string,unknown>>).map(([name,schema])=>{
-   // Anthropic caps nullable/union parameters. Omitted unknown fields are
-   // restored to null before application validation, never converted to zero.
-   if(Array.isArray(schema.anyOf)&&schema.anyOf.some(x=>(x as Record<string,unknown>).type==='null')){optional.add(name);const choices=(schema.anyOf as Record<string,unknown>[]).filter(x=>x.type!=='null');return [name,providerSchema(choices.length===1?choices[0]:{anyOf:choices})];}
-   if(Array.isArray(schema.type)&&schema.type.includes('null')){optional.add(name);return [name,providerSchema({...schema,type:schema.type.filter(t=>t!=='null')[0]})];}
-   return [name,providerSchema(schema)];
-  }));
-  else if(key==='const')result.enum=[child];
-  else if(key==='oneOf')result.anyOf=providerSchema(child);
-  else if(['type','items','additionalProperties','anyOf','enum'].includes(key))result[key]=providerSchema(child);
- }
- if(Array.isArray(source.required))result.required=source.required.filter(name=>!optional.has(String(name)));
- return result;
-}
 export const mentorResponseFormat={type:'json_schema',json_schema:{name:'nexus_focus_reply',strict:true,schema:providerSchema(z.toJSONSchema(mentorReplySchema,{unrepresentable:'any'}))}};
 export type MentorReply=z.infer<typeof mentorReplySchema>;
 // USDA SR Legacy: cooked skinless chicken breast (FDC 171477), 165 kcal/100g;
@@ -73,6 +60,8 @@ export function parseMentorReply(content:string,text:string,knownFoods:Row[]=[],
   if(action.kind!=='food')return action;
   const hasLabel=/\d+(?:[.,]\d+)?\s*ккал|(?:калори[а-я]*|ккал|к[бж]{2}у|бжу|белк[а-я]*|жир[ыаов]*|углевод[а-я]*|сахар[а-я]*|клетчатк[а-я]*)\s*[:=—-]?\s*\d/iu.test(text);
   const next={...action,nutritionEstimated:action.nutritionEstimated||!hasLabel,grams:hasMass?action.grams:action.id!==null?(knownFoods.find(r=>r.id===action.id)?Number.isFinite(preparedFood(knownFoods.find(r=>r.id===action.id)!).grams)?Number(preparedFood(knownFoods.find(r=>r.id===action.id)!).grams):null:action.grams):null,estimated:action.estimated||action.kcal===null||(!hasLabel&&!reportedKcal.includes(action.kcal))};
+  const existing=action.id?knownFoods.find(r=>r.id===action.id):undefined,fraction=Number(existing?.portion_fraction??1),fullMass=explicitFullIngredientMass(text,action.name);
+  if(existing&&fraction<1&&fullMass!==null&&next.grams!==null&&Math.abs(next.grams-fullMass*fraction)<.1){const ratio=fullMass/next.grams;next.grams=fullMass;for(const field of ['kcal','low','high','proteinG','fatG','carbsG','sugarG','fiberG'] as const){const value=next[field];if(typeof value==='number')next[field]=field==='kcal'||field==='low'||field==='high'?Math.round(value*ratio):Number((value*ratio).toFixed(3));}next.vitamins=next.vitamins.map(v=>({...v,amount:Number((v.amount*ratio).toFixed(4))}));}
   const label=action.name.toLowerCase().replace(/ё/g,'е'),plain=!/жар|паниров|соус|сыр|салат|плов|масл/.test(label.replace(/без\s+(?:масл[ао]|соуса?|сыра?|панировки)/g,''));
   const reference=plain&&/готов|варен|запеч/.test(label)?/курин/.test(label)&&/филе|грудк/.test(label)&&!/рис|макарон/.test(label)?nutritionReferences[0]:/рис/.test(label)&&!/курин|мяс|рыб/.test(label)?nutritionReferences[1]:null:null;
   if(next.grams!==null&&reference&&!hasLabel&&!next.productId&&!next.brand&&!reportedKcal.includes(next.kcal??-1)){
@@ -91,13 +80,13 @@ export const mentorRequestSchema=z.object({text:z.string().trim().min(1).max(160
 export const focusTurnSchema=z.object({id:identity,day:dateSchema,text:z.string().trim().min(1).max(16000),reply:z.string().max(10000),actions:z.array(focusActionSchema).max(40),replace:z.boolean().default(false),expectedUpdatedAt:z.string().nullable().default(null)}).strict();
 export type FocusTurnInput=z.infer<typeof focusTurnSchema>;
 export type FocusTurn={id:string;day:string;raw_text:string;reply:string;actions_json:string;links_json:string;created_at:string;updated_at:string};
-export interface FocusAPI{updateConfig(patch:FocusConfigPatch):Promise<void>;snapshot():Promise<Snapshot>;removeFood(input:{id:string;expectedUpdatedAt:string}):Promise<void>;publish():Promise<{written:number;skipped:number}>;configure(config:FocusConfig,enableAI?:boolean):Promise<void>;send(input:z.infer<typeof mentorRequestSchema>):Promise<MentorReply>;save(input:FocusTurnInput):Promise<void>;transcribe(input:{base64:string;format:'webm'|'wav'|'mp3';overrideBudget?:boolean}):Promise<string>}
+export interface FocusAPI{scanLabel(input:z.infer<typeof labelRequestSchema>):Promise<LabelDraft>;saveLabel(input:{draft:LabelDraft}):Promise<void>;updateConfig(patch:FocusConfigPatch):Promise<void>;snapshot():Promise<Snapshot>;removeFood(input:{id:string;expectedUpdatedAt:string}):Promise<void>;publish():Promise<{written:number;skipped:number}>;configure(config:FocusConfig,enableAI?:boolean):Promise<void>;send(input:z.infer<typeof mentorRequestSchema>):Promise<MentorReply>;save(input:FocusTurnInput):Promise<void>;transcribe(input:{base64:string;format:'webm'|'wav'|'mp3';overrideBudget?:boolean}):Promise<string>}
 export function focusConfig(s:Snapshot):FocusConfig{
  try{return focusConfigSchema.parse(JSON.parse(String(s.tables.settings?.find(r=>r.key==='focusConfig')?.value)));}catch{return {startDay:localDay(),days:null,targetCents:null,gymPerWeek:null,model:defaultMentorModel,dietNote:''};}
 }
 export function configureFocus(s:Snapshot,config:FocusConfig,enableAI=false){initializeFocus(s);config={...config,startDay:focusBoundary(s)!.day};put(s,'settings',{key:'focusConfig',value:JSON.stringify(focusConfigSchema.parse(config))},'key');if(enableAI)put(s,'settings',{key:'aiEnabled',value:'true'},'key');}
 export function updateFocusConfig(s:Snapshot,patch:FocusConfigPatch){configureFocus(s,{...focusConfig(s),...focusConfigPatchSchema.parse(patch)});}
-function ensure(s:Snapshot){for(const table of focusTables)records(s,table);s.version=Math.max(15,s.version);}
+function ensure(s:Snapshot){for(const table of focusTables)records(s,table);s.version=Math.max(16,s.version);}
 type Link={table:string;key:string|number;primary:string;before:Row|null;hash:string};
 function write(s:Snapshot,links:Link[],table:string,row:Row,primary='id'){
  if(table==='food_entries')row={product_id:null,nutrition_sources_json:null,...row};
@@ -120,7 +109,7 @@ function saveOwnedTurn(s:Snapshot,raw:FocusTurnInput,now:string){
  }
  const links:Link[]=[],warnings:string[]=[];
  const ordered=x.actions.map((action,index)=>({action,index})).sort((a,b)=>Number(a.action.kind==='foodPortion')-Number(b.action.kind==='foodPortion')||a.index-b.index);
- for(const {action} of ordered){
+ for(const {action,index} of ordered){
   if(action.day<focusBoundary(s)!.day)throw new Error('Запись раньше начала режима фокуса.');
   if(action.day>localDay())throw new Error('Планы на будущее нельзя записывать как выполненные действия.');
   if(action.kind==='removeFood'){
@@ -129,6 +118,9 @@ function saveOwnedTurn(s:Snapshot,raw:FocusTurnInput,now:string){
    links.push({table:'food_entries',key:action.id,primary:'id',before:structuredClone(before),hash:fingerprint(null)});s.tables.food_entries=records(s,'food_entries').filter(r=>r.id!==action.id);
   }else if(action.kind==='foodPortion'){
    for(const id of action.ids){const before=records(s,'food_entries').find(r=>r.id===id);if(!before||before.day!==action.day)throw new FocusActionError([{path:'actions.ids',code:'missing_ingredient',message:'Не найден ингредиент блюда за выбранный день.'}]);write(s,links,'food_entries',{...scaleFood(before,action.fraction,action.estimated),updated_at:now});}
+  }else if(action.kind==='recipe'){
+   const recipe=records(s,'focus_recipes').find(r=>r.id===action.recipeId&&Number(r.uses)>=2);if(!recipe)throw new FocusActionError([{path:'actions.recipeId',code:'missing_recipe',message:'Сохранённое блюдо не найдено.'}]);
+   for(const row of foodsFromRecipe(recipe,action.day,x.id+':'+index,action.fraction,now,records(s,'focus_products')))write(s,links,'food_entries',row);
   }else if(action.kind==='saving'){
    const before=action.id===null?undefined:records(s,'finance_transactions').find(r=>r.id===action.id);
    if(action.id!==null&&(!before||before.type!=='transfer'))throw Error('Запись накоплений для исправления не найдена.');
@@ -155,7 +147,7 @@ function saveOwnedTurn(s:Snapshot,raw:FocusTurnInput,now:string){
    write(s,links,'finance_transactions',{...before,id:before?.id??retained?.id??numericId(records(s,'finance_transactions')),occurred_at:`${action.day}T12:00:00`,created_at:before?.created_at??now,type:action.kind,amount_cents:action.amountCents,account_id:account.id,target_account_id:null,category_id:category?.id??null,note:action.note});
   }else if(action.kind==='food'){
    if(action.id!==null&&!records(s,'food_entries').some(r=>r.id===action.id))throw new Error('Приём пищи для исправления не найден.');
-   const title=action.brand&&!normalizeProductName(action.name).includes(normalizeProductName(action.brand))?`${action.name} ${action.brand}`:action.name;const retained=action.id===null?replaced.food_entries?.find(r=>r.day===action.day&&normalizeProductName(String(r.name))===normalizeProductName(title)&&String(r.meal_name??'')===(action.meal??'')):undefined;if(retained)replaced.food_entries=replaced.food_entries.filter(r=>r!==retained);const previous=records(s,'food_entries').find(r=>r.id===action.id)??retained;let food:Row={id:action.id??retained?.id??crypto.randomUUID(),day:action.day,name:action.name,grams:action.grams,kcal:action.kcal,kcal_low:action.low,kcal_high:action.high,estimated:action.estimated?1:0,quality:action.quality,protein_g:action.proteinG,fat_g:action.fatG,carbs_g:action.carbsG,sugar_g:action.sugarG,fiber_g:action.fiberG,nutrition_estimated:action.nutritionEstimated?1:0,vitamins_json:JSON.stringify(action.vitamins),meal_name:action.meal??(previous?foodMeal(previous):''),product_id:action.productId??(previous&&normalizeProductName(action.name)===normalizeProductName(String(previous.name))?previous.product_id:null)??null,nutrition_sources_json:null,portion_fraction:1,portion_base_json:null,note:action.note,updated_at:now};
+   const title=action.brand&&!normalizeProductName(action.name).includes(normalizeProductName(action.brand))?`${action.name} ${action.brand}`:action.name;const retained=action.id===null?replaced.food_entries?.find(r=>r.day===action.day&&normalizeProductName(String(r.name))===normalizeProductName(title)&&String(r.meal_name??'')===(action.meal??'')):undefined;if(retained)replaced.food_entries=replaced.food_entries.filter(r=>r!==retained);const previous=records(s,'food_entries').find(r=>r.id===action.id)??retained;let food:Row={id:action.id??retained?.id??crypto.randomUUID(),day:action.day,name:action.name,grams:action.grams,kcal:action.kcal,kcal_low:action.low,kcal_high:action.high,estimated:action.estimated?1:0,quality:action.quality,protein_g:action.proteinG,fat_g:action.fatG,carbs_g:action.carbsG,sugar_g:action.sugarG,fiber_g:action.fiberG,nutrition_estimated:action.nutritionEstimated?1:0,vitamins_json:JSON.stringify(action.vitamins),meal_name:action.meal??(previous?foodMeal(previous):''),recipe_batch_id:previous?.recipe_batch_id??(action.meal?focusIdentity('meal:'+x.id+':'+action.day+':'+action.meal):null),product_id:action.productId??(previous&&normalizeProductName(action.name)===normalizeProductName(String(previous.name))?previous.product_id:null)??null,nutrition_sources_json:null,portion_fraction:1,portion_base_json:null,note:action.note,updated_at:now};
    if(action.productId&&!records(s,'focus_products').some(row=>row.id===action.productId))throw new FocusActionError([{path:'actions.productId',code:'missing_product',message:'Выбранного продукта нет в личной базе.'}]);
    const userFields=Object.entries({kcal:/\d+(?:[.,]\d+)?\s*ккал|(?:ккал|калори[а-я]*)\s*[:=]?\s*\d/iu,protein_g:/белк[а-я]*\s*[:=]?\s*\d|\d+(?:[.,]\d+)?\s*г\s*белк/iu,fat_g:/жир[ыаов]*\s*[:=]?\s*\d/iu,carbs_g:/углевод[а-я]*\s*[:=]?\s*\d/iu,sugar_g:/сахар[а-я]*\s*[:=]?\s*\d/iu,fiber_g:/клетчатк[а-я]*\s*[:=]?\s*\d/iu}).filter(([,pattern])=>pattern.test(x.text)).map(([field])=>field);if(/к[бж]{2}у\s*[:=]?\s*\d/iu.test(x.text))userFields.push('kcal','protein_g','fat_g','carbs_g');else if(/бжу\s*[:=]?\s*\d/iu.test(x.text))userFields.push('protein_g','fat_g','carbs_g');
    const referenced=records(s,'focus_products').find(row=>row.id===food.product_id)??matchProduct(records(s,'focus_products'),title,action.brand,action.preparation);if(referenced)food.product_id=referenced.id;if(referenced&&!validateProductReference(referenced,action.brand,action.preparation,action.name))throw new FocusActionError([{path:'actions.productId',code:'product_mismatch',message:'Проверьте бренд и способ приготовления продукта.'}]);
@@ -171,6 +163,8 @@ function saveOwnedTurn(s:Snapshot,raw:FocusTurnInput,now:string){
    }
   }
  }
+ const batches=new Set(links.filter(l=>l.table==='food_entries').map(l=>records(s,'food_entries').find(r=>r.id===l.key)?.recipe_batch_id).filter(v=>typeof v==='string') as string[]);
+ learnRecipes(records(s,'focus_recipes'),records(s,'food_entries'),batches,now);
  const reply=x.reply+(warnings.length?`\n\nНе записано в деньги: ${warnings.join(' ')}`:'');
  put(s,'mentor_turns',{id:x.id,day:x.day,raw_text:x.text,reply,actions_json:JSON.stringify(x.actions),links_json:JSON.stringify(links),created_at:old?.created_at??now,updated_at:now});
 }
@@ -193,12 +187,13 @@ export function validateMentorActions(reply:MentorReply,snapshot:Snapshot,text:s
  const view=focusSnapshot(snapshot),issues:InstanceType<typeof FocusActionError>['issues']=[];
  const correction=/исправ|уточн|меняем|замени|не нов[а-яё]*|не отдельн|это для|для смузи|для омлета/iu.test(text),newPortion=/(?:съел|съела|выпил|выпила)\s+ещ[её]|ещ[её]\s+(?:\d|одн|порц)|нов[а-яё]*\s+порци|отдельн[а-яё]*\s+(?:порц|при[её]м)|съел снова|выпил снова/iu.test(text);
  for(const [index,a] of reply.actions.entries()){
+  if(a.kind==='recipe'&&!view.tables.focus_recipes.some(r=>r.id===a.recipeId&&Number(r.uses)>=2))issues.push({path:`actions.${index}.recipeId`,code:'missing_recipe',message:'Используй существующий recipeId из recipes.'});
   if(a.kind==='food'&&a.productId!==null&&!view.tables.focus_products.some(row=>row.id===a.productId))issues.push({path:`actions.${index}.productId`,code:'missing_product',message:'Продукт не найден в productCatalog.'});
   if(a.kind==='food'&&a.id!==null&&!view.tables.food_entries.some(r=>r.id===a.id)||a.kind==='removeFood'&&!view.tables.food_entries.some(r=>r.id===a.id))issues.push({path:`actions.${index}.id`,code:'missing_food',message:'ID не относится к существующей записи питания. Используй ID из food.'});
   if((a.kind==='expense'||a.kind==='income'||a.kind==='saving')&&a.id!==null&&!view.tables.finance_transactions.some(r=>r.id===a.id))issues.push({path:`actions.${index}.id`,code:'missing_transaction',message:'ID финансовой операции не найден в facts.money.'});
 
   if(a.kind==='removeFood'&&!/удал|убер|убир|убрать|дубл|лишн|не нов[а-яё]*|не отдельн|это уточн|отмен/iu.test(text))issues.push({path:`actions.${index}`,code:'removal_not_requested',message:'Удаление питания не запрошено. Убери removeFood из ответа.'});
-  if(a.kind==='foodPortion'){const meals=new Set(a.ids.map(id=>view.tables.food_entries.find(r=>r.id===id)).filter(r=>r!==undefined).map(foodMeal).filter(Boolean));if(meals.size>1)issues.push({path:`actions.${index}.ids`,code:'mixed_meals',message:'Доля блюда не должна затрагивать ингредиенты других блюд.'});}
+  if(a.kind==='foodPortion'){const meals=new Set(a.ids.map(id=>view.tables.food_entries.find(r=>r.id===id)).filter(r=>r!==undefined).map(foodMeal).filter(Boolean));const batches=new Set(a.ids.map(id=>view.tables.food_entries.find(r=>r.id===id)?.recipe_batch_id).filter(Boolean));if(batches.size>1)issues.push({path:`actions.${index}.ids`,code:'mixed_batches',message:'Ингредиенты относятся к разным порциям блюда. Укажи ID только нужного recipe_batch_id.'});if(meals.size>1)issues.push({path:`actions.${index}.ids`,code:'mixed_meals',message:'Доля блюда не должна затрагивать ингредиенты других блюд.'});}
 
   if(a.kind==='food'&&a.id===null&&correction&&!newPortion){const tokens=a.name.toLowerCase().match(/[а-яёa-z]{3,}/g)??[];const existing=view.tables.food_entries.filter(r=>r.day===a.day&&tokens.some(t=>!['замороженная','свежая','готовое','готовая','куриное','куриные','куриная','куриный','для','без','смузи','порция'].includes(t)&&(String(r.name).toLowerCase().match(/[а-яёa-z]{3,}/g)??[]).some(word=>word.startsWith(t.length>4?t.slice(0,-1):t))));if(existing.length)issues.push({path:`actions.${index}.id`,code:'correction_requires_id',message:'Уточнение похоже на существующий продукт. Используй его ID, не создавай новую порцию.'});}
  }
@@ -217,7 +212,8 @@ export function focusFacts(s:Snapshot,day:string,text:string){
  const allSleep=allRows('health_daily_entries').filter(r=>typeof r.sleep_minutes==='number'),allFood=allRows('food_entries').filter(r=>typeof r.kcal==='number'),allMoney=allRows('finance_transactions','occurred_at');
  const allWeights=allRows('weight_entries').slice().sort((a,b)=>String(a.day).localeCompare(String(b.day)));
  const allTime={savingsCents:savingsBalance(allMoney),nutrition:nutritionTotals(allRows('food_entries')),start:config.startDay,end:day,expenseCents:allMoney.filter(r=>r.type==='expense').reduce((n,r)=>n+Number(r.amount_cents),0),incomeCents:allMoney.filter(r=>r.type==='income').reduce((n,r)=>n+Number(r.amount_cents),0),sleepDays:allSleep.length,averageSleepMinutes:allSleep.length?allSleep.reduce((n,r)=>n+Number(r.sleep_minutes),0)/allSleep.length:null,foodEntries:allFood.length,recordedKcal:allFood.reduce((n,r)=>n+Number(r.kcal),0),gymDays:new Set(allRows('activity_entries').filter(r=>r.type==='gym').map(r=>r.day)).size,weights:{count:allWeights.length,first:allWeights[0]?weightContext(allWeights[0]):null,last:allWeights.at(-1)?weightContext(allWeights.at(-1)!):null}};
- return {productCatalog:selectedProducts(s.tables.focus_products??[],text),today:localDay(),selectedDay:day,text,config,nutritionReferences,vitaminUnits,period:{from,to:day},allTime,
+ const trend=weightTrend(allWeights,day,day),progress=/итог|сводк|прогноз|темп|накоп|цель|вес|динамик|недел/iu.test(text)?{weight:{current:trend.current,previous:trend.previous,change:trend.change},savings:savingsForecast(allMoney,config,day)}:undefined;
+ return {progress,recipes:selectedRecipes(s.tables.focus_recipes??[],text),productCatalog:selectedProducts(s.tables.focus_products??[],text),today:localDay(),selectedDay:day,text,config,nutritionReferences,vitaminUnits,period:{from,to:day},allTime,
   savings:{balanceCents:savingsBalance(allMoney),entries:range('finance_transactions','occurred_at').filter(r=>r.type==='transfer').map(moneyContext)},
   facts:{weights:range('weight_entries').map(weightContext),sleep:range('health_daily_entries').map(sleepContext),money:range('finance_transactions','occurred_at').filter(r=>r.type!=='transfer').map(moneyContext)},
   food:range('food_entries').map(foodContext),activities:range('activity_entries').map(activityContext),

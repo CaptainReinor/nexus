@@ -5,11 +5,12 @@ import {put,numericId,records} from './daily-core';
 import {fingerprint} from './record-clocks';
 import {defaultExpenseCategories} from './finance-defaults';
 import {learnProduct} from './product-catalog';
+import {focusIdentity,learnRecipes} from './focus-recipes';
 import {defaultMentorModel} from './focus-model';
 
 export const focusSourceTables=['focus_weights','focus_sleep','focus_money'] as const;
 const sourceMap={weight_entries:'focus_weights',health_daily_entries:'focus_sleep',finance_transactions:'focus_money'} as const;
-const owned=['mentor_turns','food_entries','activity_entries','focus_products'] as const;
+const owned=['mentor_turns','food_entries','activity_entries','focus_products','focus_recipes'] as const;
 export const focusAccounts=[{id:1,name:'Дебет',active:1,opening_cents:0},{id:2,name:'Накопления',active:1,opening_cents:0}];
 export const focusCategories=defaultExpenseCategories.map((name,i)=>({id:i+1,name,kind:'expense',active:1}));
 export function focusBoundary(s:Snapshot):{day:string;at:string}|null{
@@ -17,7 +18,7 @@ export function focusBoundary(s:Snapshot):{day:string;at:string}|null{
 }
 export function initializeFocus(s:Snapshot,now=new Date().toISOString()){
  for(const table of [...focusSourceTables,...owned])records(s,table);
- initializeFoodPortions(records(s,'food_entries'));s.version=Math.max(s.version,15);
+ initializeFoodPortions(records(s,'food_entries'));s.version=Math.max(s.version,16);
  if(!focusBoundary(s))put(s,'settings',{key:'focusBoundary',value:JSON.stringify({day:localDay(),at:now})},'key');
  const boundary=focusBoundary(s)!;
  s.tables.food_entries=removeLegacyDeletedFoods(records(s,'food_entries'),records(s,'mentor_turns').filter(r=>String(r.day)>=boundary.day&&String(r.created_at)>=boundary.at));
@@ -25,6 +26,13 @@ export function initializeFocus(s:Snapshot,now=new Date().toISOString()){
   for(const food of records(s,'food_entries').filter(r=>String(r.day)>=boundary.day&&String(r.updated_at)>=boundary.at))learnProduct(records(s,'focus_products'),food,{},now);
   for(const turn of records(s,'mentor_turns'))try{const links=JSON.parse(String(turn.links_json));let changed=false;for(const link of links)if(link.table==='food_entries'){const row=records(s,'food_entries').find(r=>r.id===link.key);if(row){const legacy={...row};delete legacy.product_id;delete legacy.nutrition_sources_json;if(fingerprint(legacy)===link.hash){link.hash=fingerprint(row);changed=true;}}}if(changed)turn.links_json=JSON.stringify(links);}catch{/* Legacy malformed history cannot be rewritten. */}
   put(s,'settings',{key:'_focusProductsRevision',value:'1'},'key');
+ }
+ if(!records(s,'settings').some(r=>r.key==='_focusRecipesRevision')){
+  const foods=records(s,'food_entries').filter(r=>String(r.day)>=boundary.day&&String(r.updated_at)>=boundary.at);
+  for(const turn of records(s,'mentor_turns'))try{const links=JSON.parse(String(turn.links_json));for(const link of links)if(link.table==='food_entries'){const row=foods.find(r=>r.id===link.key);if(row&&!row.recipe_batch_id){const before=fingerprint(row),legacy={...row};delete legacy.recipe_batch_id;row.recipe_batch_id=row.meal_name?focusIdentity('meal:'+turn.id+':'+row.day+':'+row.meal_name):null;if(link.hash===before||link.hash===fingerprint(legacy))link.hash=fingerprint(row);}}turn.links_json=JSON.stringify(links);}catch{/* Invalid history cannot authorize a rewrite. */}
+  for(const row of foods)row.recipe_batch_id??=null;
+  learnRecipes(records(s,'focus_recipes'),foods,new Set(foods.map(r=>String(r.recipe_batch_id??'')).filter(Boolean)),now);
+  put(s,'settings',{key:'_focusRecipesRevision',value:'1'},'key');
  }
  if(!records(s,'settings').some(r=>r.key==='_focusModelRevision')){
   const config=records(s,'settings').find(r=>r.key==='focusConfig');
@@ -41,7 +49,7 @@ export function focusSnapshot(s:Snapshot):Snapshot{
   const rows=boundary?(s.tables[source]??[]).filter(r=>String(r.day??r.occurred_at).slice(0,10)>=start):[];
   tables[source]=structuredClone(rows);tables[view]=structuredClone(rows);
  }
- for(const table of owned)tables[table]=table==='focus_products'?structuredClone(s.tables.focus_products??[]):boundary?(s.tables[table]??[]).filter(r=>String(r.day)>=start&&String(r.created_at??r.updated_at)>=boundary.at).map(r=>{
+ for(const table of owned)tables[table]=(table==='focus_products'||table==='focus_recipes')?structuredClone(s.tables[table]??[]):boundary?(s.tables[table]??[]).filter(r=>String(r.day)>=start&&String(r.created_at??r.updated_at)>=boundary.at).map(r=>{
   const row=structuredClone(r);if(table==='mentor_turns')delete row.exports_json;return row;
  }):[];
  tables.workouts=[];

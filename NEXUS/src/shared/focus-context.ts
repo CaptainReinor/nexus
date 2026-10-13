@@ -9,7 +9,7 @@ export function contextFields(row:Row,fields:readonly string[]):Row{
 const nutrientColumns=['grams','kcal','kcal_low','kcal_high','protein_g','fat_g','carbs_g','sugar_g','fiber_g'] as const;
 function nutritionContext(row:Row):Row{return {...contextFields(row,nutrientColumns),vitamins:readVitamins(row)};}
 export function foodContext(row:Row):Row&{prepared:Row;vitamins:ReturnType<typeof readVitamins>;meal:string}{
- const food={...contextFields(row,['id','day','name','product_id','quality','estimated','nutrition_estimated','portion_fraction','note']),...nutritionContext(row),meal:foodMeal(row)};
+ const food={...contextFields(row,['id','day','name','product_id','quality','estimated','nutrition_estimated','portion_fraction','recipe_batch_id','note']),...nutritionContext(row),meal:foodMeal(row)};
  const base=nutritionContext(preparedFood(row));
  // The full batch equals the eaten values plus these overrides. Most foods
  // have no portion adjustment, so copying every nutrient twice wastes tokens.

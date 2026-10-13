@@ -1,3 +1,5 @@
+import {saveFocusLabel,labelRequestSchema,type LabelDraft} from '../shared/focus-label';
+import {z} from '../shared/validation';
 import type {DB} from './database';
 import {schemaVersion,backupTables} from './database';
 import type {Row,Snapshot} from '../shared/snapshot-sync';
@@ -5,7 +7,7 @@ import {configureFocus,updateFocusConfig,saveFocusTurn,removeFocusFood,focusConf
 import {focusSnapshot,initializeFocus,publishFocus} from '../shared/focus-isolation';
 import {focusDiagnostic} from '../shared/focus-diagnostics';
 import type {AIGateway} from './ai';
-const writeTables=['settings','finance_accounts','finance_categories','weight_entries','health_daily_entries','workouts','finance_transactions','mentor_turns','food_entries','activity_entries','focus_weights','focus_sleep','focus_money','focus_products'];
+const writeTables=['settings','finance_accounts','finance_categories','weight_entries','health_daily_entries','workouts','finance_transactions','mentor_turns','food_entries','activity_entries','focus_weights','focus_sleep','focus_money','focus_products','focus_recipes'];
 export class FocusModeRepository implements FocusAPI{
  constructor(private db:DB,private ai:AIGateway){this.change(s=>initializeFocus(s));}
  private readSnapshot():Snapshot{return {format:'nexus-backup',version:schemaVersion,exportedAt:new Date().toISOString(),tables:Object.fromEntries(backupTables.map(table=>[table,this.db.prepare(`SELECT * FROM ${table}`).all() as Row[]]))};}
@@ -22,6 +24,8 @@ export class FocusModeRepository implements FocusAPI{
    }
   })();
  }
+ async scanLabel(input:z.infer<typeof labelRequestSchema>){return this.ai.scanLabel(input);}
+ async saveLabel(input:{draft:LabelDraft}){this.change(s=>saveFocusLabel(s,input.draft));}
  async updateConfig(patch:Parameters<FocusAPI['updateConfig']>[0]){this.change(s=>updateFocusConfig(s,patch));}
  async removeFood(input:Parameters<FocusAPI['removeFood']>[0]){this.change(s=>removeFocusFood(s,input));}
  async publish(){let result={written:0,skipped:0};this.change(s=>{result=publishFocus(s);});return result;}

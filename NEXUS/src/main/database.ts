@@ -10,7 +10,7 @@ import { randomInt } from 'node:crypto';
 import { defaultDebit, defaultCategories } from '../shared/finance-defaults';
 
 export type DB = Database.Database;
-export const schemaVersion = 15;
+export const schemaVersion = 16;
 export const backupTables = [
   'settings','habits','habit_logs','health_daily_entries','weight_entries','workouts',
   'finance_accounts','finance_categories','finance_transactions','finance_budgets',
@@ -123,7 +123,9 @@ const migrations: string[] = [
    ALTER TABLE food_entries ADD COLUMN portion_base_json TEXT;`,
   `CREATE TABLE focus_products(id TEXT PRIMARY KEY,name TEXT NOT NULL,brand TEXT NOT NULL,preparation TEXT NOT NULL,aliases_json TEXT NOT NULL,nutrients_json TEXT NOT NULL,uses INTEGER NOT NULL,seen_json TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
    ALTER TABLE food_entries ADD COLUMN product_id TEXT;
-   ALTER TABLE food_entries ADD COLUMN nutrition_sources_json TEXT;`
+   ALTER TABLE food_entries ADD COLUMN nutrition_sources_json TEXT;`,
+  `CREATE TABLE focus_recipes(id TEXT PRIMARY KEY,name TEXT NOT NULL,ingredients_json TEXT NOT NULL,uses INTEGER NOT NULL,seen_json TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+   ALTER TABLE food_entries ADD COLUMN recipe_batch_id TEXT;`
 ];
 
 const starterDatabases=new WeakSet<DB>();
@@ -160,7 +162,7 @@ export function serializeBackup(db: DB): string {
 export function exportBackup(db: DB, path: string): void {writeFileSync(path,serializeBackup(db),'utf8');}
 export function importBackupText(db: DB, content: string): void {
   const parsed = backupSchema.parse(JSON.parse(content));
-  for (const table of backupTables) if (!Array.isArray(parsed.tables[table])) {if((table==='focus_products'&&parsed.version<15)||(focusSourceTables.some(t=>t===table)&&parsed.version<13)||(focusTables.some(t=>t===table)&&parsed.version<12)||(dailyTables.some(t=>t===table)&&parsed.version<11)||(table==='weekly_plan_tasks'&&parsed.version<9)||(['financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries'].includes(table)&&parsed.version<8)||(table==='daily_journals'&&parsed.version<3)||(table.startsWith('investment_')&&parsed.version<5)||(['day_details','day_tasks','day_memories','assistant_reviews'].includes(table)&&parsed.version<6))parsed.tables[table]=[];else throw new Error(`В копии отсутствует таблица ${table}.`);}
+  for (const table of backupTables) if (!Array.isArray(parsed.tables[table])) {if((table==='focus_recipes'&&parsed.version<16)||(table==='focus_products'&&parsed.version<15)||(focusSourceTables.some(t=>t===table)&&parsed.version<13)||(focusTables.some(t=>t===table)&&parsed.version<12)||(dailyTables.some(t=>t===table)&&parsed.version<11)||(table==='weekly_plan_tasks'&&parsed.version<9)||(['financial_goals','weekly_plans','recurring_tasks','recurring_skips','custom_metrics','metric_entries'].includes(table)&&parsed.version<8)||(table==='daily_journals'&&parsed.version<3)||(table.startsWith('investment_')&&parsed.version<5)||(['day_details','day_tasks','day_memories','assistant_reviews'].includes(table)&&parsed.version<6))parsed.tables[table]=[];else throw new Error(`В копии отсутствует таблица ${table}.`);}
   const allowed = new Map<string,Set<string>>();
   for (const table of backupTables) allowed.set(table,new Set((db.pragma(`table_info(${table})`) as {name:string}[]).map(c=>c.name)));
   db.transaction(()=>{

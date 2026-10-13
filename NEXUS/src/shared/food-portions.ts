@@ -2,6 +2,20 @@ import type {Row} from './snapshot-sync';
 import {nutritionColumns,readVitamins} from './nutrition';
 
 const columns=['grams','kcal','kcal_low','kcal_high',...Object.values(nutritionColumns)] as const;
+export function explicitFullIngredientMass(text:string,name:string):number|null{
+ if(!/в\s+(?:полном|вс[её]м)|полны[а-яё]*\s+(?:состав|рецепт|порци)|приготовленн[а-яё]*\s+состав/iu.test(text))return null;
+ const terms=(name.toLowerCase().match(/[а-яёa-z]{3,}/g)??[]).filter(t=>!['готовое','готовый','готовая','сырое','сырая','сырой','замороженная','свежая'].includes(t)).map(t=>t.length>4?t.slice(0,-1):t);
+ const found:number[]=[];
+ for(const match of text.matchAll(/(\d+(?:[.,]\d+)?)\s*(килограмм[а-яё]*|кг|грамм[а-яё]*|гр\.?|г\.?)(?=$|[\s,.;:!?])/giu)){
+  const before=text.slice(Math.max(0,match.index!-45),match.index!),after=text.slice(match.index!+match[0].length,match.index!+match[0].length+45);
+  if(/не\s*$/iu.test(before))continue;
+  const following=after.trim().match(/^(?:готов[а-яё]*\s+|сыр[а-яё]*\s+)?([а-яёa-z-]+)/iu)?.[1].toLowerCase();
+  const preceding=before.toLowerCase().replace(/\s+(?:было|была|был|весом|масса|вес)\s*$/u,'').trim().match(/([а-яёa-z-]+)$/u)?.[1];
+  if(!terms.some(t=>following?.startsWith(t)||preceding?.startsWith(t)))continue;
+  found.push(Number(match[1].replace(',','.'))*(/^(?:кг|килограмм)/iu.test(match[2])?1000:1));
+ }
+ const values=[...new Set(found)];return values.length===1&&values[0]>0&&values[0]<=10000?values[0]:null;
+}
 export function preparedFood(row:Row):Row{
  let raw:Row=row;
  try{const parsed=JSON.parse(String(row.portion_base_json??'null'));if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))raw=parsed;}catch{/* A legacy entry has no prepared portion. */}

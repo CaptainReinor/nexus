@@ -51,6 +51,31 @@ class BackupApiTest(unittest.TestCase):
             self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=1)
         self.assertEqual(invalid.exception.code,426)
 
+    def test_saved_recipes_require_schema16_and_survive_sync(self):
+        tables = nexus_backup.SYNC_TABLES | nexus_backup.INVESTMENT_TABLES | nexus_backup.LIFE_TABLES | nexus_backup.GROWTH_TABLES | {'weekly_plan_tasks'} | nexus_backup.DAILY_TABLES | nexus_backup.FOCUS_TABLES | {'focus_weights','focus_sleep','focus_money','focus_products','focus_recipes'}
+        snapshot = {'format':'nexus-backup','version':16,'exportedAt':'2026-10-13T00:00:00Z','tables':{name:[] for name in tables}}
+        snapshot['tables']['focus_recipes']=[{'id':'12345678-1234-4234-8234-123456789012','name':'Смузи','ingredients_json':'[]','uses':2}]
+        self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=0)
+        self.assertEqual(self.request('/v1/state')[1]['snapshot'],snapshot)
+        snapshot['version']=15
+        del snapshot['tables']['focus_recipes']
+        with self.assertRaises(urllib.error.HTTPError) as invalid:
+            self.request('/v1/state','PUT',json.dumps(snapshot).encode(),revision=1)
+        self.assertEqual(invalid.exception.code,426)
+
+    def test_label_image_forwarding_rejects_remote_image_urls(self):
+        image='data:image/png;base64,AA=='
+        body={'model':'test/model','system':'Read label','user':'example','structured':True,'image':image}
+        def upstream(handler,path,payload):
+            self.assertEqual(payload['messages'][1]['content'][1]['image_url']['url'],image)
+            handler.respond(200,{'content':'{}','requestId':'test','inputTokens':10,'outputTokens':1,'costMicrousd':1})
+        with mock.patch.object(nexus_backup.Handler,'openrouter',upstream):
+            self.assertEqual(self.request('/v1/ai/complete','POST',json.dumps(body).encode())[0],200)
+        body['image']='https://example.test/a.png'
+        with self.assertRaises(urllib.error.HTTPError) as invalid:
+            self.request('/v1/ai/complete','POST',json.dumps(body).encode())
+        self.assertEqual(invalid.exception.code,400)
+
     def test_food_portions_and_diagnostics_survive_sync(self):
         tables = nexus_backup.SYNC_TABLES | nexus_backup.INVESTMENT_TABLES | nexus_backup.LIFE_TABLES | nexus_backup.GROWTH_TABLES | {'weekly_plan_tasks'} | nexus_backup.DAILY_TABLES | nexus_backup.FOCUS_TABLES | {'focus_weights','focus_sleep','focus_money'}
         snapshot = {'format':'nexus-backup','version':14,'exportedAt':'2026-10-13T00:00:00Z','tables':{name:[] for name in tables}}

@@ -112,7 +112,13 @@ public class NexusAIPlugin extends Plugin {
                     path="chat/completions";
                     JSONArray messages=new JSONArray();
                     messages.put(new JSONObject().put("role","system").put("content",call.getString("system","")));
-                    messages.put(new JSONObject().put("role","user").put("content",call.getString("user","")));
+                    String image=call.getString("image","");
+                    Object userContent=call.getString("user","");
+                    if(!image.isEmpty()){
+                        if(image.length()>3000000||!image.matches("^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$"))throw new Exception("Неверный формат фото.");
+                        userContent=new JSONArray().put(new JSONObject().put("type","text").put("text",call.getString("user",""))).put(new JSONObject().put("type","image_url").put("image_url",new JSONObject().put("url",image).put("detail","high")));
+                    }
+                    messages.put(new JSONObject().put("role","user").put("content",userContent));
                     body.put("messages",messages);body.put("max_tokens",6000);body.put("stream",false);
                     if(call.getString("model","").equals("anthropic/claude-haiku-5.5")||call.getString("model","").equals("google/gemini-3.8-flash"))body.put("reasoning",new JSONObject().put("effort","low"));
                     if(call.getString("model","").equals("deepseek/deepseek-v3.2"))body.put("reasoning",new JSONObject().put("enabled",false));

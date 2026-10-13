@@ -65,9 +65,9 @@ export async function aiStatus():Promise<boolean>{
   const result=await response.json() as {configured:boolean};
   return result.configured===true;
 }
-export async function aiComplete(model:string,system:string,user:string,structured:boolean,responseFormat?:Record<string,unknown>):Promise<AIReply>{
-  if(Capacitor.isNativePlatform()){const config=connection();return nativeAI.run({...config,mode:'complete',model,system,user,structured,responseFormat});}
-  const response=await request('/v1/ai/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,system,user,structured,...(responseFormat?{responseFormat}:{})})},120_000);
+export async function aiComplete(model:string,system:string,user:string,structured:boolean,responseFormat?:Record<string,unknown>,image?:string):Promise<AIReply>{
+  if(Capacitor.isNativePlatform()){const config=connection();return nativeAI.run({...config,mode:'complete',model,system,user,structured,responseFormat,image});}
+  const response=await request('/v1/ai/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,system,user,structured,...(image?{image}:{}),...(responseFormat?{responseFormat}:{})})},120_000);
   if(response.status===409)throw new Error('Сначала подключите AI на компьютере в разделе «Сервер и синхронизация».');
   if(!response.ok)throw await aiError(response);
   return response.json() as Promise<AIReply>;

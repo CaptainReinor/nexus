@@ -35,7 +35,7 @@ ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 AI_KEY_FILE = "openrouter-key"
 DAILY_TABLES = {'habit_preferences','care_slots','care_checks','routines','scheduled_payments','payment_occurrences','experiments','experiment_logs','focus_sessions','evening_answers'}
 FOCUS_TABLES = {'mentor_turns','food_entries','activity_entries'}
-API_VERSION = "0.8.5"
+API_VERSION = "0.8.6"
 OPENROUTER_BASE = os.environ.get("NEXUS_OPENROUTER_BASE", "https://openrouter.ai/api/v1").rstrip("/")
 RELAY_KEY = os.environ.get("NEXUS_AI_RELAY_KEY", "")
 INVESTMENT_TABLES = {"investment_accounts", "investment_entries"}
@@ -85,7 +85,7 @@ def valid_envelope(value: object) -> bool:
 def valid_sync_snapshot(value: object) -> bool:
     if not isinstance(value, dict) or set(value) != {"format", "version", "exportedAt", "tables"}:
         return False
-    if value["format"] != "nexus-backup" or type(value["version"]) is not int or not 1 <= value["version"] <= 15:
+    if value["format"] != "nexus-backup" or type(value["version"]) is not int or not 1 <= value["version"] <= 16:
         return False
     if not isinstance(value["exportedAt"], str) or len(value["exportedAt"]) > 40:
         return False
@@ -99,6 +99,8 @@ def valid_sync_snapshot(value: object) -> bool:
         expected |= DAILY_TABLES
     if value['version'] >= 12:
         expected |= FOCUS_TABLES
+    if value['version'] >= 16:
+        expected |= {'focus_recipes'}
     if value['version'] >= 15:
         expected |= {'focus_products'}
     if value['version'] >= 13:
@@ -469,12 +471,17 @@ class Handler(BaseHTTPRequestHandler):
                 self.respond(error.status, {'error':error.code})
             return
         if self.path == "/v1/ai/complete":
-            body = self.read_json(100_000)
+            body = self.read_json(3_200_000)
             if body is None:
                 return
             if not isinstance(body, dict) or not isinstance(body.get("model"), str) or not re.fullmatch(r"[A-Za-z0-9._:/+-]{3,200}", body["model"]) or not isinstance(body.get("system"), str) or len(body["system"]) > 20_000 or not isinstance(body.get("user"), str) or len(body["user"]) > 50_000 or not isinstance(body.get("structured"), bool):
                 self.respond(400, {"error": "invalid_ai_request"})
                 return
+            image = body.get("image", "")
+            if not isinstance(image, str) or len(image) > 3_000_000 or image and not re.fullmatch(r"data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}", image):
+                self.respond(400, {"error":"invalid_image"})
+                return
+            user_content = [{"type":"text","text":body["user"]},{"type":"image_url","image_url":{"url":image,"detail":"high"}}] if image else body["user"]
             model = body["model"]
             gpt6 = re.fullmatch(r"openai/gpt-6-(luna|sol|astra)", model)
             generation = {"max_tokens": 6000, "reasoning": {"effort": "low" if gpt6.group(1) == "luna" else "medium"}} if gpt6 else {"max_tokens": 6000, "temperature": 0.2}
@@ -482,7 +489,7 @@ class Handler(BaseHTTPRequestHandler):
                 generation = {"max_tokens": 6000, "reasoning": {"effort":"low"}}
             elif model == "google/gemini-3.8-flash":
                 generation["reasoning"] = {"effort":"low"}
-            payload = {"model": model, "messages": [{"role": "system", "content": body["system"]}, {"role": "user", "content": body["user"]}], **generation, "stream": False, "usage": {"include": True}}
+            payload = {"model": model, "messages": [{"role": "system", "content": body["system"]}, {"role": "user", "content": user_content}], **generation, "stream": False, "usage": {"include": True}}
             if body["structured"]:
                 response_format = body.get("responseFormat")
                 if response_format is not None:

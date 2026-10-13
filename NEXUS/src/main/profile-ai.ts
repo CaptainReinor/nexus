@@ -14,8 +14,8 @@ export class ProfileAIProvider implements AIProvider {
     }
   }
   async test(key:string){return this.useKey(key,resolved=>this.direct.test(resolved));}
-  async complete(key:string,model:string,system:string,user:string,structured:boolean,responseFormat?:Record<string,unknown>){
-    return this.useKey(key,resolved=>this.direct.complete(resolved,model,system,user,structured,responseFormat));
+  async complete(key:string,model:string,system:string,user:string,structured:boolean,responseFormat?:Record<string,unknown>,image?:string){
+    return this.useKey(key,resolved=>this.direct.complete(resolved,model,system,user,structured,responseFormat,image));
   }
   async transcribe(key:string,model:string,base64:string,format:string){
     return this.useKey(key,resolved=>this.direct.transcribe(resolved,model,base64,format));

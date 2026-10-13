@@ -1,3 +1,4 @@
+import {labelDraftSchema,labelRequestSchema,labelModel,labelInstructions,labelResponseFormat,type LabelDraft} from '../shared/focus-label';
 import {runFocusMentor} from '../shared/focus-mentor';
 import {recordFocusDiagnostic,type FocusDiagnostic} from '../shared/focus-diagnostics';
 import type {Snapshot} from '../shared/snapshot-sync';
@@ -22,7 +23,7 @@ const interviewSchema = z.object({ questions:z.array(z.object({question:z.string
 export { analysisSchema, interviewSchema, journalAnalysisSchema, vacancyDraftSchema };
 type Completion = { content:string; requestId:string; inputTokens:number|null; outputTokens:number|null; costMicrousd:number|null };
 export class OpenRouterAuthenticationError extends Error {}
-export interface AIProvider { test(key:string):Promise<boolean>; complete(key:string,model:string,system:string,user:string,structured:boolean,responseFormat?:Record<string,unknown>):Promise<Completion>; transcribe(key:string,model:string,base64:string,format:string):Promise<Completion> }
+export interface AIProvider { test(key:string):Promise<boolean>; complete(key:string,model:string,system:string,user:string,structured:boolean,responseFormat?:Record<string,unknown>,image?:string):Promise<Completion>; transcribe(key:string,model:string,base64:string,format:string):Promise<Completion> }
 async function providerFailure(response:Response,key:string):Promise<Error>{
   let detail='';try{const body=await response.json() as {error?:{message?:unknown}};if(typeof body.error?.message==='string')detail=body.error.message.split(key).join('[скрыто]').replace(/sk-or-v1-[a-zA-Z0-9_-]+/g,'[скрыто]').slice(0,250);}catch{/* Provider may return HTML. */}
   const message=response.status===401?'OpenRouter отклонил API-ключ.':response.status===403?'OpenRouter запретил запрос из этой сети. Проверьте VPN.':response.status===402?'Исчерпан лимит API-ключа OpenRouter или баланс аккаунта.':response.status===404?'Выбранная модель OpenRouter недоступна.':response.status===429?'OpenRouter временно ограничил запросы. Повторите позже.':response.status===400?'OpenRouter отклонил параметры модели.':`OpenRouter: ошибка ${response.status}.`;
@@ -35,10 +36,10 @@ export class OpenRouterProvider implements AIProvider {
     if (!r.ok) throw await providerFailure(r,key);
     return true;
   }
-  async complete(key:string,model:string,system:string,user:string,structured:boolean,responseFormat?:Record<string,unknown>):Promise<Completion> {
+  async complete(key:string,model:string,system:string,user:string,structured:boolean,responseFormat?:Record<string,unknown>,image?:string):Promise<Completion> {
     const gpt6=/^openai\/gpt-6-(luna|sol|astra)$/.exec(model.trim());
     const generation=model==='anthropic/claude-haiku-5.5'?{max_tokens:6000,reasoning:{effort:'low'}}:model==='google/gemini-3.8-flash'?{max_tokens:6000,temperature:0.2,reasoning:{effort:'low'}}:gpt6?{max_completion_tokens:6000,reasoning_effort:gpt6[1]==='luna'?'low':'medium'}:{max_tokens:6000,temperature:0.2,...(model==='deepseek/deepseek-v3.2'?{reasoning:{enabled:false}}:{})};
-    const response=await desktopFetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json','X-Title':'NEXUS'},body:JSON.stringify({model,messages:[{role:'system',content:system},{role:'user',content:user}],...generation,stream:false,usage:{include:true},...(structured?{response_format:responseFormat??{type:'json_object'},...(responseFormat?{provider:{require_parameters:true}}:{})}:{})}),signal:AbortSignal.timeout(90000)});
+    const response=await desktopFetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json','X-Title':'NEXUS'},body:JSON.stringify({model,messages:[{role:'system',content:system},{role:'user',content:image?[{type:'text',text:user},{type:'image_url',image_url:{url:image,detail:'high'}}]:user}],...generation,stream:false,usage:{include:true},...(structured?{response_format:responseFormat??{type:'json_object'},...(responseFormat?{provider:{require_parameters:true}}:{})}:{})}),signal:AbortSignal.timeout(90000)});
     if (!response.ok) throw await providerFailure(response,key);
     const data=await response.json() as {id?:string;choices?:{message?:{content?:string}}[];usage?:{prompt_tokens?:number;completion_tokens?:number;cost?:number}};
     const content=data.choices?.[0]?.message?.content;
@@ -69,6 +70,11 @@ export class AIGateway {
   async mentor(model:string,facts:Parameters<typeof runFocusMentor>[0]['facts'],overrideBudget=false,snapshot?:Snapshot):Promise<MentorReply>{
     if(!snapshot)throw Error('Не удалось загрузить записи режима фокуса.');
     return runFocusMentor({snapshot,facts,model,beforeAttempt:()=>this.assertBudget(overrideBudget),complete:(system,user)=>this.provider.complete(this.credentials(),model,system,user,true,mentorResponseFormat),record:(result,status)=>this.record('focus-mentor',model,result,status),diagnostic:value=>this.recordFocusDiagnostic(value)});
+  }
+  async scanLabel(input:z.infer<typeof labelRequestSchema>):Promise<LabelDraft>{
+    input=labelRequestSchema.parse(input);this.assertBudget(input.overrideBudget);let result:Completion|undefined;
+    try{result=await this.provider.complete(this.credentials(),labelModel,labelInstructions,'Прочитай этикетку.',true,labelResponseFormat,input.image);const draft=labelDraftSchema.parse(JSON.parse(result.content.replace(/^\s*```(?:json)?\s*/i,'').replace(/\s*```\s*$/,'')));this.record('focus-label',labelModel,result,'ok');return draft;}
+    catch(error){this.record('focus-label',labelModel,result,'error');throw error instanceof z.ZodError||error instanceof SyntaxError?Error('Не удалось прочитать этикетку. Попробуйте более чёткое фото.'):error;}
   }
   private assertBudget(override=false):void {const settings=this.settings.get(),usage=this.settings.usedMicrousd();if(!settings.aiEnabled)throw new Error('Включите AI в настройках.');if(!override&&(usage.unknown>0||usage.known>=settings.aiBudgetCents*10_000))throw new Error('AI_BUDGET_CONFIRM');}
   private record(feature:string,model:string,result:Completion|undefined,status:'ok'|'error'):void {this.db.prepare('INSERT INTO ai_usage(id,timestamp,provider,model,feature,input_tokens,output_tokens,cost_microusd,request_id,status) VALUES (nexus_id(),?,?,?,?,?,?,?,?,?)').run(localDateTime(),'OpenRouter',model,feature,result?.inputTokens??null,result?.outputTokens??null,result?.costMicrousd??null,result?.requestId??'',status);}

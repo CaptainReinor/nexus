@@ -25,3 +25,8 @@ it('keeps a valid cached key when the provider blocks the network',async()=>{
   const {remote,direct,provider}=setup();direct.test.mockRejectedValue(new Error('network blocked'));
   await expect(provider.test('')).rejects.toThrow('network blocked');expect(remote.clearDeviceAIKey).not.toHaveBeenCalled();
 });
+it('forwards a label image and its schema through the profile provider',async()=>{
+ const {direct,provider}=setup(),image='data:image/png;base64,AA==',format={type:'json_schema'};
+ await provider.complete('','model','system','user',true,format,image);
+ expect(direct.complete).toHaveBeenCalledWith('issued','model','system','user',true,format,image);
+});

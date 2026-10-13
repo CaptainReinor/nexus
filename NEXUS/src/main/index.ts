@@ -1,3 +1,4 @@
+import {labelRequestSchema,labelSaveSchema} from '../shared/focus-label';
 import {FocusModeRepository} from './focus-mode';
 import {focusConfigSchema,focusConfigPatchSchema,mentorRequestSchema,focusTurnSchema,removeFocusFoodSchema} from '../shared/focus-mode';
 import {jobInputSchema} from '../shared/vacancy';
@@ -110,6 +111,8 @@ void app.whenReady().then(()=>{
   handle('focus:configure',z.object({config:focusConfigSchema,enableAI:z.boolean().default(false)}),input=>focusMode.configure(input.config,input.enableAI));
   handle('focus:send',mentorRequestSchema,input=>focusMode.send(input));
   handle('focus:save',focusTurnSchema,input=>focusMode.save(input));
+  handle('focus:scanLabel',labelRequestSchema,input=>focusMode.scanLabel(input));
+  handle('focus:saveLabel',labelSaveSchema,input=>focusMode.saveLabel(input));
   handle('focus:transcribe',z.object({base64:z.string().max(28000000),format:z.enum(['webm','wav','mp3']),overrideBudget:z.boolean().optional()}),input=>focusMode.transcribe(input));
   handle('profiles:list',z.undefined(),()=>profiles.list());
   handle('profiles:create',z.string().trim().min(1).max(80),name=>{profiles.create(name);return profiles.list();});
