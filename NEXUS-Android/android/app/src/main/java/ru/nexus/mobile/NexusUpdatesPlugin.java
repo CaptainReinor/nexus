@@ -46,7 +46,7 @@ public class NexusUpdatesPlugin extends Plugin {
   private File apk(){return new File(new File(getContext().getCacheDir(),"updates"),"nexus-update.apk");}
   private JSObject state(){JSObject value=new JSObject();value.put("phase",phase);try{value.put("currentVersion",own().versionName);}catch(Exception ignored){value.put("currentVersion","");}if(!version.isEmpty())value.put("version",version);value.put("percent",percent);if(!message.isEmpty())value.put("message",message);return value;}
   @PluginMethod public void status(PluginCall call){call.resolve(state());}
-  private static int compare(String left,String right){String[] a=left.split("\\."),b=right.split("\\.");for(int i=0;i<3;i++){int delta=Integer.parseInt(a[i])-Integer.parseInt(b[i]);if(delta!=0)return delta;}return 0;}
+  private static int compare(String left,String right){String[] a=left.split("\\."),b=right.split("\\.");for(int i=0;i<Math.max(a.length,b.length);i++){int delta=Integer.compare(i<a.length?Integer.parseInt(a[i]):0,i<b.length?Integer.parseInt(b[i]):0);if(delta!=0)return delta;}return 0;}
   private HttpURLConnection connect(String address,boolean redirects) throws Exception{
     HttpURLConnection c=(HttpURLConnection)new URL(address).openConnection();c.setConnectTimeout(10000);c.setReadTimeout(30000);c.setInstanceFollowRedirects(redirects);c.setRequestProperty("User-Agent","NEXUS-updater");c.setRequestProperty("Accept","application/vnd.github+json");
     if(c.getResponseCode()!=200){c.disconnect();throw new Exception("HTTP error");}return c;
@@ -55,21 +55,25 @@ public class NexusUpdatesPlugin extends Plugin {
     if(phase.equals("ready")||phase.equals("downloading")){call.resolve(state());return;}
     phase="checking";message="";
     try{
-      HttpURLConnection c=connect("https://api.github.com/repos/CaptainReinor/nexus/releases/latest",false);
-      JSONObject release;
+      // Android hotfixes need not become the latest Windows release.
+      HttpURLConnection c=connect("https://api.github.com/repos/CaptainReinor/nexus/releases?per_page=20",false);
+      JSONArray releases;
       try(InputStream in=c.getInputStream();ByteArrayOutputStream out=new ByteArrayOutputStream()){
-        byte[] bytes=new byte[8192];int n;while((n=in.read(bytes))!=-1){out.write(bytes,0,n);if(out.size()>1024*1024)throw new Exception("Release too large");}release=new JSONObject(out.toString(StandardCharsets.UTF_8.name()));
+        byte[] bytes=new byte[8192];int n;while((n=in.read(bytes))!=-1){out.write(bytes,0,n);if(out.size()>1024*1024)throw new Exception("Release too large");}releases=new JSONArray(out.toString(StandardCharsets.UTF_8.name()));
       }finally{c.disconnect();}
-      if(release.optBoolean("draft")||release.optBoolean("prerelease"))throw new Exception("Unpublished release");
       phase="current";version="";assetUrl="";digest="";expectedSize=0;
+      for(int r=0;r<releases.length();r++){
+      JSONObject release=releases.getJSONObject(r);
+      if(release.optBoolean("draft")||release.optBoolean("prerelease"))continue;
       JSONArray assets=release.getJSONArray("assets");
       for(int i=0;i<assets.length();i++){
         JSONObject asset=assets.getJSONObject(i);String name=asset.optString("name");
-        if(!name.matches("NEXUS-\\d+\\.\\d+\\.\\d+\\.apk"))continue;
+        if(!name.matches("NEXUS-\\d+\\.\\d+\\.\\d+(?:\\.\\d+)?\\.apk"))continue;
         String candidate=name.substring(6,name.length()-4);if(compare(candidate,own().versionName)<=0)continue;
         String address=asset.optString("browser_download_url"),hash=asset.optString("digest");long size=asset.optLong("size");
         if(!address.startsWith(PREFIX)||!address.endsWith("/"+name)||!hash.matches("sha256:[0-9a-f]{64}")||size<=0||size>MAX_APK)throw new Exception("Invalid update asset");
         if(version.isEmpty()||compare(candidate,version)>0){version=candidate;assetUrl=address;digest=hash.substring(7);expectedSize=size;phase="available";}
+      }
       }
     }catch(Exception error){phase="error";message="Не удалось проверить обновления. Проверьте интернет.";}
     call.resolve(state());
