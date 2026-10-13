@@ -1,3 +1,4 @@
+import {localDateTime} from '../../NEXUS/src/shared/domain';
 import {vacancyDraftSchema as vacancySchema,vacancyInstructions,vacancyResponseFormat,parseVacancyResponse} from '../../NEXUS/src/shared/vacancy';
 import {knownCare} from '../../NEXUS/src/shared/care';
 import {knownMetrics,filterMetricSuggestions} from '../../NEXUS/src/shared/growth';
@@ -31,9 +32,9 @@ export function needsBudgetConfirmation(snapshot:Snapshot):boolean{
   const unknown=usage.some(x=>x.cost_microusd==null&&(x.status==='ok'||x.request_id||x.input_tokens!=null));
   return unknown||known>=Number(setting(snapshot,'aiBudgetCents',1000))*10_000;
 }
-export function recordUsage(snapshot:Snapshot,reply:AIReply,feature:string,usedModel:string):void{
+export function recordUsage(snapshot:Snapshot,reply:AIReply,feature:string,usedModel:string,status:'ok'|'error'='ok'):void{
   const usage=rows(snapshot,'ai_usage');
-  usage.push({id:nextId(usage),timestamp:new Date().toISOString().slice(0,19),provider:'OpenRouter',model:usedModel,feature,input_tokens:reply.inputTokens,output_tokens:reply.outputTokens,cost_microusd:reply.costMicrousd,request_id:reply.requestId,status:'ok'});
+  usage.push({id:nextId(usage),timestamp:localDateTime(),provider:'OpenRouter',model:usedModel,feature,input_tokens:reply.inputTokens,output_tokens:reply.outputTokens,cost_microusd:reply.costMicrousd,request_id:reply.requestId,status});
 }
 function validateReply(value:AIReply):AIReply{return replySchema.parse(value);}
 

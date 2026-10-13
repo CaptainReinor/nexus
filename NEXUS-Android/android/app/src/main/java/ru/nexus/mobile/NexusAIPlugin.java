@@ -114,6 +114,7 @@ public class NexusAIPlugin extends Plugin {
                     messages.put(new JSONObject().put("role","system").put("content",call.getString("system","")));
                     messages.put(new JSONObject().put("role","user").put("content",call.getString("user","")));
                     body.put("messages",messages);body.put("max_tokens",6000);body.put("stream",false);
+                    if(call.getString("model","").equals("anthropic/claude-haiku-5.5")||call.getString("model","").equals("google/gemini-3.8-flash"))body.put("reasoning",new JSONObject().put("effort","low"));
                     if(call.getString("model","").equals("deepseek/deepseek-v3.2"))body.put("reasoning",new JSONObject().put("enabled",false));
                     body.put("usage",new JSONObject().put("include",true));
                     if(call.getBoolean("structured",false)){

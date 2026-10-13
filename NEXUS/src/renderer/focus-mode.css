@@ -10,3 +10,7 @@ html[data-theme=standard]{--favorable:#9ac9b3;--unfavorable:#e5a89c;--inset:#172
 .date-chart>.chart-inspection{background:none;border-radius:0;flex:none;min-width:0}.focus-page .mentor-send{display:block;color:#171b1d;background:#d2a454;min-width:115px}.focus-page .focus-audio-upload{margin:0}.app.focus-active .main.focus-shell{padding-top:calc(18px + var(--safe-area-inset-top,env(safe-area-inset-top,0px)));padding-bottom:calc(16px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))}
 
 .focus-page,.focus-settings{--amber:#d2a454;--amber2:#e2b663}
+
+.focus-food-actions{display:flex!important;flex-direction:column;align-items:flex-end;gap:6px;flex:none}.focus-food-actions>strong{white-space:nowrap}.focus-food-actions .button{padding:5px 9px;min-height:32px;font-size:11px}
+
+.focus-savings{border:1px solid #3b4c54;border-radius:12px;padding:18px;margin-bottom:24px}.focus-savings header{display:flex;align-items:center;justify-content:space-between;gap:16px}.focus-savings header strong{font-size:24px;font-variant-numeric:tabular-nums}.focus-savings form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:12px;align-items:end;margin:18px 0}.focus-savings form label{min-width:0}.focus-savings .button{min-height:44px}.focus-savings h3{margin:0}@media(max-width:600px){.focus-savings{padding:14px}.focus-savings form{grid-template-columns:1fr 1fr}.focus-savings form button{grid-column:1/-1}.focus-savings header strong{font-size:20px}}

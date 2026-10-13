@@ -1,8 +1,10 @@
+import {runFocusMentor} from '../../NEXUS/src/shared/focus-mentor';
+import {recordFocusDiagnostic,focusDiagnostic} from '../../NEXUS/src/shared/focus-diagnostics';
 import {removeJob} from '../../NEXUS/src/shared/work-removal';
 import {FocusPage,FocusSettings} from '../../NEXUS/src/renderer/focus-mode';
 import {useFocusMode} from '../../NEXUS/src/renderer/focus-mode-state';
 import {focusSnapshot,publishFocus} from '../../NEXUS/src/shared/focus-isolation';
-import {focusFacts,focusConfig,mentorInstructions,mentorResponseFormat,parseMentorReply,configureFocus,saveFocusTurn,type FocusAPI} from '../../NEXUS/src/shared/focus-mode';
+import {focusFacts,focusConfig,mentorResponseFormat,configureFocus,saveFocusTurn,removeFocusFood,type FocusAPI} from '../../NEXUS/src/shared/focus-mode';
 import {aiEnabled,needsBudgetConfirmation,recordUsage,transcribeAudio} from './ai';
 import {aiComplete} from './sync';
 import {workStages,workStage,workStageLabels,workStatistics} from '../../NEXUS/src/shared/work-stages';
@@ -110,10 +112,9 @@ export function App(){
     const read=()=>{const s=engine.current?.state.snapshot;if(!s)throw Error('Данные ещё загружаются.');return s;};
     const change=async(fn:(s:Snapshot)=>void)=>{if(!await commitLatest(fn))throw Error('Не удалось сохранить изменения.');};
     const allowed=(override=false)=>{if(!aiEnabled(read()))throw Error('Включите ИИ в настройках.');if(!override&&needsBudgetConfirmation(read()))throw Error('AI_BUDGET_CONFIRM');};
-    return {publish:async()=>{let result={written:0,skipped:0};await change(s=>{result=publishFocus(s);});return result;},snapshot:async()=>focusSnapshot(read()),configure:(c,enableAI=false)=>change(s=>configureFocus(s,c,enableAI)),save:x=>change(s=>saveFocusTurn(s,x)),send:async input=>{
-      allowed(input.overrideBudget);const s=read(),model=focusConfig(s).model;const reply=await aiComplete(model,mentorInstructions,JSON.stringify(focusFacts(s,input.day,input.text)),true,mentorResponseFormat);let result;
-      try{result=parseMentorReply(reply.content,input.text);}catch{await change(s=>recordUsage(s,reply,'focus-mentor-error',model));throw Error('Не удалось проверить записи наставника. Данные не изменены.');}
-      await change(s=>recordUsage(s,reply,'focus-mentor',model));return result;
+    return {removeFood:input=>change(s=>removeFocusFood(s,input)),publish:async()=>{let result={written:0,skipped:0};await change(s=>{result=publishFocus(s);});return result;},snapshot:async()=>focusSnapshot(read()),configure:(c,enableAI=false)=>change(s=>configureFocus(s,c,enableAI)),save:async x=>{try{await change(s=>saveFocusTurn(s,x));}catch(error){await change(s=>recordFocusDiagnostic(s,focusDiagnostic({stage:'save',model:focusConfig(s).model,requestId:'',day:x.day,text:x.text,response:JSON.stringify({reply:x.reply,actions:x.actions}),attempt:0},error)));throw error;}},send:async input=>{
+      const s=focusSnapshot(read()),model=focusConfig(s).model;
+      return runFocusMentor({snapshot:s,facts:focusFacts(s,input.day,input.text),model,beforeAttempt:()=>allowed(input.overrideBudget),complete:(system,user)=>aiComplete(model,system,user,true,mentorResponseFormat),record:async(reply,status)=>{if(reply)await change(s=>recordUsage(s,reply,'focus-mentor',model,status));},diagnostic:value=>change(s=>recordFocusDiagnostic(s,value))});
     },transcribe:async input=>{allowed(input.overrideBudget);const result=await transcribeAudio(read(),input.base64,input.format);await change(s=>recordUsage(s,result.reply,'focus-transcription',result.model));return result.text;}};
   },[commitLatest]);
   const snapshot=state?.snapshot;

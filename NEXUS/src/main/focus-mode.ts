@@ -1,8 +1,9 @@
 import type {DB} from './database';
 import {schemaVersion,backupTables} from './database';
 import type {Row,Snapshot} from '../shared/snapshot-sync';
-import {configureFocus,saveFocusTurn,focusConfig,focusFacts,type FocusAPI,type FocusConfig,type FocusTurnInput} from '../shared/focus-mode';
+import {configureFocus,saveFocusTurn,removeFocusFood,focusConfig,focusFacts,type FocusAPI,type FocusConfig,type FocusTurnInput} from '../shared/focus-mode';
 import {focusSnapshot,initializeFocus,publishFocus} from '../shared/focus-isolation';
+import {focusDiagnostic} from '../shared/focus-diagnostics';
 import type {AIGateway} from './ai';
 const writeTables=['settings','finance_accounts','finance_categories','weight_entries','health_daily_entries','workouts','finance_transactions','mentor_turns','food_entries','activity_entries','focus_weights','focus_sleep','focus_money'];
 export class FocusModeRepository implements FocusAPI{
@@ -21,9 +22,10 @@ export class FocusModeRepository implements FocusAPI{
    }
   })();
  }
+ async removeFood(input:Parameters<FocusAPI['removeFood']>[0]){this.change(s=>removeFocusFood(s,input));}
  async publish(){let result={written:0,skipped:0};this.change(s=>{result=publishFocus(s);});return result;}
  async configure(config:FocusConfig,enableAI=false){this.change(s=>configureFocus(s,config,enableAI));}
- async send(input:Parameters<FocusAPI['send']>[0]){const snapshot=await this.snapshot();return this.ai.mentor(focusConfig(snapshot).model,focusFacts(snapshot,input.day,input.text),input.overrideBudget);}
- async save(input:FocusTurnInput){await this.change(s=>saveFocusTurn(s,input));}
+ async send(input:Parameters<FocusAPI['send']>[0]){const snapshot=await this.snapshot();return this.ai.mentor(focusConfig(snapshot).model,focusFacts(snapshot,input.day,input.text),input.overrideBudget,snapshot);}
+ async save(input:FocusTurnInput){try{await this.change(s=>saveFocusTurn(s,input));}catch(error){this.ai.recordFocusDiagnostic?.(focusDiagnostic({stage:'save',model:focusConfig(this.readSnapshot()).model,requestId:'',day:input.day,text:input.text,response:JSON.stringify({reply:input.reply,actions:input.actions}),attempt:0},error));throw error;}}
  async transcribe(input:Parameters<FocusAPI['transcribe']>[0]){return this.ai.transcribe(input.base64,input.format,input.overrideBudget);}
 }

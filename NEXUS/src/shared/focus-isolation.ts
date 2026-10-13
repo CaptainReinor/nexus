@@ -1,27 +1,36 @@
 import type {Row,Snapshot} from './snapshot-sync';
+import {initializeFoodPortions,removeLegacyDeletedFoods} from './food-portions';
 import {localDay} from './domain';
 import {put,numericId,records} from './daily-core';
 import {fingerprint} from './record-clocks';
 import {defaultExpenseCategories} from './finance-defaults';
+import {defaultMentorModel} from './focus-model';
 
 export const focusSourceTables=['focus_weights','focus_sleep','focus_money'] as const;
 const sourceMap={weight_entries:'focus_weights',health_daily_entries:'focus_sleep',finance_transactions:'focus_money'} as const;
 const owned=['mentor_turns','food_entries','activity_entries'] as const;
-export const focusAccounts=[{id:1,name:'Дебет',active:1,opening_cents:0}];
+export const focusAccounts=[{id:1,name:'Дебет',active:1,opening_cents:0},{id:2,name:'Накопления',active:1,opening_cents:0}];
 export const focusCategories=defaultExpenseCategories.map((name,i)=>({id:i+1,name,kind:'expense',active:1}));
 export function focusBoundary(s:Snapshot):{day:string;at:string}|null{
  try{const value=JSON.parse(String(s.tables.settings?.find(r=>r.key==='focusBoundary')?.value));if(/^\d{4}-\d{2}-\d{2}$/.test(value.day)&&Number.isFinite(Date.parse(value.at)))return value;}catch{/* Older versions have no isolated session. */}return null;
 }
 export function initializeFocus(s:Snapshot,now=new Date().toISOString()){
  for(const table of [...focusSourceTables,...owned])records(s,table);
- s.version=Math.max(s.version,13);
+ initializeFoodPortions(records(s,'food_entries'));s.version=Math.max(s.version,14);
  if(!focusBoundary(s))put(s,'settings',{key:'focusBoundary',value:JSON.stringify({day:localDay(),at:now})},'key');
+ const boundary=focusBoundary(s)!;
+ s.tables.food_entries=removeLegacyDeletedFoods(records(s,'food_entries'),records(s,'mentor_turns').filter(r=>String(r.day)>=boundary.day&&String(r.created_at)>=boundary.at));
+ if(!records(s,'settings').some(r=>r.key==='_focusModelRevision')){
+  const config=records(s,'settings').find(r=>r.key==='focusConfig');
+  try{const value=JSON.parse(String(config?.value));if(value.model==='anthropic/claude-sonnet-4.6')put(s,'settings',{key:'focusConfig',value:JSON.stringify({...value,model:defaultMentorModel})},'key');}catch{/* An unconfigured profile uses the new default. */}
+  put(s,'settings',{key:'_focusModelRevision',value:'2'},'key');
+ }
 }
 // Deliberate allowlist: never forward the normal application's records/settings.
 // Aliases keep presentation independent of the physical storage layout.
 export function focusSnapshot(s:Snapshot):Snapshot{
  const boundary=focusBoundary(s),start=boundary?.day??localDay();
- const tables:Snapshot['tables']={settings:(s.tables.settings??[]).filter(r=>['focusConfig','focusBoundary'].includes(String(r.key))).map(r=>structuredClone(r)),finance_accounts:structuredClone(focusAccounts),finance_categories:structuredClone(focusCategories)};
+ const tables:Snapshot['tables']={settings:(s.tables.settings??[]).filter(r=>['focusConfig','focusBoundary','focusFoodEdits'].includes(String(r.key))).map(r=>structuredClone(r)),finance_accounts:structuredClone(focusAccounts),finance_categories:structuredClone(focusCategories)};
  for(const [view,source] of Object.entries(sourceMap)){
   const rows=boundary?(s.tables[source]??[]).filter(r=>String(r.day??r.occurred_at).slice(0,10)>=start):[];
   tables[source]=structuredClone(rows);tables[view]=structuredClone(rows);
@@ -55,10 +64,16 @@ export function publishFocus(s:Snapshot):{written:number;skipped:number}{
    if(source==='finance_transactions'){
     const accounts=records(s,'finance_accounts').filter(r=>r.active===1);let account=accounts.find(r=>r.name==='Дебет')??accounts[0];
     if(!account){const archived=records(s,'finance_accounts').find(r=>r.name==='Дебет');account=archived?{...archived,active:1}:{id:numericId(records(s,'finance_accounts')),name:'Дебет',opening_cents:0,active:1};put(s,'finance_accounts',account);}
+    if(row.type==='transfer'){
+     let savings=records(s,'finance_accounts').find(r=>r.name==='Накопления');
+     if(!savings){savings={id:numericId(records(s,'finance_accounts')),name:'Накопления',opening_cents:0,active:1};put(s,'finance_accounts',savings);}
+     else if(savings.active!==1){savings={...savings,active:1};put(s,'finance_accounts',savings);}
+     next={...next,account_id:row.account_id===2?savings.id:account.id,target_account_id:row.target_account_id===2?savings.id:account.id,category_id:null};
+    }
     const name=focusCategories.find(c=>c.id===row.category_id)?.name??'Прочее';
     let category=row.type==='income'?null:records(s,'finance_categories').find(c=>c.active===1&&c.kind==='expense'&&c.name===name);
     if(row.type==='expense'&&!category){const archived=records(s,'finance_categories').find(c=>c.kind==='expense'&&c.name===name);category=archived?{...archived,active:1}:{id:numericId(records(s,'finance_categories')),name,kind:'expense',active:1};put(s,'finance_categories',category);}
-    next={...next,account_id:account.id,category_id:category?.id??null};
+    if(row.type!=='transfer')next={...next,account_id:account.id,category_id:category?.id??null};
    }
    const link={source,key,primary,target:next[primary] as string|number,hash:fingerprint(next),sourceHash};
    links=links.filter(l=>!(l.source===source&&l.key===key));links.push(link);put(s,source,next,primary);written++;

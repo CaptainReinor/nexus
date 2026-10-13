@@ -1,4 +1,7 @@
-import {mentorInstructions,mentorResponseFormat,parseMentorReply,type MentorReply} from '../shared/focus-mode';
+import {runFocusMentor} from '../shared/focus-mentor';
+import {recordFocusDiagnostic,type FocusDiagnostic} from '../shared/focus-diagnostics';
+import type {Snapshot} from '../shared/snapshot-sync';
+import {mentorResponseFormat,type MentorReply} from '../shared/focus-mode';
 import {vacancyDraftSchema,vacancyInstructions,vacancyResponseFormat,parseVacancyResponse} from '../shared/vacancy';
 import {filterMetricSuggestions,type knownMetrics} from '../shared/growth';
 import { desktopFetch } from './desktop-fetch';
@@ -34,7 +37,7 @@ export class OpenRouterProvider implements AIProvider {
   }
   async complete(key:string,model:string,system:string,user:string,structured:boolean,responseFormat?:Record<string,unknown>):Promise<Completion> {
     const gpt6=/^openai\/gpt-6-(luna|sol|astra)$/.exec(model.trim());
-    const generation=gpt6?{max_completion_tokens:6000,reasoning_effort:gpt6[1]==='luna'?'low':'medium'}:{max_tokens:6000,temperature:0.2,...(model==='deepseek/deepseek-v3.2'?{reasoning:{enabled:false}}:{})};
+    const generation=model==='anthropic/claude-haiku-5.5'?{max_tokens:6000,reasoning:{effort:'low'}}:model==='google/gemini-3.8-flash'?{max_tokens:6000,temperature:0.2,reasoning:{effort:'low'}}:gpt6?{max_completion_tokens:6000,reasoning_effort:gpt6[1]==='luna'?'low':'medium'}:{max_tokens:6000,temperature:0.2,...(model==='deepseek/deepseek-v3.2'?{reasoning:{enabled:false}}:{})};
     const response=await desktopFetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json','X-Title':'NEXUS'},body:JSON.stringify({model,messages:[{role:'system',content:system},{role:'user',content:user}],...generation,stream:false,usage:{include:true},...(structured?{response_format:responseFormat??{type:'json_object'},...(responseFormat?{provider:{require_parameters:true}}:{})}:{})}),signal:AbortSignal.timeout(90000)});
     if (!response.ok) throw await providerFailure(response,key);
     const data=await response.json() as {id?:string;choices?:{message?:{content?:string}}[];usage?:{prompt_tokens?:number;completion_tokens?:number;cost?:number}};
@@ -58,13 +61,14 @@ export class OpenRouterProvider implements AIProvider {
 export class AIGateway {
   constructor(private db:DB,private settings:SettingsRepository,private work:WorkRepository,private provider:AIProvider=new OpenRouterProvider(),private credentials:()=>string=()=>settings.getApiKey()) {}
   async testConnection():Promise<boolean> { return this.provider.test(this.credentials()); }
-  async mentor(model:string,facts:unknown,overrideBudget=false):Promise<MentorReply>{
-    this.assertBudget(overrideBudget);let result:Completion|undefined;
-    try{
-      result=await this.provider.complete(this.credentials(),model,mentorInstructions,JSON.stringify(facts),true,mentorResponseFormat);
-      const response=parseMentorReply(result.content,typeof facts==='object'&&facts&&'text' in facts?String(facts.text):'');
-      this.record('focus-mentor',model,result,'ok');return response;
-    }catch(error){this.record('focus-mentor',model,result,'error');if(error instanceof z.ZodError||error instanceof SyntaxError)throw new Error('Не удалось проверить записи наставника. Данные не изменены; повторите запрос.');if(error instanceof TypeError)throw new Error('Не удалось связаться с OpenRouter. Проверьте подключение.');throw error;}
+  recordFocusDiagnostic(value:FocusDiagnostic){
+    const snapshot:Snapshot={format:'nexus-backup',version:14,exportedAt:'',tables:{settings:this.db.prepare('SELECT * FROM settings').all() as Snapshot['tables'][string]}};
+    recordFocusDiagnostic(snapshot,value);const row=snapshot.tables.settings.find(r=>r.key==='_focusDiagnostics')!;
+    this.db.prepare('INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(row.key,row.value);
+  }
+  async mentor(model:string,facts:Parameters<typeof runFocusMentor>[0]['facts'],overrideBudget=false,snapshot?:Snapshot):Promise<MentorReply>{
+    if(!snapshot)throw Error('Не удалось загрузить записи режима фокуса.');
+    return runFocusMentor({snapshot,facts,model,beforeAttempt:()=>this.assertBudget(overrideBudget),complete:(system,user)=>this.provider.complete(this.credentials(),model,system,user,true,mentorResponseFormat),record:(result,status)=>this.record('focus-mentor',model,result,status),diagnostic:value=>this.recordFocusDiagnostic(value)});
   }
   private assertBudget(override=false):void {const settings=this.settings.get(),usage=this.settings.usedMicrousd();if(!settings.aiEnabled)throw new Error('Включите AI в настройках.');if(!override&&(usage.unknown>0||usage.known>=settings.aiBudgetCents*10_000))throw new Error('AI_BUDGET_CONFIRM');}
   private record(feature:string,model:string,result:Completion|undefined,status:'ok'|'error'):void {this.db.prepare('INSERT INTO ai_usage(id,timestamp,provider,model,feature,input_tokens,output_tokens,cost_microusd,request_id,status) VALUES (nexus_id(),?,?,?,?,?,?,?,?,?)').run(localDateTime(),'OpenRouter',model,feature,result?.inputTokens??null,result?.outputTokens??null,result?.costMicrousd??null,result?.requestId??'',status);}

@@ -35,7 +35,7 @@ ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 AI_KEY_FILE = "openrouter-key"
 DAILY_TABLES = {'habit_preferences','care_slots','care_checks','routines','scheduled_payments','payment_occurrences','experiments','experiment_logs','focus_sessions','evening_answers'}
 FOCUS_TABLES = {'mentor_turns','food_entries','activity_entries'}
-API_VERSION = "0.8.1"
+API_VERSION = "0.8.2"
 OPENROUTER_BASE = os.environ.get("NEXUS_OPENROUTER_BASE", "https://openrouter.ai/api/v1").rstrip("/")
 RELAY_KEY = os.environ.get("NEXUS_AI_RELAY_KEY", "")
 INVESTMENT_TABLES = {"investment_accounts", "investment_entries"}
@@ -85,7 +85,7 @@ def valid_envelope(value: object) -> bool:
 def valid_sync_snapshot(value: object) -> bool:
     if not isinstance(value, dict) or set(value) != {"format", "version", "exportedAt", "tables"}:
         return False
-    if value["format"] != "nexus-backup" or type(value["version"]) is not int or not 1 <= value["version"] <= 13:
+    if value["format"] != "nexus-backup" or type(value["version"]) is not int or not 1 <= value["version"] <= 14:
         return False
     if not isinstance(value["exportedAt"], str) or len(value["exportedAt"]) > 40:
         return False
@@ -476,6 +476,10 @@ class Handler(BaseHTTPRequestHandler):
             model = body["model"]
             gpt6 = re.fullmatch(r"openai/gpt-6-(luna|sol|astra)", model)
             generation = {"max_tokens": 6000, "reasoning": {"effort": "low" if gpt6.group(1) == "luna" else "medium"}} if gpt6 else {"max_tokens": 6000, "temperature": 0.2}
+            if model == "anthropic/claude-haiku-5.5":
+                generation = {"max_tokens": 6000, "reasoning": {"effort":"low"}}
+            elif model == "google/gemini-3.8-flash":
+                generation["reasoning"] = {"effort":"low"}
             payload = {"model": model, "messages": [{"role": "system", "content": body["system"]}, {"role": "user", "content": body["user"]}], **generation, "stream": False, "usage": {"include": True}}
             if body["structured"]:
                 response_format = body.get("responseFormat")

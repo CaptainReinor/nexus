@@ -10,7 +10,7 @@ import { randomInt } from 'node:crypto';
 import { defaultDebit, defaultCategories } from '../shared/finance-defaults';
 
 export type DB = Database.Database;
-export const schemaVersion = 13;
+export const schemaVersion = 14;
 export const backupTables = [
   'settings','habits','habit_logs','health_daily_entries','weight_entries','workouts',
   'finance_accounts','finance_categories','finance_transactions','finance_budgets',
@@ -117,7 +117,10 @@ const migrations: string[] = [
   CREATE INDEX idx_mentor_day ON mentor_turns(day,created_at);`,
   `CREATE TABLE focus_weights(id INTEGER PRIMARY KEY,day TEXT NOT NULL UNIQUE,weight_kg REAL NOT NULL);
   CREATE TABLE focus_sleep(day TEXT PRIMARY KEY,mood TEXT,energy TEXT,nutrition TEXT,comment TEXT NOT NULL,sleep_start TEXT,sleep_end TEXT,sleep_minutes INTEGER);
-  CREATE TABLE focus_money(id INTEGER PRIMARY KEY,occurred_at TEXT NOT NULL,created_at TEXT NOT NULL,type TEXT NOT NULL,amount_cents INTEGER NOT NULL CHECK(amount_cents>0),account_id INTEGER NOT NULL,target_account_id INTEGER,category_id INTEGER,note TEXT NOT NULL);`
+  CREATE TABLE focus_money(id INTEGER PRIMARY KEY,occurred_at TEXT NOT NULL,created_at TEXT NOT NULL,type TEXT NOT NULL,amount_cents INTEGER NOT NULL CHECK(amount_cents>0),account_id INTEGER NOT NULL,target_account_id INTEGER,category_id INTEGER,note TEXT NOT NULL);`,
+  `ALTER TABLE food_entries ADD COLUMN meal_name TEXT NOT NULL DEFAULT '';
+   ALTER TABLE food_entries ADD COLUMN portion_fraction REAL NOT NULL DEFAULT 1;
+   ALTER TABLE food_entries ADD COLUMN portion_base_json TEXT;`
 ];
 
 const starterDatabases=new WeakSet<DB>();
