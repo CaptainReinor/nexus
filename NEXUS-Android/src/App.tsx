@@ -4,7 +4,7 @@ import {removeJob} from '../../NEXUS/src/shared/work-removal';
 import {FocusPage,FocusSettings} from '../../NEXUS/src/renderer/focus-mode';
 import {useFocusMode} from '../../NEXUS/src/renderer/focus-mode-state';
 import {focusSnapshot,publishFocus} from '../../NEXUS/src/shared/focus-isolation';
-import {focusFacts,focusConfig,mentorResponseFormat,configureFocus,saveFocusTurn,removeFocusFood,type FocusAPI} from '../../NEXUS/src/shared/focus-mode';
+import {focusFacts,focusConfig,mentorResponseFormat,configureFocus,updateFocusConfig,saveFocusTurn,removeFocusFood,type FocusAPI} from '../../NEXUS/src/shared/focus-mode';
 import {aiEnabled,needsBudgetConfirmation,recordUsage,transcribeAudio} from './ai';
 import {aiComplete} from './sync';
 import {workStages,workStage,workStageLabels,workStatistics} from '../../NEXUS/src/shared/work-stages';
@@ -15,7 +15,7 @@ import {metricComparison} from '../../NEXUS/src/shared/metric-delta';
 import {useTheme,useNavigationCopy} from '../../NEXUS/src/renderer/appearance';
 import {useSystemCopy} from '../../NEXUS/src/renderer/appearance';
 import {DailyDialog} from '../../NEXUS/src/renderer/components/daily-context';
-import {DailyProvider,DailyLaunchpad,FocusDock,CareSettings,ExperimentsPanel} from '../../NEXUS/src/renderer/components/daily-ui';
+import {DailyProvider,DailyLaunchpad,CareSettings,ExperimentsPanel} from '../../NEXUS/src/renderer/components/daily-ui';
 import {dailyData,type DailyAPI} from '../../NEXUS/src/shared/daily';
 import {saveCareConfig,saveCareRole,markCare} from '../../NEXUS/src/shared/care';
 import {saveRoutine,recordRoutineEntry} from '../../NEXUS/src/shared/routines';
@@ -112,7 +112,7 @@ export function App(){
     const read=()=>{const s=engine.current?.state.snapshot;if(!s)throw Error('Данные ещё загружаются.');return s;};
     const change=async(fn:(s:Snapshot)=>void)=>{if(!await commitLatest(fn))throw Error('Не удалось сохранить изменения.');};
     const allowed=(override=false)=>{if(!aiEnabled(read()))throw Error('Включите ИИ в настройках.');if(!override&&needsBudgetConfirmation(read()))throw Error('AI_BUDGET_CONFIRM');};
-    return {removeFood:input=>change(s=>removeFocusFood(s,input)),publish:async()=>{let result={written:0,skipped:0};await change(s=>{result=publishFocus(s);});return result;},snapshot:async()=>focusSnapshot(read()),configure:(c,enableAI=false)=>change(s=>configureFocus(s,c,enableAI)),save:async x=>{try{await change(s=>saveFocusTurn(s,x));}catch(error){await change(s=>recordFocusDiagnostic(s,focusDiagnostic({stage:'save',model:focusConfig(s).model,requestId:'',day:x.day,text:x.text,response:JSON.stringify({reply:x.reply,actions:x.actions}),attempt:0},error)));throw error;}},send:async input=>{
+    return {updateConfig:patch=>change(s=>updateFocusConfig(s,patch)),removeFood:input=>change(s=>removeFocusFood(s,input)),publish:async()=>{let result={written:0,skipped:0};await change(s=>{result=publishFocus(s);});return result;},snapshot:async()=>focusSnapshot(read()),configure:(c,enableAI=false)=>change(s=>configureFocus(s,c,enableAI)),save:async x=>{try{await change(s=>saveFocusTurn(s,x));}catch(error){await change(s=>recordFocusDiagnostic(s,focusDiagnostic({stage:'save',model:focusConfig(s).model,requestId:'',day:x.day,text:x.text,response:JSON.stringify({reply:x.reply,actions:x.actions}),attempt:0},error)));throw error;}},send:async input=>{
       const s=focusSnapshot(read()),model=focusConfig(s).model;
       return runFocusMentor({snapshot:s,facts:focusFacts(s,input.day,input.text),model,beforeAttempt:()=>allowed(input.overrideBudget),complete:(system,user)=>aiComplete(model,system,user,true,mentorResponseFormat),record:async(reply,status)=>{if(reply)await change(s=>recordUsage(s,reply,'focus-mentor',model,status));},diagnostic:value=>change(s=>recordFocusDiagnostic(s,value))});
     },transcribe:async input=>{allowed(input.overrideBudget);const result=await transcribeAudio(read(),input.base64,input.format);await change(s=>recordUsage(s,result.reply,'focus-transcription',result.model));return result.text;}};
@@ -131,7 +131,7 @@ export function App(){
        focusMode?<FocusPage api={focusAPI} revision={snapshot} mobile/>:visited.map(key=><div key={key} hidden={section!==key} className="page"><Page section={key} active={section===key} snapshot={snapshot} commit={commit} commitLatest={commitLatest} onConnected={onConnected} onNavigate={navigate} focusAPI={focusAPI}/></div>)}
     </main>
     {!focusMode&&<nav className="bottom" aria-label="Разделы" data-no-swipe>{nav.map(([key,label])=><button key={key} className={section===key?'active':''} aria-current={section===key?"page":undefined} onClick={()=>navigate(key)}><span>{navCopy(key,label)}</span></button>)}</nav>}
-  </div>{!focusMode&&<FocusDock/>}</DailyProvider></GrowthProvider>;
+  </div></DailyProvider></GrowthProvider>;
 }
 
 const Page=memo(function Page(props:PanelProps&{section:Section;active:boolean;onConnected:()=>void;onNavigate:(section:Section)=>void;focusAPI:FocusAPI}){
@@ -212,6 +212,6 @@ function Settings({snapshot,onConnected,focusAPI}:PanelProps&{onConnected:()=>vo
 
   const [profile,setProfile]=useState<Awaited<ReturnType<typeof remoteProfile>>|null>(null);
   useEffect(()=>{void remoteProfile().then(setProfile).catch(()=>{});},[]);
-  return <><SectionHeading eyebrow="06 / НАСТРОЙКИ" title={copy("Настройки")}/><FocusSettings api={focusAPI}/><UpdatePanel/><details className="mobile-fold"><summary>Уведомления</summary><RemindersPanel api={reminders} habits={rows(snapshot,'habits').filter(x=>x.active).map(x=>({id:Number(x.id),name:String(x.name)}))}/></details><details className="mobile-fold"><summary>ИИ</summary><AIStatus/></details><details className="mobile-fold"><summary>Подключение</summary>{profile&&<div className="connection-summary"><span className="dot"/>Подключено · {profile.name}</div>}<Connect onConnected={onConnected}/></details></>;
+  return <><SectionHeading eyebrow="06 / НАСТРОЙКИ" title={copy("Настройки")}/><FocusSettings api={focusAPI} revision={snapshot}/><UpdatePanel/><details className="mobile-fold"><summary>Уведомления</summary><RemindersPanel api={reminders} habits={rows(snapshot,'habits').filter(x=>x.active).map(x=>({id:Number(x.id),name:String(x.name)}))}/></details><details className="mobile-fold"><summary>ИИ</summary><AIStatus/></details><details className="mobile-fold"><summary>Подключение</summary>{profile&&<div className="connection-summary"><span className="dot"/>Подключено · {profile.name}</div>}<Connect onConnected={onConnected}/></details></>;
 
 }

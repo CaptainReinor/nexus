@@ -79,7 +79,7 @@ export function useAutoSave():{queue:AutoSaveQueue;status:AutoSaveStatus} {
   const [status,setStatus]=useState<AutoSaveStatus>({state:'saved'});
   const ref=useRef<AutoSaveQueue|null>(null);
   if(!ref.current)ref.current=new AutoSaveQueue(setStatus);
-  useEffect(()=>{const queue=ref.current!;activeQueues.add(queue);queue.setListener(setStatus);return()=>{activeQueues.delete(queue);queue.dispose();};},[]);
+  useEffect(()=>{const queue=ref.current!;activeQueues.add(queue);queue.setListener(setStatus);return()=>{queue.dispose();void queue.flushAll().finally(()=>activeQueues.delete(queue));};},[]);
   return {queue:ref.current,status};
 }
 

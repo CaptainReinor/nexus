@@ -40,6 +40,21 @@ export function sameSnapshot(a:Snapshot|null,b:Snapshot|null):boolean{
   });
 }
 
+// Focus preferences share a legacy JSON row; merge independent fields rather than replacing the whole form.
+function mergeFocusPreferences(old:Row|undefined,local:Row,remote:Row,choice:'local'|'remote'):string|null{
+ try{
+  const before=old?JSON.parse(String(old.value)): {},left=JSON.parse(String(local.value)),right=JSON.parse(String(remote.value));
+  if([before,left,right].some(value=>!value||typeof value!=='object'||Array.isArray(value)))return null;
+  const merged={...right};
+  for(const key of new Set([...Object.keys(before),...Object.keys(left)])){
+   if(equal(before[key],left[key]))continue;
+   const collision=!equal(before[key],right[key])&&!equal(left[key],right[key]);
+   if(collision&&choice==='remote')continue;
+   if(left[key]===undefined)delete merged[key];else merged[key]=left[key];
+  }
+  return JSON.stringify(merged);
+ }catch{return null;}
+}
 export function mergeSnapshots(base:Snapshot,local:Snapshot,remote:Snapshot,choices:Record<string,'local'|'remote'>={}):{snapshot:Snapshot;conflicts:Conflict[]}{
   local=alignNewParents(base,local,remote,rowKey);
   const snapshot=structuredClone(remote),conflicts:Conflict[]=[];
@@ -70,6 +85,7 @@ export function mergeSnapshots(base:Snapshot,local:Snapshot,remote:Snapshot,choi
       const next={...other},collisions:string[]=[];
       for(const field of new Set([...Object.keys(old??{}),...Object.keys(edited)])){
         if(equal(old?.[field],edited[field]))continue;
+        if(table==='settings'&&edited.key==='focusConfig'&&field==='value'){const value=mergeFocusPreferences(old,edited,other,choice);if(value!==null){next.value=value;continue;}}
         // Natural-key rows keep the remote primary key for referential integrity.
         if(field==='id'&&naturalKeys[table])continue;
         if(field==='updated_at'){next[field]=[String(edited[field]??''),String(other[field]??'')].sort().at(-1);continue;}

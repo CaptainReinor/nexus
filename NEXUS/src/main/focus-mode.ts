@@ -1,7 +1,7 @@
 import type {DB} from './database';
 import {schemaVersion,backupTables} from './database';
 import type {Row,Snapshot} from '../shared/snapshot-sync';
-import {configureFocus,saveFocusTurn,removeFocusFood,focusConfig,focusFacts,type FocusAPI,type FocusConfig,type FocusTurnInput} from '../shared/focus-mode';
+import {configureFocus,updateFocusConfig,saveFocusTurn,removeFocusFood,focusConfig,focusFacts,type FocusAPI,type FocusConfig,type FocusTurnInput} from '../shared/focus-mode';
 import {focusSnapshot,initializeFocus,publishFocus} from '../shared/focus-isolation';
 import {focusDiagnostic} from '../shared/focus-diagnostics';
 import type {AIGateway} from './ai';
@@ -22,6 +22,7 @@ export class FocusModeRepository implements FocusAPI{
    }
   })();
  }
+ async updateConfig(patch:Parameters<FocusAPI['updateConfig']>[0]){this.change(s=>updateFocusConfig(s,patch));}
  async removeFood(input:Parameters<FocusAPI['removeFood']>[0]){this.change(s=>removeFocusFood(s,input));}
  async publish(){let result={written:0,skipped:0};this.change(s=>{result=publishFocus(s);});return result;}
  async configure(config:FocusConfig,enableAI=false){this.change(s=>configureFocus(s,config,enableAI));}

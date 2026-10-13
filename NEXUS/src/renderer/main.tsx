@@ -1,16 +1,16 @@
-import {useFocusMode} from './focus-mode-state';
-function FocusDockOutsideMode(){const mode=useFocusMode();return mode?null:<FocusDock/>;}
-import {DailyProvider,FocusDock} from './components/daily-ui';
+import {DailyProvider} from './components/daily-ui';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { App } from './App';
 import { GrowthProvider } from './components/growth-ui';
 import { UpdatesProvider } from './components/updates';
+import {flushPendingEdits} from './autosave';
+Object.assign(window,{nexusFlushPendingEdits:flushPendingEdits});
 import './styles.css';
 import './components/design.css';
 import {initializeAppearance} from './appearance';
 import './dominion.css';
 import './dominion-material.css';
 initializeAppearance('windows');
-createRoot(document.getElementById('root')!).render(<React.StrictMode><UpdatesProvider api={window.nexus.updates}><GrowthProvider api={window.nexus.growth}><DailyProvider api={window.nexus.daily} reminders={window.nexus.reminders}><HashRouter><App/><FocusDockOutsideMode/></HashRouter></DailyProvider></GrowthProvider></UpdatesProvider></React.StrictMode>);
+createRoot(document.getElementById('root')!).render(<React.StrictMode><UpdatesProvider api={window.nexus.updates}><GrowthProvider api={window.nexus.growth}><DailyProvider api={window.nexus.daily} reminders={window.nexus.reminders}><HashRouter><App/></HashRouter></DailyProvider></GrowthProvider></UpdatesProvider></React.StrictMode>);

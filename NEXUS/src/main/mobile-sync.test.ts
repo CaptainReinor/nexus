@@ -141,3 +141,9 @@ it('preserves a newer deletion instead of resurrecting the old record from anoth
   expect(mergeSnapshots(unknown,local,remote).snapshot.tables.weight_entries).toHaveLength(0);
   expect(mergeSnapshots(unknown,remote,local).snapshot.tables.weight_entries).toHaveLength(0);
 });
+
+it('syncs all focus preferences from PC, retains them on restart and merges independent mobile edits',async()=>{
+ const {focusConfig,configureFocus,updateFocusConfig}=await import('../shared/focus-mode');const test=setup();await test.engine.start();test.remoteChange(s=>configureFocus(s,{...focusConfig(s),targetCents:3500000,gymPerWeek:3,model:'synthetic/from-pc',dietNote:'Предпочтения с ПК'}));await test.engine.refresh();expect(focusConfig(test.engine.state.snapshot!)).toMatchObject({targetCents:3500000,gymPerWeek:3,model:'synthetic/from-pc',dietNote:'Предпочтения с ПК'});
+ test.load.mockRejectedValue(Error('offline'));await test.engine.change(s=>updateFocusConfig(s,{dietNote:'Правка на телефоне'}));test.engine.stop();const restarted=test.make();await restarted.start();expect(focusConfig(restarted.state.snapshot!).model).toBe('synthetic/from-pc');expect(focusConfig(restarted.state.snapshot!).dietNote).toBe('Правка на телефоне');
+ test.remoteChange(s=>updateFocusConfig(s,{targetCents:5000000}));test.load.mockImplementation(async()=>structuredClone(test.remote()));await restarted.flush();expect(focusConfig(test.remote().snapshot)).toMatchObject({targetCents:5000000,dietNote:'Правка на телефоне',model:'synthetic/from-pc',gymPerWeek:3});expect(restarted.pending).toBe(false);
+});

@@ -18,6 +18,8 @@ const identity=z.string().uuid(),numberId=z.number().int().positive().safe();
 const financeFields={id:numberId.nullable(),day:dateSchema,amountCents:z.number().int().positive().safe().nullable(),accountId:numberId.nullable(),categoryId:numberId.nullable(),note};
 export const focusConfigSchema=z.object({startDay:dateSchema,days:z.number().int().min(1).max(3650).nullable(),targetCents:z.number().int().positive().safe().nullable(),gymPerWeek:z.number().int().min(1).max(7).nullable(),model:z.string().trim().min(1).max(120),dietNote:z.string().max(2000).default('')}).strict();
 export type FocusConfig=z.infer<typeof focusConfigSchema>;
+export const focusConfigPatchSchema=focusConfigSchema.omit({startDay:true,days:true}).partial().extend({dietNote:z.string().max(2000).optional()}).strict();
+export type FocusConfigPatch=z.infer<typeof focusConfigPatchSchema>;
 export const focusActionSchema=z.discriminatedUnion('kind',[
  z.object({kind:z.literal('weight'),day:dateSchema,kg:z.number().min(1).max(500)}).strict(),
  z.object({kind:z.literal('sleep'),day:dateSchema,start:clock,end:clock,minutes:z.number().int().min(1).max(1440).nullable()}).strict().refine(x=>x.start!==null||x.end!==null||x.minutes!==null,'Укажите время или длительность сна.'),
@@ -84,11 +86,12 @@ export const mentorRequestSchema=z.object({text:z.string().trim().min(1).max(160
 export const focusTurnSchema=z.object({id:identity,day:dateSchema,text:z.string().trim().min(1).max(16000),reply:z.string().max(10000),actions:z.array(focusActionSchema).max(40),replace:z.boolean().default(false),expectedUpdatedAt:z.string().nullable().default(null)}).strict();
 export type FocusTurnInput=z.infer<typeof focusTurnSchema>;
 export type FocusTurn={id:string;day:string;raw_text:string;reply:string;actions_json:string;links_json:string;created_at:string;updated_at:string};
-export interface FocusAPI{snapshot():Promise<Snapshot>;removeFood(input:{id:string;expectedUpdatedAt:string}):Promise<void>;publish():Promise<{written:number;skipped:number}>;configure(config:FocusConfig,enableAI?:boolean):Promise<void>;send(input:z.infer<typeof mentorRequestSchema>):Promise<MentorReply>;save(input:FocusTurnInput):Promise<void>;transcribe(input:{base64:string;format:'webm'|'wav'|'mp3';overrideBudget?:boolean}):Promise<string>}
+export interface FocusAPI{updateConfig(patch:FocusConfigPatch):Promise<void>;snapshot():Promise<Snapshot>;removeFood(input:{id:string;expectedUpdatedAt:string}):Promise<void>;publish():Promise<{written:number;skipped:number}>;configure(config:FocusConfig,enableAI?:boolean):Promise<void>;send(input:z.infer<typeof mentorRequestSchema>):Promise<MentorReply>;save(input:FocusTurnInput):Promise<void>;transcribe(input:{base64:string;format:'webm'|'wav'|'mp3';overrideBudget?:boolean}):Promise<string>}
 export function focusConfig(s:Snapshot):FocusConfig{
  try{return focusConfigSchema.parse(JSON.parse(String(s.tables.settings?.find(r=>r.key==='focusConfig')?.value)));}catch{return {startDay:localDay(),days:null,targetCents:null,gymPerWeek:null,model:defaultMentorModel,dietNote:''};}
 }
 export function configureFocus(s:Snapshot,config:FocusConfig,enableAI=false){initializeFocus(s);config={...config,startDay:focusBoundary(s)!.day};put(s,'settings',{key:'focusConfig',value:JSON.stringify(focusConfigSchema.parse(config))},'key');if(enableAI)put(s,'settings',{key:'aiEnabled',value:'true'},'key');}
+export function updateFocusConfig(s:Snapshot,patch:FocusConfigPatch){configureFocus(s,{...focusConfig(s),...focusConfigPatchSchema.parse(patch)});}
 function ensure(s:Snapshot){for(const table of focusTables)records(s,table);s.version=Math.max(14,s.version);}
 type Link={table:string;key:string|number;primary:string;before:Row|null;hash:string};
 function write(s:Snapshot,links:Link[],table:string,row:Row,primary='id'){

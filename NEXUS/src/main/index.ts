@@ -1,5 +1,5 @@
 import {FocusModeRepository} from './focus-mode';
-import {focusConfigSchema,mentorRequestSchema,focusTurnSchema,removeFocusFoodSchema} from '../shared/focus-mode';
+import {focusConfigSchema,focusConfigPatchSchema,mentorRequestSchema,focusTurnSchema,removeFocusFoodSchema} from '../shared/focus-mode';
 import {jobInputSchema} from '../shared/vacancy';
 import {DailyRepository} from './daily';
 import {careConfigSchema,careRoleSchema,careMarkSchema} from '../shared/care';
@@ -40,7 +40,7 @@ const windowsAppId=app.isPackaged&&!process.env.NEXUS_TEST_USER_DATA?'ru.nexus.d
 
 let window: BrowserWindow | null = null;
 let notifyLocalChange=()=>{};
-const changes=/^(?:daily:(?:careConfig|careRole|careMark|routine|routineEntry|payment|paymentAction|experiment|experimentMark|focus|reflection)|growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|deleteJob|changeStatus|linkCase)|focus:(?:save|send|configure|publish|removeFood)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
+const changes=/^(?:daily:(?:careConfig|careRole|careMark|routine|routineEntry|payment|paymentAction|experiment|experimentMark|focus|reflection)|growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|deleteJob|changeStatus|linkCase)|focus:(?:save|send|configure|updateConfig|publish|removeFood)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
 const id=z.number().int().positive();
 const day=z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const text=z.string().max(100000);
@@ -81,6 +81,8 @@ function createWindow():void {
   window.once('ready-to-show',()=>window?.show());
   if (process.env.NEXUS_DEV_URL) void window.loadURL(process.env.NEXUS_DEV_URL);
   else void window.loadFile(join(__dirname,'../dist/index.html'));
+  let closePrepared=false,closePending=false;
+  window.on('close',event=>{if(closePrepared||!window)return;event.preventDefault();if(closePending)return;closePending=true;const target=window;void target.webContents.executeJavaScript('globalThis.nexusFlushPendingEdits ? globalThis.nexusFlushPendingEdits() : true').then(saved=>{closePending=false;if(saved){closePrepared=true;target.close();}else dialog.showErrorBox('Изменения не сохранены','Проверьте поля и повторите сохранение перед выходом.');}).catch(()=>{closePending=false;closePrepared=true;target.close();});});
   window.on('closed',()=>{window=null;});
 }
 
@@ -98,9 +100,10 @@ void app.whenReady().then(()=>{
   handle('updates:check',z.undefined(),()=>updates.check());
   handle('updates:download',z.undefined(),()=>updates.download());
   handle('updates:install',z.undefined(),()=>updates.install());
-  const remoteBackup=new RemoteBackupService(db,()=>window?.webContents.reload());
+  const remoteBackup=new RemoteBackupService(db,()=>window?.webContents.send('nexus:data-changed'));
   const settings=new SettingsRepository(db,dbPath,()=>remoteBackup.isGuest()),health=new HealthRepository(db),finance=new FinanceRepository(db,()=>settings.get().firstDayOfWeek),work=new WorkRepository(db,()=>settings.get().firstDayOfWeek),ai=new AIGateway(db,settings,work,new ProfileAIProvider(remoteBackup),()=>!remoteBackup.isGuest()&&settings.get().hasApiKey?settings.getApiKey():''),journal=new JournalService(db,ai,health,finance,work,settings);
   const focusMode=new FocusModeRepository(db,ai);
+  handle('focus:updateConfig',focusConfigPatchSchema,input=>focusMode.updateConfig(input));
   handle('focus:removeFood',removeFocusFoodSchema,input=>focusMode.removeFood(input));
   handle('focus:publish',z.undefined(),()=>focusMode.publish());
   handle('focus:snapshot',z.undefined(),()=>focusMode.snapshot());
