@@ -6,7 +6,7 @@ import {focusSnapshot,publishFocus} from '../shared/focus-isolation';
 import {saveFocusTurn,removeFocusFood,updateFocusConfig,configureFocus,focusConfig,mentorReplySchema,type FocusAPI} from '../shared/focus-mode';
 import type {Snapshot} from '../shared/snapshot-sync';
 import * as statistics from '../shared/focus-stats';
-import {saveFocusLabel,labelDraftSchema} from '../shared/focus-label';
+import {saveFocusLabel,labelDraftSchema,photoFoodAction} from '../shared/focus-label';
 import {FocusLabelPanel} from './focus-label-panel';
 vi.mock('./label-photo',()=>({prepareLabelPhoto:vi.fn().mockResolvedValue('data:image/png;base64,AA==')}));
 import {localDay} from '../shared/domain';
@@ -16,6 +16,21 @@ function fixture(){
  Object.defineProperty(HTMLElement.prototype,'scrollIntoView',{value:vi.fn(),configurable:true});
  const api:FocusAPI={scanLabel:vi.fn(),saveLabel:vi.fn(),updateConfig:vi.fn(async patch=>updateFocusConfig(s,patch)),removeFood:vi.fn(async input=>removeFocusFood(s,input)),snapshot:async()=>focusSnapshot(s),publish:vi.fn(async()=>publishFocus(s)),configure:vi.fn(async config=>configureFocus(s,config)),send:vi.fn().mockResolvedValue({reply:'Отметил вес. Продолжим наблюдать за динамикой.',actions:[{kind:'weight',day:localDay(),kg:84.2}]}),save:vi.fn(async x=>{saveFocusTurn(s,x);}),transcribe:vi.fn().mockResolvedValue('Тестовый голос')};return {s,api};
 }
+it('shows vitamin intake as a daily percentage instead of a portion coverage count',async()=>{
+ const {s,api}=fixture(),day=localDay();saveFocusTurn(s,{id:crypto.randomUUID(),day,text:'Тест питания',reply:'Записано',actions:[photoFoodAction(labelDraftSchema.parse({name:'Тестовая еда',basisGrams:100,kcal:100,vitamins:[{id:'C',amount:45}]}),day)],replace:false,expectedUpdatedAt:null});
+ render(<FocusPage api={api}/>);fireEvent.click(await screen.findByRole('button',{name:'Питание'}));fireEvent.click(await screen.findByText('Витамины',{exact:true}));expect(await screen.findByText('≈ 50% нормы')).toBeDefined();expect(screen.queryByText(/\d+ \/ \d+ порций/)).toBeNull();
+});
+it('keeps a failed voice recording available for a manual retry without duplicating its text',async()=>{
+ const {api}=fixture();api.transcribe=vi.fn().mockRejectedValueOnce(Error('Нет связи с OpenRouter')).mockResolvedValue('Сегодня съел обед');
+ const page=render(<FocusPage api={api}/>);await screen.findByText('Начнём с твоего дня');
+ const upload=page.container.querySelector('.focus-audio-upload input') as HTMLInputElement;
+ fireEvent.change(upload,{target:{files:[new File(['voice'],'voice.webm',{type:'audio/webm'})]}});
+ await screen.findByText('Нет связи с OpenRouter');
+ fireEvent.click(screen.getByRole('button',{name:'Повторить распознавание'}));
+ await waitFor(()=>expect((screen.getByLabelText('Сообщение наставнику') as HTMLTextAreaElement).value).toBe('Сегодня съел обед'));
+ expect(api.transcribe).toHaveBeenCalledTimes(2);
+ expect(screen.queryByRole('button',{name:'Повторить распознавание'})).toBeNull();
+});
 it('sends on Enter once, while Shift+Enter and composing keyboard input keep the draft',async()=>{
  const {api}=fixture();render(<FocusPage api={api}/>);await screen.findByText('Начнём с твоего дня');const field=screen.getByLabelText('Сообщение наставнику');
  fireEvent.change(field,{target:{value:'Вес 84.2'}});

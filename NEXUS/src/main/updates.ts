@@ -1,24 +1,29 @@
 import { app } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import type { UpdateAPI,UpdateState } from '../shared/updates';
+import {displayVersion,engineVersion} from '../shared/release-version';
+import {NexusUpdateProvider} from './update-provider';
 
 // The packaged app-update.yml points only to the public CaptainReinor/nexus releases.
 export class DesktopUpdates implements UpdateAPI {
-  private state:UpdateState={phase:'idle',currentVersion:app.getVersion()};
+  private state:UpdateState={phase:'idle',currentVersion:displayVersion(app.getVersion())};
   private checking:Promise<UpdateState>|null=null;
   private downloading:Promise<UpdateState>|null=null;
   private installing=false;
   constructor(private beforeInstall:()=>Promise<void>){
+    const Version=autoUpdater.currentVersion.constructor as new(value:string)=>typeof autoUpdater.currentVersion;
+    Object.defineProperty(autoUpdater,'currentVersion',{value:new Version(engineVersion(app.getVersion())),configurable:true});
+    autoUpdater.setFeedURL({provider:'custom',updateProvider:NexusUpdateProvider});
     autoUpdater.autoDownload=false;
     autoUpdater.autoInstallOnAppQuit=false;
     autoUpdater.allowPrerelease=false;
     autoUpdater.allowDowngrade=false;
     autoUpdater.logger=null;
     autoUpdater.on('checking-for-update',()=>this.set({phase:'checking'}));
-    autoUpdater.on('update-available',info=>this.set({phase:'available',version:info.version,message:undefined}));
+    autoUpdater.on('update-available',info=>this.set({phase:'available',version:displayVersion(info.version),message:undefined}));
     autoUpdater.on('update-not-available',()=>this.set({phase:'current',version:undefined,message:undefined}));
     autoUpdater.on('download-progress',progress=>this.set({phase:'downloading',percent:Math.round(progress.percent)}));
-    autoUpdater.on('update-downloaded',info=>this.set({phase:'ready',version:info.version,percent:100,message:undefined}));
+    autoUpdater.on('update-downloaded',info=>this.set({phase:'ready',version:displayVersion(info.version),percent:100,message:undefined}));
     autoUpdater.on('error',()=>{this.installing=false;this.set({phase:'error',message:'Не удалось обновить NEXUS. Попробуйте позже.'});});
   }
   private set(patch:Partial<UpdateState>){this.state={...this.state,...patch};}

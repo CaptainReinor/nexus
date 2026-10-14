@@ -1,8 +1,9 @@
 import { beforeEach,expect,it,vi } from 'vitest';
 const mock=vi.hoisted(()=>({handlers:new Map<string,(value?:unknown)=>void>(),check:vi.fn(),download:vi.fn(),install:vi.fn(),packaged:true}));
 vi.mock('electron',()=>({app:{getVersion:()=> '0.4.9',get isPackaged(){return mock.packaged;}}}));
-vi.mock('electron-updater',()=>({autoUpdater:{on:(name:string,handler:(value?:unknown)=>void)=>mock.handlers.set(name,handler),checkForUpdates:mock.check,downloadUpdate:mock.download,quitAndInstall:mock.install}}));
+vi.mock('electron-updater',()=>({autoUpdater:{currentVersion:{constructor:Object},setFeedURL:vi.fn(),on:(name:string,handler:(value?:unknown)=>void)=>mock.handlers.set(name,handler),checkForUpdates:mock.check,downloadUpdate:mock.download,quitAndInstall:mock.install}}));
 import { DesktopUpdates } from './updates';
+it('shows a four-part microfix version after download instead of the internal SemVer',async()=>{const updates=new DesktopUpdates(async()=>{});mock.handlers.get('update-downloaded')?.({version:'0.8.6-hotfix.2'});expect(await updates.status()).toMatchObject({phase:'ready',version:'0.8.6.2'});});
 beforeEach(()=>{mock.handlers.clear();mock.check.mockReset();mock.download.mockReset();mock.install.mockReset();mock.packaged=true;vi.stubEnv('APPIMAGE','/tmp/NEXUS.AppImage');});
 it('serializes checks, downloads the candidate and backs up before an explicit install',async()=>{
   const backup=vi.fn(async()=>{}),updates=new DesktopUpdates(backup);

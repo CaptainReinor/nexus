@@ -8,7 +8,8 @@ const scrub=(text:string)=>text.replace(/sk-(?:or-v1-|or-admin-|or-provisioning-
 export function diagnosticIssues(error:unknown):FocusDiagnostic['issues']{
  if(error instanceof z.ZodError)return error.issues.slice(0,20).map(issue=>({path:issue.path.map(String).join('.'),code:issue.code,message:scrub(issue.message).slice(0,300)}));
  if(error instanceof FocusActionError)return error.issues;
- return [{path:'',code:error instanceof SyntaxError?'invalid_json':error instanceof Error?error.name:'unknown',message:scrub(error instanceof Error?error.message:String(error)).slice(0,500)}];
+ const nativeCode=error&&typeof error==='object'&&'code' in error&&typeof error.code==='string'&&/^[A-Za-z0-9_.-]{1,80}$/.test(error.code)?error.code:null;
+ return [{path:'',code:nativeCode??(error instanceof SyntaxError?'invalid_json':error instanceof Error?error.name:'unknown'),message:scrub(error instanceof Error?error.message:String(error)).slice(0,500)}];
 }
 export class FocusActionError extends Error{
  constructor(public issues:FocusDiagnostic['issues']){super(issues[0]?.message??'Не удалось сопоставить исправление с записью.');this.name='FocusActionError';}

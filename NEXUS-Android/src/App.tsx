@@ -6,7 +6,7 @@ import {FocusPage,FocusSettings} from '../../NEXUS/src/renderer/focus-mode';
 import {useFocusMode} from '../../NEXUS/src/renderer/focus-mode-state';
 import {focusSnapshot,publishFocus} from '../../NEXUS/src/shared/focus-isolation';
 import {focusFacts,focusConfig,mentorResponseFormat,configureFocus,updateFocusConfig,saveFocusTurn,removeFocusFood,type FocusAPI} from '../../NEXUS/src/shared/focus-mode';
-import {aiEnabled,needsBudgetConfirmation,recordUsage,transcribeAudio} from './ai';
+import {aiEnabled,needsBudgetConfirmation,recordUsage,transcribeAudio,transcriptionModel} from './ai';
 import {aiComplete} from './sync';
 import {workStages,workStage,workStageLabels,workStatistics} from '../../NEXUS/src/shared/work-stages';
 import type {Job,JobStatus,JobStatusEvent} from '../../NEXUS/src/shared/models';
@@ -33,7 +33,7 @@ import {growthData,saveGoal,savePlan,saveRepeat,saveMetric,saveMetricEntry,remov
 import {insights} from '../../NEXUS/src/shared/insights';
 import { TodayCapture,TodayHabits,TodayTasks,type TodayHabit } from '../../NEXUS/src/renderer/components/today';
 import { lifeData,updateTask } from '../../NEXUS/src/shared/life';
-import { displayDay } from '../../NEXUS/src/shared/domain';
+import { displayDay,localDay } from '../../NEXUS/src/shared/domain';
 import { MobileLifeBoard } from './life-page';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { GroupedNumberInput,groupNumber } from '../../NEXUS/src/shared/grouped-number';
@@ -116,7 +116,7 @@ export function App(){
     return {scanLabel:async input=>{input=labelRequestSchema.parse(input);allowed(input.overrideBudget);const food=input.mode==='food',feature=food?'focus-food-photo':'focus-label';const reply=await aiComplete(labelModel,food?foodPhotoInstructions:labelInstructions,food?'Оцени видимую порцию еды.':'Прочитай этикетку.',true,labelResponseFormat,input.image);try{const draft=parsePhotoDraft(reply.content);await change(s=>recordUsage(s,reply,feature,labelModel,'ok'));return draft;}catch(error){await change(s=>recordUsage(s,reply,feature,labelModel,'error'));throw error;}},saveLabel:input=>change(s=>saveFocusLabel(s,input.draft)),updateConfig:patch=>change(s=>updateFocusConfig(s,patch)),removeFood:input=>change(s=>removeFocusFood(s,input)),publish:async()=>{let result={written:0,skipped:0};await change(s=>{result=publishFocus(s);});return result;},snapshot:async()=>focusSnapshot(read()),configure:(c,enableAI=false)=>change(s=>configureFocus(s,c,enableAI)),save:async x=>{try{await change(s=>saveFocusTurn(s,x));}catch(error){await change(s=>recordFocusDiagnostic(s,focusDiagnostic({stage:'save',model:focusConfig(s).model,requestId:'',day:x.day,text:x.text,response:JSON.stringify({reply:x.reply,actions:x.actions}),attempt:0},error)));throw error;}},send:async input=>{
       const s=focusSnapshot(read()),model=focusConfig(s).model;
       return runFocusMentor({snapshot:s,facts:focusFacts(s,input.day,input.text),model,beforeAttempt:()=>allowed(input.overrideBudget),complete:(system,user)=>aiComplete(model,system,user,true,mentorResponseFormat),record:async(reply,status)=>{if(reply)await change(s=>recordUsage(s,reply,'focus-mentor',model,status));},diagnostic:value=>change(s=>recordFocusDiagnostic(s,value))});
-    },transcribe:async input=>{allowed(input.overrideBudget);const result=await transcribeAudio(read(),input.base64,input.format);await change(s=>recordUsage(s,result.reply,'focus-transcription',result.model));return result.text;}};
+    },transcribe:async input=>{allowed(input.overrideBudget);try{const result=await transcribeAudio(read(),input.base64,input.format);await change(s=>recordUsage(s,result.reply,'focus-transcription',result.model));return result.text;}catch(error){try{await change(s=>recordFocusDiagnostic(s,focusDiagnostic({stage:'provider',model:transcriptionModel(s),requestId:'',day:localDay(),text:'',response:'',attempt:0},error)));}catch{/* Diagnostics must not replace the original connection error. */}throw error;}}};
   },[commitLatest]);
   const snapshot=state?.snapshot;
   useEffect(()=>{updateReminders(snapshot??null);const refresh=()=>updateReminders(engine.current?.state.snapshot??null);window.addEventListener('focus',refresh);return()=>window.removeEventListener('focus',refresh);},[snapshot]);

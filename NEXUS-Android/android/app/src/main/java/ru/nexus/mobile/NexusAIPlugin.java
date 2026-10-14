@@ -140,8 +140,8 @@ public class NexusAIPlugin extends Plugin {
                 reply.put("costMicrousd",usage!=null&&usage.has("cost")&&!usage.isNull("cost")?Math.round(usage.getDouble("cost")*1000000):JSONObject.NULL);
                 call.resolve(reply);
             }catch(AuthenticationException error){new DeviceAIKeyCache(getContext()).clear();call.reject(error.getMessage());}
-            catch(java.net.SocketTimeoutException error){call.reject("OpenRouter не ответил вовремя. Повторите запрос позже.");}
-            catch(java.io.IOException error){call.reject("Телефон не может подключиться к OpenRouter. Проверьте интернет и доступ к сервису из вашей сети.");}
+            catch(java.net.SocketTimeoutException error){call.reject("OpenRouter не ответил вовремя. Запись можно отправить повторно.","SocketTimeoutException");}
+            catch(java.io.IOException error){call.reject("Телефон не может подключиться к OpenRouter. Проверьте интернет и доступ к сервису из вашей сети.",error.getClass().getSimpleName());}
             catch(Exception error){call.reject(error.getMessage()==null?"Не удалось получить ответ OpenRouter.":error.getMessage());}
         });
     }

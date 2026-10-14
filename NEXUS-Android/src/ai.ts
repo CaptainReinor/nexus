@@ -90,8 +90,9 @@ export async function runWorkAI(snapshot:Snapshot,job:Row,kind:AIKind):Promise<{
   return {content,reply,model:usedModel};
 }
 
+export function transcriptionModel(snapshot:Snapshot){return model(snapshot,'transcription');}
 export async function transcribeAudio(snapshot:Snapshot,base64:string,format:'webm'|'wav'|'mp3'|'m4a'|'ogg'|'aac'|'flac'):Promise<{text:string;reply:AIReply;model:string}>{
-  const usedModel=model(snapshot,'transcription');
+  const usedModel=transcriptionModel(snapshot);
   const reply=validateReply(await aiTranscribe(usedModel,base64,format));
   return {text:reply.content,reply,model:usedModel};
 }

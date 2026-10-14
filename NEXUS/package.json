@@ -3,7 +3,7 @@
   "description": "NEXUS: habits, health, finance and journal",
   "author": "CaptainReinor",
   "desktopName": "ru.nexus.desktop.desktop",
-  "version": "0.8.6",
+  "version": "0.8.6-hotfix.2",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.cjs",
@@ -48,6 +48,7 @@
   "build": {
     "appId": "ru.nexus.desktop",
     "productName": "NEXUS",
+    "buildVersion": "0.8.6.2",
     "directories": {
       "output": "release"
     },
@@ -73,7 +74,7 @@
         "nsis"
       ],
       "icon": "assets/nexus-icon.ico",
-      "artifactName": "NEXUS-Setup-${version}.${ext}"
+      "artifactName": "NEXUS-Setup-0.8.6.2.${ext}"
     },
     "nsis": {
       "oneClick": false,
