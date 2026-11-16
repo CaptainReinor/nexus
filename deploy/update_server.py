@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REPOSITORY='CaptainReinor/nexus'
-MODULES=('nexus_backup.py','accounts.py')
+MODULES=('nexus_backup.py','accounts.py','social.py')
 
 def healthy():
     for _ in range(30):
@@ -50,7 +50,7 @@ def update(target:Path,commit:str):
             if len(code)>1_000_000:raise RuntimeError('Unexpected source size')
             (stage/name).write_bytes(code)
             py_compile.compile(str(stage/name),doraise=True)
-        subprocess.run(['/usr/bin/python3','-B','-c','import nexus_backup, accounts'],cwd=stage,check=True)
+        subprocess.run(['/usr/bin/python3','-B','-c','import nexus_backup, accounts, social'],cwd=stage,check=True)
         stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
         backup=target/'code-backups'/stamp
         backup.mkdir(parents=True,mode=0o700)

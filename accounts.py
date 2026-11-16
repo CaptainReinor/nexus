@@ -37,6 +37,8 @@ class Signal:
         self.changed = threading.Condition(self.lock)
         self.events = threading.BoundedSemaphore(4)
         self.revision = None
+        self.social_events = threading.BoundedSemaphore(2)
+        self.social_revision = 0
 
 
 class Accounts:

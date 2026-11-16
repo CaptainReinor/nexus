@@ -13,6 +13,7 @@ import urllib.request
 import uuid
 import math
 from accounts import accounts, AccountError
+from social import social, SocialError
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -35,7 +36,7 @@ ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 AI_KEY_FILE = "openrouter-key"
 DAILY_TABLES = {'habit_preferences','care_slots','care_checks','routines','scheduled_payments','payment_occurrences','experiments','experiment_logs','focus_sessions','evening_answers'}
 FOCUS_TABLES = {'mentor_turns','food_entries','activity_entries'}
-API_VERSION = "0.8.6"
+API_VERSION = "0.9.0"
 OPENROUTER_BASE = os.environ.get("NEXUS_OPENROUTER_BASE", "https://openrouter.ai/api/v1").rstrip("/")
 RELAY_KEY = os.environ.get("NEXUS_AI_RELAY_KEY", "")
 INVESTMENT_TABLES = {"investment_accounts", "investment_entries"}
@@ -145,7 +146,7 @@ class Handler(BaseHTTPRequestHandler):
         return origin if origin in {"https://localhost", "http://localhost", "capacitor://localhost"} else None
 
     def do_OPTIONS(self) -> None:
-        if not (self.path in {"/v1/state", "/v1/events", "/v1/profile"} or self.path.startswith("/v1/ai/")) or not self.cors_origin():
+        if not (self.path in {"/v1/state", "/v1/events", "/v1/profile", "/v1/social"} or self.path.startswith(("/v1/ai/", "/v1/social/"))) or not self.cors_origin():
             self.respond(403, {"error": "forbidden"})
             return
         self.send_response(204)
@@ -163,7 +164,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        if self.path != "/v1/ai/device-key" and (self.path in {"/v1/state", "/v1/profile"} or self.path.startswith("/v1/ai/")) and self.cors_origin():
+        if self.path != "/v1/ai/device-key" and (self.path in {"/v1/state", "/v1/profile", "/v1/social"} or self.path.startswith(("/v1/ai/", "/v1/social/"))) and self.cors_origin():
             self.send_header("Access-Control-Allow-Origin", self.cors_origin())
             self.send_header("Vary", "Origin")
         self.end_headers()
@@ -190,6 +191,54 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(403, {'error': 'owner_required'})
             return False
         return True
+
+    def social_route(self, method):
+        if self.path != '/v1/social' and not self.path.startswith('/v1/social/'):
+            return False
+        try:
+            if self.path == '/v1/social/events' and method == 'GET':
+                self.social_events()
+            elif self.path == '/v1/social' and method == 'GET':
+                self.respond(200, social(DATA_DIR, self.accounts).state(self.user))
+            elif method in ('POST', 'PUT'):
+                body = self.read_json(8192)
+                if body is not None:
+                    self.respond(200, social(DATA_DIR, self.accounts).mutation(self.user, method, self.path, body))
+            else:
+                self.respond(404, {'error': 'social_not_found'})
+        except SocialError as error:
+            self.respond(error.status, {'error': error.code})
+        return True
+
+    def social_events(self):
+        if not self.signal.social_events.acquire(blocking=False):
+            self.respond(429, {'error':'too_many_event_connections'})
+            return
+        try:
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/event-stream')
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('X-Accel-Buffering', 'no')
+            if self.cors_origin():
+                self.send_header('Access-Control-Allow-Origin', self.cors_origin())
+                self.send_header('Vary', 'Origin')
+            self.end_headers()
+            self.close_connection = True
+            self.connection.settimeout(30)
+            last = -1
+            while self.accounts.active(self.user):
+                with self.signal.changed:
+                    if last == self.signal.social_revision:
+                        self.signal.changed.wait(timeout=20)
+                    revision = self.signal.social_revision
+                payload = f'data: {{"revision":{revision}}}\n\n' if revision != last else ': keepalive\n\n'
+                self.wfile.write(payload.encode())
+                self.wfile.flush()
+                last = revision
+        except (BrokenPipeError, ConnectionResetError, TimeoutError, OSError):
+            pass
+        finally:
+            self.signal.social_events.release()
 
     def create_user(self):
         if not self.owner_only(): return
@@ -297,6 +346,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if not self.authorized():
             return
+        if self.social_route('GET'):
+            return
         if self.path == '/v1/profile':
             self.respond(200, self.accounts.public(self.user)); return
         if self.path == '/v1/users':
@@ -360,12 +411,15 @@ class Handler(BaseHTTPRequestHandler):
     def do_PUT(self) -> None:
         if not self.authorized():
             return
+        if self.social_route('PUT'):
+            return
         if self.path.startswith('/v1/users/'):
             if not self.owner_only(): return
             body = self.read_json(1024)
             if body is None: return
             try:
                 user = self.accounts.update(self.path.rsplit('/',1)[-1],body)
+                social(DATA_DIR, self.accounts).invalidate(user)
                 self.respond(200,self.accounts.public(user))
             except AccountError as error: self.respond(error.status,{'error':error.code})
             return
@@ -418,6 +472,7 @@ class Handler(BaseHTTPRequestHandler):
             atomic_write(self.data_dir / "sync-state.json", json.dumps(state, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
             self.signal.revision = state['revision']
             self.signal.changed.notify_all()
+        social(DATA_DIR, self.accounts).invalidate(self.user)
         self.respond(200, {"revision": state["revision"]})
 
     def events(self) -> None:
@@ -456,6 +511,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         if not self.authorized():
+            return
+        if self.social_route('POST'):
             return
         if self.path == "/v1/users":
             self.create_user(); return

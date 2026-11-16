@@ -79,7 +79,8 @@ def main() -> None:
         raise SystemExit("Run as root")
     source = Path(__file__).with_name("nexus_backup.py")
     account_source = source.with_name('accounts.py')
-    if not source.is_file() or not account_source.is_file() or not SITE.is_file():
+    social_source = source.with_name('social.py')
+    if not source.is_file() or not account_source.is_file() or not social_source.is_file() or not SITE.is_file():
         raise SystemExit("NEXUS source or expected nginx site is missing")
     site_text = SITE.read_text("utf-8")
     marker = f"server_name {HOST};"
@@ -94,6 +95,8 @@ def main() -> None:
     os.chmod(APP_DIR / "nexus_backup.py", 0o644)
     shutil.copy2(account_source, APP_DIR / 'accounts.py')
     os.chmod(APP_DIR / 'accounts.py', 0o644)
+    shutil.copy2(social_source, APP_DIR / 'social.py')
+    os.chmod(APP_DIR / 'social.py', 0o644)
     if not ENV.exists():
         token = secrets.token_urlsafe(48)
         fd = os.open(ENV, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
