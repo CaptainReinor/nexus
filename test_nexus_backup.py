@@ -13,6 +13,30 @@ import nexus_backup
 
 
 class BackupApiTest(unittest.TestCase):
+    def test_diary_reset_rejects_old_clients_and_preserves_new_generation_writes(self):
+        import time
+        import uuid
+        tables = nexus_backup.SYNC_TABLES | nexus_backup.INVESTMENT_TABLES | nexus_backup.LIFE_TABLES | nexus_backup.GROWTH_TABLES | {'weekly_plan_tasks'} | nexus_backup.DAILY_TABLES | nexus_backup.FOCUS_TABLES | {'focus_weights','focus_sleep','focus_money','focus_products','focus_recipes'}
+        original = {'format':'nexus-backup','version':16,'exportedAt':'','tables':{name:[] for name in tables}}
+        original['tables']['focus_weights'] = [{'id':1,'day':'2026-11-17','weight_kg':84}]
+        self.request('/v1/state','PUT',json.dumps(original).encode(),revision=0)
+        fresh = json.loads(json.dumps(original))
+        fresh['tables']['focus_weights'] = []
+        marker = {'id':str(uuid.uuid4()),'at':int(time.time()*1000),'day':'2026-11-17'}
+        fresh['tables']['settings'] = [{'key':'_nexus_focus_reset','value':json.dumps(marker)}]
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            self.request('/v1/state','PUT',json.dumps(fresh).encode(),revision=1)
+        self.assertEqual(error.exception.code,409)
+        self.request('/v1/state','PUT',json.dumps(fresh).encode(),revision=1,reset_id=marker['id'])
+        for stale in [original,{**original,'tables':{**original['tables'],'settings':fresh['tables']['settings']}}]:
+            with self.assertRaises(urllib.error.HTTPError) as error:
+                self.request('/v1/state','PUT',json.dumps(stale).encode(),revision=2)
+            self.assertEqual(error.exception.code,409)
+        self.assertEqual(self.request('/v1/state')[1]['snapshot']['tables']['focus_weights'],[])
+        fresh['tables']['focus_weights'] = [{'id':1,'day':'2026-11-17','weight_kg':83}]
+        self.request('/v1/state','PUT',json.dumps(fresh).encode(),revision=2,reset_id=marker['id'])
+        self.assertEqual(self.request('/v1/state')[1]['snapshot']['tables']['focus_weights'][0]['weight_kg'],83)
+
     def test_focus_records_survive_sync_and_cannot_be_dropped_by_old_clients(self):
         tables = nexus_backup.SYNC_TABLES | nexus_backup.INVESTMENT_TABLES | nexus_backup.LIFE_TABLES | nexus_backup.GROWTH_TABLES | {'weekly_plan_tasks'} | nexus_backup.DAILY_TABLES | nexus_backup.FOCUS_TABLES
         snapshot = {'format':'nexus-backup','version':12,'exportedAt':'2026-10-12T00:00:00Z','tables':{name:[] for name in tables}}
@@ -167,12 +191,14 @@ class BackupApiTest(unittest.TestCase):
         if Path(self.temp.name).resolve().is_relative_to(Path(__file__).resolve().parent):
             self.temp.cleanup()
 
-    def request(self, path, method="GET", body=None, token=True, revision=None):
+    def request(self, path, method="GET", body=None, token=True, revision=None, reset_id=None):
         headers = {"Authorization": "Bearer " + nexus_backup.TOKEN} if token else {}
         if body is not None:
             headers["Content-Type"] = "application/json"
         if revision is not None:
             headers["X-Nexus-Revision"] = str(revision)
+        if reset_id is not None:
+            headers["X-Nexus-Focus-Reset"] = reset_id
         with urllib.request.urlopen(urllib.request.Request(self.base + path, data=body, headers=headers, method=method), timeout=5) as response:
             return response.status, json.load(response)
 

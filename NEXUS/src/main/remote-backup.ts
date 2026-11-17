@@ -1,3 +1,4 @@
+import {focusResetHeaders} from '../shared/focus-reset';
 import { desktopFetch } from './desktop-fetch';
 import { requireSecureStorage } from './secure-storage';
 import { DeviceAIKeyCache, deviceAIBinding, deviceAIKeySchema } from './device-ai-cache';
@@ -363,7 +364,7 @@ export class RemoteBackupService {
     if(this.snapshotHash(serializeBackup(this.db))!==localHash)return;
     let revision=remote.revision;
     if(this.snapshotHash(body)!==remoteHash)try{
-      const response=z.object({revision:z.number().int().positive()}).parse(JSON.parse(await this.request(settings,'/v1/state',{method:'PUT',headers:{'Content-Type':'application/json','X-Nexus-Revision':String(remote.revision)},body},1_000_000)));
+      const response=z.object({revision:z.number().int().positive()}).parse(JSON.parse(await this.request(settings,'/v1/state',{method:'PUT',headers:{'Content-Type':'application/json','X-Nexus-Revision':String(remote.revision),...focusResetHeaders(outgoing)},body},1_000_000)));
       revision=response.revision;
     }catch(error){if(error instanceof RemoteRevisionConflict&&attempt<3)return this.performSync(attempt+1);throw error;}
     const current=this.credentials();

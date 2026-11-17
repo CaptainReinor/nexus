@@ -1,3 +1,4 @@
+import {focusResetRequestSchema} from '../shared/focus-reset';
 import {getAutostart,setAutostart} from './autostart';
 import {quickKindSchema,quickShortcutSchema,type QuickKind,type QuickStatus} from '../shared/quick';
 import {labelRequestSchema,labelSaveSchema} from '../shared/focus-label';
@@ -76,7 +77,7 @@ function createTray(){
  tray.on('double-click',showMain);
 }
 let notifyLocalChange=()=>{};
-const changes=/^(?:daily:(?:careConfig|careRole|careMark|routine|routineEntry|payment|paymentAction|experiment|experimentMark|focus|reflection)|growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|deleteJob|changeStatus|linkCase)|focus:(?:save|send|configure|updateConfig|preferences|publish|removeFood)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
+const changes=/^(?:daily:(?:careConfig|careRole|careMark|routine|routineEntry|payment|paymentAction|experiment|experimentMark|focus|reflection)|growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|deleteJob|changeStatus|linkCase)|focus:(?:save|send|configure|updateConfig|preferences|publish|removeFood|resetRecords)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
 const id=z.number().int().positive();
 const day=z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const text=z.string().max(100000);
@@ -86,10 +87,10 @@ const boolInt=z.union([z.literal(0),z.literal(1)]);
 function logError(scope:string,error:unknown):void {
   try { appendFileSync(join(app.getPath('userData'),'errors.log'),`${new Date().toISOString()} ${scope} ${error instanceof Error?error.name:'Unknown'}\n`); } catch { /* logging is best effort */ }
 }
-function handle<T extends z.ZodTypeAny>(channel:string,schema:T,fn:(input:z.infer<T>)=>unknown|Promise<unknown>):void {
+function handle<T extends z.ZodTypeAny>(channel:string,schema:T,fn:(input:z.infer<T>,source:WebContents)=>unknown|Promise<unknown>):void {
   ipcMain.handle(channel,async(event,payload:unknown)=>{
     if (!trustedContents.has(event.sender)||event.senderFrame!==event.sender.mainFrame) throw new Error('Недопустимый источник запроса.');
-    try { const result=await fn(schema.parse(payload));if(changes.test(channel))notifyLocalChange();return result; }
+    try { const result=await fn(schema.parse(payload),event.sender);if(changes.test(channel))notifyLocalChange();return result; }
     catch(error) {
       logError(channel,error);
       if (error instanceof ZodError) throw new Error('Проверьте введённые данные.');
@@ -147,6 +148,7 @@ if(!app.requestSingleInstanceLock())app.quit();else void app.whenReady().then(()
   handle('social:change',socialMutationSchema,input=>remoteBackup.socialChange(input));
   const settings=new SettingsRepository(db,dbPath,()=>remoteBackup.isGuest()),health=new HealthRepository(db),finance=new FinanceRepository(db,()=>settings.get().firstDayOfWeek),work=new WorkRepository(db,()=>settings.get().firstDayOfWeek),ai=new AIGateway(db,settings,work,new ProfileAIProvider(remoteBackup),()=>!remoteBackup.isGuest()&&settings.get().hasApiKey?settings.getApiKey():''),journal=new JournalService(db,ai,health,finance,work,settings);
   const focusMode=new FocusModeRepository(db,ai);
+  handle('focus:resetRecords',focusResetRequestSchema,async(input,source)=>{if(!(await Promise.all(BrowserWindow.getAllWindows().filter(w=>w.webContents!==source&&trustedContents.has(w.webContents)).map(flushWindow))).every(Boolean))throw Error('Дождись сохранения записей в открытых окнах.');await focusMode.resetRecords(input);});
   handle('focus:preferences',homePreferencesPatchSchema,input=>focusMode.preferences(input));
   handle('focus:updateConfig',focusConfigPatchSchema,input=>focusMode.updateConfig(input));
   handle('focus:removeFood',removeFocusFoodSchema,input=>focusMode.removeFood(input));

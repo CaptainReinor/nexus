@@ -1,3 +1,4 @@
+import {dailyChecklist,checklistKinds} from '../../shared/home';
 import type {Snapshot} from '../../shared/snapshot-sync';
 import type {FocusTurnInput} from '../../shared/focus-mode';
 import {localDay,weekStart,money} from '../../shared/domain';
@@ -9,7 +10,7 @@ export function weekTrail(snapshot:Snapshot,today=localDay()){
  const journal=new Set((snapshot.tables.mentor_turns??[]).filter(r=>String(r.raw_text??'').trim()).map(r=>String(r.day)));
  const other=new Set([...(snapshot.tables.food_entries??[]),...(snapshot.tables.activity_entries??[])].map(r=>String(r.day)));
  const start=weekStart(new Date(today+'T12:00:00'),1);
- return Array.from({length:7},(_,index)=>{const day=shiftDay(start,index),done=day<=today?[weights.has(day),sleep.has(day),journal.has(day)].filter(Boolean).length:0;return {day,done,recorded:day<=today&&(done>0||other.has(day)),today:day===today};});
+ return Array.from({length:7},(_,index)=>{const day=shiftDay(start,index),plan=dailyChecklist(snapshot,day),done=day<=today?plan.filter(item=>item.done).length:0;return {day,done,complete:day<=today&&plan.length>0&&done===plan.length,recorded:day<=today&&(weights.has(day)||sleep.has(day)||journal.has(day)||other.has(day)||dailyChecklist(snapshot,day,[...checklistKinds]).some(item=>item.done)),today:day===today};});
 }
 export function receiptTitle(input:FocusTurnInput){
  if(!input.actions.length)return {title:'Запись сохранена',value:''};

@@ -1,3 +1,4 @@
+import {resetFocusRecords} from '../shared/focus-reset';
 import {saveHomePreferences} from '../shared/home';
 import * as confirmations from './confirm';
 import {afterEach,expect,it,vi} from 'vitest';
@@ -15,7 +16,7 @@ afterEach(()=>{cleanup();localStorage.clear();vi.restoreAllMocks();});
 function fixture(){
  const s:Snapshot={format:'nexus-backup',version:12,exportedAt:'',tables:{settings:[],weight_entries:[],health_daily_entries:[],finance_transactions:[],mentor_turns:[],food_entries:[],activity_entries:[],workouts:[]}};
  Object.defineProperty(HTMLElement.prototype,'scrollIntoView',{value:vi.fn(),configurable:true});
- const api:FocusAPI={preferences:async patch=>saveHomePreferences(s,patch),scanLabel:vi.fn(),saveLabel:vi.fn(),updateConfig:vi.fn(async patch=>updateFocusConfig(s,patch)),removeFood:vi.fn(async input=>removeFocusFood(s,input)),snapshot:async()=>focusSnapshot(s),publish:vi.fn(async()=>publishFocus(s)),configure:vi.fn(async config=>configureFocus(s,config)),send:vi.fn().mockResolvedValue({reply:'Отметил вес. Продолжим наблюдать за динамикой.',actions:[{kind:'weight',day:localDay(),kg:84.2}]}),save:vi.fn(async x=>{saveFocusTurn(s,x);}),transcribe:vi.fn().mockResolvedValue('Тестовый голос')};return {s,api};
+ const api:FocusAPI={resetRecords:async input=>resetFocusRecords(s,input),preferences:async patch=>saveHomePreferences(s,patch),scanLabel:vi.fn(),saveLabel:vi.fn(),updateConfig:vi.fn(async patch=>updateFocusConfig(s,patch)),removeFood:vi.fn(async input=>removeFocusFood(s,input)),snapshot:async()=>focusSnapshot(s),publish:vi.fn(async()=>publishFocus(s)),configure:vi.fn(async config=>configureFocus(s,config)),send:vi.fn().mockResolvedValue({reply:'Отметил вес. Продолжим наблюдать за динамикой.',actions:[{kind:'weight',day:localDay(),kg:84.2}]}),save:vi.fn(async x=>{saveFocusTurn(s,x);}),transcribe:vi.fn().mockResolvedValue('Тестовый голос')};return {s,api};
 }
 it('shows vitamin intake as a daily percentage instead of a portion coverage count',async()=>{
  const {s,api}=fixture(),day=localDay();saveFocusTurn(s,{id:crypto.randomUUID(),day,text:'Тест питания',reply:'Записано',actions:[photoFoodAction(labelDraftSchema.parse({name:'Тестовая еда',basisGrams:100,kcal:100,vitamins:[{id:'C',amount:45}]}),day)],replace:false,expectedUpdatedAt:null});

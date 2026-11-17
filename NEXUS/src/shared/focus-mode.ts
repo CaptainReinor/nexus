@@ -1,3 +1,4 @@
+import {readFocusReset,type FocusResetRequest} from './focus-reset';
 import type {saveHomePreferences} from './home';
 import {providerSchema} from './provider-schema';
 import {type LabelDraft,labelRequestSchema} from './focus-label';
@@ -78,10 +79,10 @@ export function parseMentorReply(content:string,text:string,knownFoods:Row[]=[],
  return result;
 }
 export const mentorRequestSchema=z.object({text:z.string().trim().min(1).max(16000),day:dateSchema,overrideBudget:z.boolean().optional()}).strict();
-export const focusTurnSchema=z.object({id:identity,day:dateSchema,text:z.string().trim().min(1).max(16000),reply:z.string().max(10000),actions:z.array(focusActionSchema).max(40),replace:z.boolean().default(false),expectedUpdatedAt:z.string().nullable().default(null)}).strict();
+export const focusTurnSchema=z.object({resetId:identity.nullable().optional(),id:identity,day:dateSchema,text:z.string().trim().min(1).max(16000),reply:z.string().max(10000),actions:z.array(focusActionSchema).max(40),replace:z.boolean().default(false),expectedUpdatedAt:z.string().nullable().default(null)}).strict();
 export type FocusTurnInput=z.infer<typeof focusTurnSchema>;
 export type FocusTurn={id:string;day:string;raw_text:string;reply:string;actions_json:string;links_json:string;created_at:string;updated_at:string};
-export interface FocusAPI{preferences(input:Parameters<typeof saveHomePreferences>[1]):Promise<void>;scanLabel(input:z.infer<typeof labelRequestSchema>):Promise<LabelDraft>;saveLabel(input:{draft:LabelDraft}):Promise<void>;updateConfig(patch:FocusConfigPatch):Promise<void>;snapshot():Promise<Snapshot>;removeFood(input:{id:string;expectedUpdatedAt:string}):Promise<void>;publish():Promise<{written:number;skipped:number}>;configure(config:FocusConfig,enableAI?:boolean):Promise<void>;send(input:z.infer<typeof mentorRequestSchema>):Promise<MentorReply>;save(input:FocusTurnInput):Promise<void>;transcribe(input:{base64:string;format:'webm'|'wav'|'mp3';overrideBudget?:boolean}):Promise<string>}
+export interface FocusAPI{resetRecords(input:FocusResetRequest):Promise<void>;preferences(input:Parameters<typeof saveHomePreferences>[1]):Promise<void>;scanLabel(input:z.infer<typeof labelRequestSchema>):Promise<LabelDraft>;saveLabel(input:{draft:LabelDraft}):Promise<void>;updateConfig(patch:FocusConfigPatch):Promise<void>;snapshot():Promise<Snapshot>;removeFood(input:{id:string;expectedUpdatedAt:string}):Promise<void>;publish():Promise<{written:number;skipped:number}>;configure(config:FocusConfig,enableAI?:boolean):Promise<void>;send(input:z.infer<typeof mentorRequestSchema>):Promise<MentorReply>;save(input:FocusTurnInput):Promise<void>;transcribe(input:{base64:string;format:'webm'|'wav'|'mp3';overrideBudget?:boolean}):Promise<string>}
 export function focusConfig(s:Snapshot):FocusConfig{
  try{return focusConfigSchema.parse(JSON.parse(String(s.tables.settings?.find(r=>r.key==='focusConfig')?.value)));}catch{return {startDay:localDay(),days:null,targetCents:null,gymPerWeek:null,model:defaultMentorModel,dietNote:''};}
 }
@@ -170,7 +171,7 @@ function saveOwnedTurn(s:Snapshot,raw:FocusTurnInput,now:string){
  put(s,'mentor_turns',{id:x.id,day:x.day,raw_text:x.text,reply,actions_json:JSON.stringify(x.actions),links_json:JSON.stringify(links),created_at:old?.created_at??now,updated_at:now});
 }
 export function saveFocusTurn(s:Snapshot,raw:FocusTurnInput,now=new Date().toISOString()){
- const x=focusTurnSchema.parse(raw);initializeFocus(s,now);
+ const x=focusTurnSchema.parse(raw),reset=readFocusReset(s);if(reset&&x.resetId!==reset.id)throw Error('Дневник сброшен. Повтори запись на новом экране.');initializeFocus(s,now);
  const old=s.tables.mentor_turns?.find(r=>r.id===x.id);
  if(old&&!x.replace)return;
  const before=focusSnapshot(s),after=structuredClone(before);
@@ -199,7 +200,7 @@ export function validateMentorActions(reply:MentorReply,snapshot:Snapshot,text:s
   if(a.kind==='food'&&a.id===null&&correction&&!newPortion){const tokens=a.name.toLowerCase().match(/[а-яёa-z]{3,}/g)??[];const existing=view.tables.food_entries.filter(r=>r.day===a.day&&tokens.some(t=>!['замороженная','свежая','готовое','готовая','куриное','куриные','куриная','куриный','для','без','смузи','порция'].includes(t)&&(String(r.name).toLowerCase().match(/[а-яёa-z]{3,}/g)??[]).some(word=>word.startsWith(t.length>4?t.slice(0,-1):t))));if(existing.length)issues.push({path:`actions.${index}.id`,code:'correction_requires_id',message:'Уточнение похоже на существующий продукт. Используй его ID, не создавай новую порцию.'});}
  }
  if(issues.length)throw new FocusActionError(issues);
- try{saveFocusTurn(structuredClone(view),{id:crypto.randomUUID(),day,text,reply:reply.reply,actions:reply.actions,replace:false,expectedUpdatedAt:null});}catch(error){if(error instanceof FocusActionError)throw error;throw new FocusActionError([{path:'actions',code:'invalid_reference',message:error instanceof Error?error.message:'Не удалось проверить ссылки на записи.'}]);}
+ try{saveFocusTurn(structuredClone(view),{resetId:readFocusReset(view)?.id??null,id:crypto.randomUUID(),day,text,reply:reply.reply,actions:reply.actions,replace:false,expectedUpdatedAt:null});}catch(error){if(error instanceof FocusActionError)throw error;throw new FocusActionError([{path:'actions',code:'invalid_reference',message:error instanceof Error?error.message:'Не удалось проверить ссылки на записи.'}]);}
  return reply;
 }
 export function focusFacts(s:Snapshot,day:string,text:string){

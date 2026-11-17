@@ -4,9 +4,11 @@ import type {Snapshot} from './snapshot-sync';
 import type {FocusAction} from './focus-mode';
 import {toCents} from './domain';
 
-export const homePreferencesSchema=z.object({progress:z.boolean().default(true),work:z.boolean().default(false),investments:z.boolean().default(false),care:z.boolean().default(true),animations:z.boolean().default(true),haptics:z.boolean().default(true),sound:z.boolean().default(false)}).strict();
+export const checklistKinds=['weight','sleep','food','expense','activity','saving','text'] as const;
+export const checklistSchema=z.array(z.enum(checklistKinds)).max(7).refine(items=>new Set(items).size===items.length);
+export const homePreferencesSchema=z.object({dailyChecklist:checklistSchema.default(['weight','sleep']),progress:z.boolean().default(true),work:z.boolean().default(false),investments:z.boolean().default(false),care:z.boolean().default(true),animations:z.boolean().default(true),haptics:z.boolean().default(true),sound:z.boolean().default(false)}).strict();
 // Patch fields have no defaults: changing one option must retain all other choices.
-export const homePreferencesPatchSchema=z.object({progress:z.boolean().optional(),work:z.boolean().optional(),investments:z.boolean().optional(),care:z.boolean().optional(),animations:z.boolean().optional(),haptics:z.boolean().optional(),sound:z.boolean().optional()}).strict();
+export const homePreferencesPatchSchema=z.object({dailyChecklist:checklistSchema.optional(),progress:z.boolean().optional(),work:z.boolean().optional(),investments:z.boolean().optional(),care:z.boolean().optional(),animations:z.boolean().optional(),haptics:z.boolean().optional(),sound:z.boolean().optional()}).strict();
 export type HomePreferences=z.infer<typeof homePreferencesSchema>;
 export function homePreferences(s:Snapshot):HomePreferences{try{return homePreferencesSchema.parse(JSON.parse(String(s.tables.settings?.find(r=>r.key==='returnPreferences')?.value)));}catch{return homePreferencesSchema.parse({});}}
 export function saveHomePreferences(s:Snapshot,patch:z.infer<typeof homePreferencesPatchSchema>){put(s,'settings',{key:'returnPreferences',value:JSON.stringify({...homePreferences(s),...homePreferencesPatchSchema.parse(patch)})},'key');}
@@ -24,3 +26,9 @@ export function directCapture(kind:CaptureKind,value:string,day:string,note='',s
  return [];
 }
 export const captureLabels:Record<CaptureKind,string>={weight:'Вес',sleep:'Сон',expense:'Расход',food:'Еда',text:'Запись',activity:'Тренировка',saving:'Накопления'};
+export const checklistLabels:Record<CaptureKind,string>={weight:'Отметить вес',sleep:'Записать сон',food:'Записать питание',expense:'Записать расходы',activity:'Записать активность',saving:'Записать накопления',text:'Запись в дневнике'};
+export function dailyChecklist(s:Snapshot,day:string,kinds=homePreferences(s).dailyChecklist){
+ const rows=(table:string)=>s.tables[table]??[];
+ const done:Record<CaptureKind,boolean>={weight:rows('weight_entries').some(r=>r.day===day),sleep:rows('health_daily_entries').some(r=>r.day===day&&typeof r.sleep_minutes==='number'&&r.sleep_minutes>0),food:rows('food_entries').some(r=>r.day===day),expense:rows('finance_transactions').some(r=>String(r.occurred_at).slice(0,10)===day&&r.type==='expense'),saving:rows('finance_transactions').some(r=>String(r.occurred_at).slice(0,10)===day&&r.type==='transfer'),activity:rows('activity_entries').some(r=>r.day===day),text:rows('mentor_turns').some(r=>r.day===day&&String(r.raw_text??'').trim())};
+ return kinds.map(key=>({key,label:checklistLabels[key],done:done[key]}));
+}

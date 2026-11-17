@@ -1,3 +1,4 @@
+import {resetFocusRecords} from '../shared/focus-reset';
 import {saveHomePreferences} from '../shared/home';
 import {saveFocusLabel,labelRequestSchema,type LabelDraft} from '../shared/focus-label';
 import {z} from '../shared/validation';
@@ -12,6 +13,7 @@ const writeTables=['settings','finance_accounts','finance_categories','weight_en
 export class FocusModeRepository implements FocusAPI{
  constructor(private db:DB,private ai:AIGateway){this.change(s=>initializeFocus(s));}
  private readSnapshot():Snapshot{return {format:'nexus-backup',version:schemaVersion,exportedAt:new Date().toISOString(),tables:Object.fromEntries(backupTables.map(table=>[table,this.db.prepare(`SELECT * FROM ${table}`).all() as Row[]]))};}
+ async resetRecords(input:Parameters<FocusAPI['resetRecords']>[0]){this.change(s=>resetFocusRecords(s,input));}
  async preferences(input:Parameters<FocusAPI['preferences']>[0]){this.change(s=>saveHomePreferences(s,input));}
  async snapshot():Promise<Snapshot>{return focusSnapshot(this.readSnapshot());}
  private change(fn:(s:Snapshot)=>void){

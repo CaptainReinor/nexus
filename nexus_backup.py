@@ -36,7 +36,7 @@ ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 AI_KEY_FILE = "openrouter-key"
 DAILY_TABLES = {'habit_preferences','care_slots','care_checks','routines','scheduled_payments','payment_occurrences','experiments','experiment_logs','focus_sessions','evening_answers'}
 FOCUS_TABLES = {'mentor_turns','food_entries','activity_entries'}
-API_VERSION = "0.9.0"
+API_VERSION = "0.9.1"
 OPENROUTER_BASE = os.environ.get("NEXUS_OPENROUTER_BASE", "https://openrouter.ai/api/v1").rstrip("/")
 RELAY_KEY = os.environ.get("NEXUS_AI_RELAY_KEY", "")
 INVESTMENT_TABLES = {"investment_accounts", "investment_entries"}
@@ -119,6 +119,22 @@ def read_sync_state(data_dir=None) -> dict | None:
     return json.loads(path.read_text("utf-8")) if path.is_file() else None
 
 
+def focus_reset_marker(snapshot):
+    if not snapshot:
+        return None
+    rows = [row for row in snapshot.get('tables', {}).get('settings', []) if row.get('key') == '_nexus_focus_reset']
+    if not rows:
+        return None
+    if len(rows) != 1:
+        raise ValueError('invalid_focus_reset')
+    value = json.loads(rows[0]['value'])
+    if not isinstance(value, dict) or set(value) != {'id', 'at', 'day'} or not isinstance(value['id'], str) or not ID_RE.fullmatch(value['id']) or type(value['at']) is not int or not 0 < value['at'] <= min(9007199254740991, int(datetime.now(timezone.utc).timestamp()*1000) + 86400000):
+        raise ValueError('invalid_focus_reset')
+    if not isinstance(value['day'], str) or datetime.strptime(value['day'], '%Y-%m-%d').strftime('%Y-%m-%d') != value['day']:
+        raise ValueError('invalid_focus_reset')
+    return value
+
+
 def prune_backups(data_dir=None) -> list[dict]:
     """Caller holds BACKUP_LOCK. Only remove recognized backup metadata/blob pairs."""
     data_dir = data_dir or DATA_DIR
@@ -152,7 +168,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", self.cors_origin())
         self.send_header("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Nexus-Revision, Cache-Control")
+        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Nexus-Revision, X-Nexus-Focus-Reset, Cache-Control")
         self.send_header("Vary", "Origin")
         self.send_header("Content-Length", "0")
         self.end_headers()
@@ -465,6 +481,17 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if str(revision) != expected:
                 self.respond(409, {"error": "revision_conflict", "revision": revision})
+                return
+            try:
+                previous_reset = focus_reset_marker(current.get('snapshot') if current else None)
+                incoming_reset = focus_reset_marker(snapshot)
+            except (ValueError, TypeError, KeyError):
+                self.respond(400, {'error': 'invalid_focus_reset'})
+                return
+            if (previous_reset and (not incoming_reset or (incoming_reset['at'], incoming_reset['id']) < (previous_reset['at'], previous_reset['id']))) or (incoming_reset and self.headers.get('X-Nexus-Focus-Reset') != incoming_reset['id']):
+                # An old client may carry opaque settings forward while resurrecting old rows.
+                # Requiring explicit acknowledgement makes it upgrade/reload before writing.
+                self.respond(409, {'error': 'focus_reset_required', 'revision': revision})
                 return
             if current:
                 atomic_write(self.data_dir / "sync-state-previous.json", json.dumps(current, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))

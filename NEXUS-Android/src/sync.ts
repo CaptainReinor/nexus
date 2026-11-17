@@ -1,3 +1,4 @@
+import {focusResetHeaders} from '../../NEXUS/src/shared/focus-reset';
 import {initializeFocus} from '../../NEXUS/src/shared/focus-isolation';
 import { defaultServerEndpoint,remoteProfileSchema,normalizeInvitationToken } from '../../NEXUS/src/shared/accounts';
 import { ensureFinanceDefaults } from '../../NEXUS/src/shared/finance-defaults';
@@ -93,7 +94,7 @@ export async function loadState(config=connection()):Promise<State>{
 }
 
 async function putState(updated:Snapshot,revision:number,config:ReturnType<typeof connection>):Promise<number>{
-  const response=await request('/v1/state',{method:'PUT',headers:{'Content-Type':'application/json','X-Nexus-Revision':String(revision)},body:JSON.stringify(updated)},20_000,config);
+  const response=await request('/v1/state',{method:'PUT',headers:{'Content-Type':'application/json','X-Nexus-Revision':String(revision),...focusResetHeaders(updated)},body:JSON.stringify(updated)},20_000,config);
   if(response.status===409)throw new RevisionConflict();
   if(!response.ok)throw new Error(`Не удалось сохранить: сервер ответил ${response.status}.`);
   const result=await response.json() as {revision:number};

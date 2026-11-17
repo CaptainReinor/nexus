@@ -9,5 +9,5 @@ it('validates manual money and sleep before writing and keeps walks out of gym s
 });
 it('stores home preferences in the synchronized snapshot and preserves unspecified options',()=>{
  const s:Snapshot={format:'nexus-backup',version:16,exportedAt:'',tables:{settings:[]}};saveHomePreferences(s,{work:true});saveHomePreferences(s,{animations:false});
- expect(homePreferences(structuredClone(s))).toEqual({progress:true,work:true,investments:false,care:true,animations:false,haptics:true,sound:false});
+ expect(homePreferences(structuredClone(s))).toEqual({dailyChecklist:['weight','sleep'],progress:true,work:true,investments:false,care:true,animations:false,haptics:true,sound:false});
 });

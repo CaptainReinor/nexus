@@ -12,7 +12,7 @@ it('saves a quick weight locally, without paying for an AI call, and updates the
  const {api,props}=returnFixture();render(<ReturnApp {...props}/>);
  fireEvent.change(await screen.findByLabelText('Вес, кг'),{target:{value:'82,1'}});fireEvent.click(screen.getByRole('button',{name:'Сохранить'}));
  await screen.findByRole('status');expect(api.send).not.toHaveBeenCalled();expect(api.save).toHaveBeenCalledOnce();
- await waitFor(()=>expect(screen.getByText('2 из 3')).toBeTruthy());
+ await waitFor(()=>expect(screen.getByText('1 из 2')).toBeTruthy());
  expect(screen.getAllByRole('button',{name:/День|Прогресс|Друзья/}).length).toBe(3);
 });
 it('accepts typed sleep times on a phone and saves the correct overnight duration',async()=>{

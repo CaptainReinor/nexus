@@ -1,4 +1,5 @@
 import {pruneJobChildren} from './work-removal';
+import {alignFocusReset,preserveFocusReset} from './focus-reset';
 import {retainedJournalInputs} from './journal-retention';
 import {reconcileCareLogs} from './care';
 import { fingerprint,isClockRow,readRecordClocks,recordKey,recordTime,writeRecordClocks } from "./record-clocks";
@@ -56,6 +57,7 @@ function mergeFocusPreferences(old:Row|undefined,local:Row,remote:Row,choice:'lo
  }catch{return null;}
 }
 export function mergeSnapshots(base:Snapshot,local:Snapshot,remote:Snapshot,choices:Record<string,'local'|'remote'>={}):{snapshot:Snapshot;conflicts:Conflict[]}{
+  const reset=alignFocusReset(base,local,remote);base=reset.base;local=reset.local;remote=reset.remote;
   local=alignNewParents(base,local,remote,rowKey);
   const snapshot=structuredClone(remote),conflicts:Conflict[]=[];
   const localClocks=readRecordClocks(local),remoteClocks=readRecordClocks(remote),baseClocks=readRecordClocks(base);
@@ -85,7 +87,7 @@ export function mergeSnapshots(base:Snapshot,local:Snapshot,remote:Snapshot,choi
       const next={...other},collisions:string[]=[];
       for(const field of new Set([...Object.keys(old??{}),...Object.keys(edited)])){
         if(equal(old?.[field],edited[field]))continue;
-        if(table==='settings'&&edited.key==='focusConfig'&&field==='value'){const value=mergeFocusPreferences(old,edited,other,choice);if(value!==null){next.value=value;continue;}}
+        if(table==='settings'&&['focusConfig','returnPreferences'].includes(String(edited.key))&&field==='value'){const value=mergeFocusPreferences(old,edited,other,choice);if(value!==null){next.value=value;continue;}}
         // Natural-key rows keep the remote primary key for referential integrity.
         if(field==='id'&&naturalKeys[table])continue;
         if(field==='updated_at'){next[field]=[String(edited[field]??''),String(other[field]??'')].sort().at(-1);continue;}
@@ -114,5 +116,6 @@ export function mergeSnapshots(base:Snapshot,local:Snapshot,remote:Snapshot,choi
     for(const key of keys){const at=Math.max(recordTime(localClocks,table,key,left.get(key)),recordTime(remoteClocks,table,key,right.get(key)));if(at>0)clocks[recordKey(table,key)]={at,hash:fingerprint(merged.get(key))};}
   }
   writeRecordClocks(snapshot,clocks);
+  preserveFocusReset(snapshot,reset.marker);
   return {snapshot,conflicts};
 }

@@ -38,6 +38,9 @@ body.return-enabled::before,body.return-enabled::after{display:none}
 .return-app button:focus-visible,.return-app input:focus-visible,.return-app textarea:focus-visible,.return-app select:focus-visible{outline:2px solid var(--return-accent);outline-offset:3px}
 .return-link{display:inline-flex;gap:8px;align-items:center;color:var(--return-ink);background:none;border:0;padding:8px 0;font-size:12px;min-height:35px;clip-path:none;text-align:left}
 .return-link.muted{color:var(--return-muted)}
+.return-link.return-danger{color:var(--return-danger);margin-left:20px}
+.return-danger-button{background:#4c2828;color:#ffceca;border-color:#a66360}
+.return-plan .return-section-head .return-actions>span{color:var(--return-muted);font-size:12px}
 .return-entry-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
 .return-entry-stack,.return-form{display:grid;gap:17px}
 .return-field,.return-form>label,.return-time-fields>label{display:grid;gap:8px;font-size:12px;color:var(--return-muted);min-width:0}
