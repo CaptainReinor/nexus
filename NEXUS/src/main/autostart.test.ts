@@ -30,5 +30,5 @@ it('rejects entry injection and escapes characters in executable names',()=>{
 it('preserves native Windows autostart',()=>{
   const env={platform:'win32' as const,configHome:directory,executable:'C:\\NEXUS.exe'};
   expect(getAutostart(env)).toBe(true);setAutostart(false,env);
-  expect(mock.set).toHaveBeenCalledWith({openAtLogin:false});
+  expect(mock.set).toHaveBeenCalledWith({openAtLogin:false,args:['--nexus-background']});
 });

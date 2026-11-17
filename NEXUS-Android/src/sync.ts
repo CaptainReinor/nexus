@@ -6,6 +6,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 import { OfflineSync, RevisionConflict, type Snapshot, type State } from './offline-sync';
 import { localStore } from './local-store';
 import { watchRevisions } from '../../NEXUS/src/shared/revision-events';
+import {socialStateSchema,socialRoute,socialError,type SocialAPI} from '../../NEXUS/src/shared/social';
 export type { Row, Snapshot, State } from './offline-sync';
 interface NativeAI {prepare(options:Record<string,unknown>):Promise<void>;run(options:Record<string,unknown>):Promise<AIReply>;check(options:Record<string,unknown>):Promise<{configured:boolean}>;}
 const nativeAI=registerPlugin<NativeAI>('NexusAI');
@@ -45,7 +46,7 @@ async function request(path:string,options:RequestInit={},timeout=20_000,config=
   let response:Response;
   try{response=await fetch(`${endpoint}${path}`,{...options,headers:{Authorization:`Bearer ${token}`,'Cache-Control':'no-store',...options.headers},redirect:'error',signal:AbortSignal.timeout(timeout)});}
   catch{throw new Error('Нет связи с сервером. Проверьте интернет.');}
-  if(response.status===401||response.status===403)throw new Error('Сервер не принял ключ доступа.');
+    if(response.status===401||response.status===403&&!path.startsWith('/v1/social'))throw new Error('Сервер не принял ключ доступа.');
   return response;
 }
 
@@ -57,6 +58,8 @@ async function aiError(response:Response):Promise<Error>{
 }
 
 export type AIReply={content:string;requestId:string;inputTokens:number|null;outputTokens:number|null;costMicrousd:number|null};
+async function socialReply(response:Response){if(!response.ok){let code='';try{code=String((await response.json() as {error?:unknown}).error??'');}catch{/* No raw server message. */}throw Error(socialError(code));}return socialStateSchema.parse(await response.json());}
+export const socialAPI:SocialAPI={state:async()=>socialReply(await request('/v1/social')),change:async input=>{const route=socialRoute(input);return socialReply(await request(route.path,{method:route.method,headers:{'Content-Type':'application/json'},body:JSON.stringify(route.body)}));},watch:notify=>{const controller=new AbortController();const config=connection();if(config.token)void watchRevisions({...config,path:'/v1/social/events',revision:()=>notify(),fallback:()=>{}},controller.signal);return()=>controller.abort();}};
 export async function remoteProfile(){const response=await request('/v1/profile');if(!response.ok)throw new Error('Профиль недоступен.');const profile=remoteProfileSchema.parse(await response.json());localStorage.setItem(roleKey,profile.role);return profile;}
 export async function aiStatus():Promise<boolean>{
   if(Capacitor.isNativePlatform())return (await nativeAI.check({...connection()})).configured;

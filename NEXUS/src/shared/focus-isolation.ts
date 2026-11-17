@@ -44,7 +44,7 @@ export function initializeFocus(s:Snapshot,now=new Date().toISOString()){
 // Aliases keep presentation independent of the physical storage layout.
 export function focusSnapshot(s:Snapshot):Snapshot{
  const boundary=focusBoundary(s),start=boundary?.day??localDay();
- const tables:Snapshot['tables']={settings:(s.tables.settings??[]).filter(r=>['focusConfig','focusBoundary','focusFoodEdits'].includes(String(r.key))).map(r=>structuredClone(r)),finance_accounts:structuredClone(focusAccounts),finance_categories:structuredClone(focusCategories)};
+ const tables:Snapshot['tables']={settings:(s.tables.settings??[]).filter(r=>['focusConfig','focusBoundary','focusFoodEdits','returnPreferences'].includes(String(r.key))).map(r=>structuredClone(r)),finance_accounts:structuredClone(focusAccounts),finance_categories:structuredClone(focusCategories)};
  for(const [view,source] of Object.entries(sourceMap)){
   const rows=boundary?(s.tables[source]??[]).filter(r=>String(r.day??r.occurred_at).slice(0,10)>=start):[];
   tables[source]=structuredClone(rows);tables[view]=structuredClone(rows);

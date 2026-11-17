@@ -45,6 +45,8 @@ export type JournalEntry = {id:number;day:string;raw_text:string;source:'text'|'
 export type JobInput = Omit<Job,'id'|'created_at'|'updated_at'>;
 export type VacancyDraft = { title:string|null;company:string|null;url:string|null;source:string|null;city:string|null;work_mode:string|null;salary_from:number|null;salary_to:number|null;currency:string|null };
 export interface NexusAPI {
+  quick:import('./quick').DesktopQuickAPI;
+  social:import('./social').SocialAPI;
   focus:import('./focus-mode').FocusAPI;
   daily:DailyAPI;
   growth:import('./growth').GrowthAPI;

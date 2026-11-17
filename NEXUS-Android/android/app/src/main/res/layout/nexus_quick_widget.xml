@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="horizontal" android:gravity="center_vertical"
+    android:padding="12dp" android:background="@drawable/nexus_widget_background">
+    <TextView android:layout_width="36dp" android:layout_height="match_parent"
+        android:text="N" android:textColor="#91d7b4" android:textSize="27sp"
+        android:textStyle="bold" android:gravity="center" android:importantForAccessibility="no"/>
+    <TextView android:id="@+id/quick_weight" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+        android:text="Вес" android:textColor="#edf1eb" android:textSize="14sp"
+        android:gravity="center" android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="Записать вес в NEXUS"/>
+    <TextView android:id="@+id/quick_voice" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+        android:text="Голос" android:textColor="#91d7b4" android:textSize="14sp"
+        android:gravity="center" android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="Начитать запись в NEXUS"/>
+    <TextView android:id="@+id/quick_expense" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+        android:text="Расход" android:textColor="#edf1eb" android:textSize="14sp"
+        android:gravity="center" android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="Записать расход в NEXUS"/>
+</LinearLayout>

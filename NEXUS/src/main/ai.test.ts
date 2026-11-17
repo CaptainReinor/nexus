@@ -24,6 +24,7 @@ it('does not save an AI answer for a vacancy deleted while the provider is respo
 });
 
 it('passes saved expense comments and diary text from the repository to the mentor provider',async()=>{
+  vi.useFakeTimers({toFake:['Date']});vi.setSystemTime(new Date('2026-10-06T18:00:00'));
   const db=openDatabase(':memory:');
   const complete=vi.fn<AIProvider['complete']>().mockResolvedValue({content:JSON.stringify({headline:'Тест',wins:[],problems:[],actions:[],closing:'Тест'}),requestId:'synthetic-review',inputTokens:1,outputTokens:1,costMicrousd:0});
   const settings={get:()=>({aiEnabled:true,aiBudgetCents:1000,standardModel:'test/model'}),usedMicrousd:()=>({known:0,unknown:0}),getApiKey:()=> 'synthetic-key'} as unknown as SettingsRepository;
@@ -39,7 +40,7 @@ it('passes saved expense comments and diary text from the repository to the ment
     expect(sent.journals[0].raw_text).toBe('Погулял после работы');
     expect(complete.mock.calls[0][2]).toContain('Обязательно учитывай пояснения в комментариях');
     expect(complete).toHaveBeenCalledOnce();
-  }finally{db.close();}
+  }finally{db.close();vi.useRealTimers();}
 });
 
 it('distinguishes a network rejection from an invalid key during connection checks',async()=>{

@@ -15,13 +15,13 @@ function desktopCommand(executable:string):string {
   return `"${executable.replace(/[\\"`$]/g,character=>`\\${character}`).replace(/\\/g,'\\\\')}"`;
 }
 export function getAutostart(env:Environment=environment()):boolean {
-  if(env.platform!=='linux')return app.getLoginItemSettings().openAtLogin;
+  if(env.platform!=='linux')return app.getLoginItemSettings({args:['--nexus-background']}).openAtLogin||app.getLoginItemSettings().openAtLogin;
   if(!existsSync(file(env)))return false;
   const contents=readFileSync(file(env),'utf8');
   return /^Exec=/m.test(contents)&&!/^Hidden\s*=\s*true\s*$/m.test(contents)&&!/^X-GNOME-Autostart-enabled\s*=\s*false\s*$/m.test(contents);
 }
 export function setAutostart(enabled:boolean,env:Environment=environment()):void {
-  if(env.platform!=='linux'){app.setLoginItemSettings({openAtLogin:enabled});return;}
+  if(env.platform!=='linux'){app.setLoginItemSettings({openAtLogin:enabled,args:['--nexus-background']});return;}
   if(!enabled){rmSync(file(env),{force:true});return;}
   const command=desktopCommand(env.executable);
   mkdirSync(join(env.configHome,'autostart'),{recursive:true});

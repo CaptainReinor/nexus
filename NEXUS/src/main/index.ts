@@ -1,4 +1,8 @@
+import {getAutostart,setAutostart} from './autostart';
+import {quickKindSchema,quickShortcutSchema,type QuickKind,type QuickStatus} from '../shared/quick';
 import {labelRequestSchema,labelSaveSchema} from '../shared/focus-label';
+import {homePreferencesPatchSchema} from '../shared/home';
+import {socialMutationSchema} from '../shared/social';
 import {FocusModeRepository} from './focus-mode';
 import {focusConfigSchema,focusConfigPatchSchema,mentorRequestSchema,focusTurnSchema,removeFocusFoodSchema} from '../shared/focus-mode';
 import {jobInputSchema} from '../shared/vacancy';
@@ -9,7 +13,7 @@ import {paymentSchema,paymentActionSchema} from '../shared/payments';
 import {experimentSchema,experimentMarkSchema} from '../shared/experiments';
 import {focusSchema} from '../shared/focus';
 import {reflectionSchema} from '../shared/reflection';
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell, Tray, globalShortcut, nativeImage, type WebContents } from 'electron';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { z, ZodError } from 'zod';
@@ -39,9 +43,40 @@ import type { DashboardData } from '../shared/models';
 app.commandLine.appendSwitch('lang','ru');
 const windowsAppId=app.isPackaged&&!process.env.NEXUS_TEST_USER_DATA?'ru.nexus.desktop':'ru.nexus.desktop.preview';
 
-let window: BrowserWindow | null = null;
+let window:BrowserWindow|null=null,quickWindow:BrowserWindow|null=null,tray:Tray|null=null;
+let quitting=false,quitReady=false;
+const trustedContents=new Set<WebContents>();
+const hiddenTest=Boolean(process.env.NEXUS_TEST_USER_DATA&&process.env.NEXUS_TEST_HIDE_WINDOWS);
+function broadcast(channel:string){for(const contents of trustedContents)if(!contents.isDestroyed())contents.send(channel);}
+function showMain(){if(!window||window.isDestroyed())createWindow();if(window&&!hiddenTest){if(window.isMinimized())window.restore();window.show();window.focus();}}
+function secureWindow(target:BrowserWindow){
+  trustedContents.add(target.webContents);
+  target.webContents.once('destroyed',()=>trustedContents.delete(target.webContents));
+  target.webContents.session.setPermissionRequestHandler((contents,permission,callback,details)=>{const mediaTypes=(details as {mediaTypes?:string[]}).mediaTypes??[];callback(trustedContents.has(contents)&&permission==='media'&&!mediaTypes.includes('video'));});
+  target.webContents.session.setPermissionCheckHandler((contents,permission)=>contents!==null&&trustedContents.has(contents)&&permission==='media');
+  target.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+  target.webContents.on('will-navigate',event=>event.preventDefault());
+  let closing=false;
+  target.on('close',event=>{if(quitReady)return;event.preventDefault();if(closing)return;closing=true;void flushWindow(target).then(saved=>{if(saved)target.hide();else{if(!hiddenTest)target.show();dialog.showErrorBox('Запись ещё не сохранена','Дождись окончания записи или проверь несохранённые поля.');}}).finally(()=>{closing=false;});});
+}
+async function flushWindow(target:BrowserWindow):Promise<boolean>{if(target.isDestroyed())return true;try{return (await target.webContents.executeJavaScript('globalThis.nexusFlushPendingEdits ? globalThis.nexusFlushPendingEdits() : true'))===true;}catch{return target.webContents.isDestroyed()||!target.webContents.isLoading();}}
+function openQuick(kind:QuickKind){
+ if(quickWindow&&!quickWindow.isDestroyed()){quickWindow.webContents.send('nexus:quick-action',kind);if(!hiddenTest){quickWindow.show();quickWindow.focus();}return;}
+ const target=new BrowserWindow({width:470,height:590,minWidth:360,minHeight:430,backgroundColor:'#101713',title:'NEXUS · Быстрая запись',icon:join(app.getAppPath(),'assets/nexus-icon.png'),show:false,autoHideMenuBar:true,webPreferences:{preload:join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true}});
+ quickWindow=target;secureWindow(target);
+ target.once('ready-to-show',()=>{if(!hiddenTest){target.show();target.focus();}});
+ target.once('closed',()=>{quickWindow=null;});
+ if(process.env.NEXUS_DEV_URL){const url=new URL(process.env.NEXUS_DEV_URL);url.searchParams.set('quick',kind);void target.loadURL(url.toString());}
+ else void target.loadFile(join(__dirname,'../dist/index.html'),{query:{quick:kind}});
+}
+function createTray(){
+ const icon=nativeImage.createFromPath(join(app.getAppPath(),'assets/nexus-icon.png')).resize({width:20,height:20});
+ tray=new Tray(icon);tray.setToolTip('NEXUS');
+ tray.setContextMenu(Menu.buildFromTemplate([{label:'Открыть NEXUS',click:showMain},{label:'Быстрая запись',click:()=>openQuick('text')},{label:'Записать вес',click:()=>openQuick('weight')},{label:'Начитать',click:()=>openQuick('voice')},{type:'separator'},{label:'Выйти',click:()=>app.quit()}]));
+ tray.on('double-click',showMain);
+}
 let notifyLocalChange=()=>{};
-const changes=/^(?:daily:(?:careConfig|careRole|careMark|routine|routineEntry|payment|paymentAction|experiment|experimentMark|focus|reflection)|growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|deleteJob|changeStatus|linkCase)|focus:(?:save|send|configure|updateConfig|publish|removeFood)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
+const changes=/^(?:daily:(?:careConfig|careRole|careMark|routine|routineEntry|payment|paymentAction|experiment|experimentMark|focus|reflection)|growth:(?:goal|plan|repeat|metric|entry|removePlan)|life:(?:patch|markers|task|memory|remove|review)|health:(?:save|move|archive)|finance:(?:save|delete|setBudget)|investments:(?:save|delete)|work:(?:save|deleteJob|changeStatus|linkCase)|focus:(?:save|send|configure|updateConfig|preferences|publish|removeFood)|settings:save$|ai:|journal:(?:save|update|editAnalysis|analyze|apply|transcribe)|data:(?:import|remoteRestore)$)/;
 const id=z.number().int().positive();
 const day=z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const text=z.string().max(100000);
@@ -53,7 +88,7 @@ function logError(scope:string,error:unknown):void {
 }
 function handle<T extends z.ZodTypeAny>(channel:string,schema:T,fn:(input:z.infer<T>)=>unknown|Promise<unknown>):void {
   ipcMain.handle(channel,async(event,payload:unknown)=>{
-    if (!window || event.sender!==window.webContents) throw new Error('Недопустимый источник запроса.');
+    if (!trustedContents.has(event.sender)||event.senderFrame!==event.sender.mainFrame) throw new Error('Недопустимый источник запроса.');
     try { const result=await fn(schema.parse(payload));if(changes.test(channel))notifyLocalChange();return result; }
     catch(error) {
       logError(channel,error);
@@ -73,37 +108,46 @@ const caseSchema=z.object({id:id.optional(),entry_id:id.nullable(),title:nonEmpt
 const settingsSchema=z.object({autostart:z.boolean().optional(),currency:z.string().length(3).optional(),firstDayOfWeek:z.union([z.literal(0),z.literal(1)]).optional(),primaryAccountId:id.nullable().optional(),weeklyTarget:z.number().int().min(0).max(1000).optional(),monthlyTarget:z.number().int().min(0).max(1000).optional(),aiEnabled:z.boolean().optional(),aiModelMode:z.enum(['preset','custom']).optional(),cheapModel:text.optional(),standardModel:text.optional(),advancedModel:text.optional(),transcriptionModel:text.optional(),aiBudgetCents:z.number().int().min(0).max(10_000_000).optional()});
 
 function createWindow():void {
-  window=new BrowserWindow({width:1480,height:920,minWidth:980,minHeight:660,backgroundColor:'#14191e',title:'NEXUS',icon:join(app.getAppPath(),'assets/nexus-icon.png'),show:false,webPreferences:{preload:join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true}});
-  if(process.platform==='win32')window.setAppDetails({appId:windowsAppId,appIconPath:process.execPath,appIconIndex:0,relaunchCommand:`"${process.execPath}"`,relaunchDisplayName:'NEXUS'});
-  window.webContents.session.setPermissionRequestHandler((contents,permission,callback,details)=>{const mediaTypes=(details as {mediaTypes?:string[]}).mediaTypes??[];callback(contents===window?.webContents&&permission==='media'&&!mediaTypes.includes('video'));});
-  window.webContents.session.setPermissionCheckHandler((contents,permission)=>contents===window?.webContents&&permission==='media');
-  window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
-  window.webContents.on('will-navigate',event=>event.preventDefault());
-  window.once('ready-to-show',()=>window?.show());
-  if (process.env.NEXUS_DEV_URL) void window.loadURL(process.env.NEXUS_DEV_URL);
-  else void window.loadFile(join(__dirname,'../dist/index.html'));
-  let closePrepared=false,closePending=false;
-  window.on('close',event=>{if(closePrepared||!window)return;event.preventDefault();if(closePending)return;closePending=true;const target=window;void target.webContents.executeJavaScript('globalThis.nexusFlushPendingEdits ? globalThis.nexusFlushPendingEdits() : true').then(saved=>{closePending=false;if(saved){closePrepared=true;target.close();}else dialog.showErrorBox('Изменения не сохранены','Проверьте поля и повторите сохранение перед выходом.');}).catch(()=>{closePending=false;closePrepared=true;target.close();});});
-  window.on('closed',()=>{window=null;});
+  const target=new BrowserWindow({width:1280,height:860,minWidth:980,minHeight:660,backgroundColor:'#101713',title:'NEXUS',icon:join(app.getAppPath(),'assets/nexus-icon.png'),show:false,webPreferences:{preload:join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true}});
+  window=target;secureWindow(target);
+  if(process.platform==='win32')target.setAppDetails({appId:windowsAppId,appIconPath:process.execPath,appIconIndex:0,relaunchCommand:`"${process.execPath}"`,relaunchDisplayName:'NEXUS'});
+  target.once('ready-to-show',()=>{if(!hiddenTest&&!process.argv.includes('--nexus-background'))target.show();});
+  if(process.env.NEXUS_DEV_URL)void target.loadURL(process.env.NEXUS_DEV_URL);
+  else void target.loadFile(join(__dirname,'../dist/index.html'));
+  target.on('closed',()=>{window=null;});
 }
 
 if(process.env.NEXUS_TEST_USER_DATA){mkdirSync(process.env.NEXUS_TEST_USER_DATA,{recursive:true});app.setPath('userData',process.env.NEXUS_TEST_USER_DATA);}
 const profiles=new ProfileManager(app.getPath('userData'));
 mkdirSync(profiles.directory(),{recursive:true});app.setPath('userData',profiles.directory());
 app.setPath('sessionData',profiles.directory());
-void app.whenReady().then(()=>{
+if(!app.requestSingleInstanceLock())app.quit();else void app.whenReady().then(()=>{
   if(process.platform==='win32')app.setAppUserModelId(windowsAppId);
   Menu.setApplicationMenu(null);
   const dbPath=join(app.getPath('userData'),'nexus.sqlite');
   const db=openDatabase(dbPath,{seedFinance:true});
+  let quickStatus:QuickStatus={shortcut:'',available:false};
+  const bindShortcut=(shortcut:QuickStatus['shortcut'])=>{globalShortcut.unregisterAll();const available=!!shortcut&&!hiddenTest&&globalShortcut.register(shortcut,()=>openQuick('text'));quickStatus={shortcut,available};return quickStatus;};
+  const savedShortcut=db.prepare("SELECT value FROM settings WHERE key='desktopQuickShortcut'").get() as {value:string}|undefined;
+  let shortcut:QuickStatus['shortcut']='CommandOrControl+Shift+Space';
+  if(savedShortcut)try{shortcut=quickShortcutSchema.parse(JSON.parse(savedShortcut.value));}catch{/* Use the default if an older setting is invalid. */}
+  bindShortcut(shortcut);
+  handle('quick:status',z.undefined(),()=>quickStatus);
+  handle('quick:open',quickKindSchema,kind=>openQuick(kind));
+  handle('quick:shortcut',quickShortcutSchema,value=>{db.prepare("INSERT INTO settings(key,value) VALUES ('desktopQuickShortcut',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(JSON.stringify(value));return bindShortcut(value);});
+  // Replace the former foreground autostart with a quiet tray launch.
+  if(app.isPackaged&&!process.env.NEXUS_TEST_USER_DATA&&getAutostart())setAutostart(true);
   const updates=new DesktopUpdates(async()=>{await db.backup(join(app.getPath('userData'),'before-update.sqlite'));});
   handle('updates:status',z.undefined(),()=>updates.status());
   handle('updates:check',z.undefined(),()=>updates.check());
   handle('updates:download',z.undefined(),()=>updates.download());
   handle('updates:install',z.undefined(),()=>updates.install());
-  const remoteBackup=new RemoteBackupService(db,()=>window?.webContents.send('nexus:data-changed'));
+  const remoteBackup=new RemoteBackupService(db,()=>broadcast('nexus:data-changed'),()=>broadcast('nexus:social-changed'));
+  handle('social:state',z.undefined(),()=>remoteBackup.socialState());
+  handle('social:change',socialMutationSchema,input=>remoteBackup.socialChange(input));
   const settings=new SettingsRepository(db,dbPath,()=>remoteBackup.isGuest()),health=new HealthRepository(db),finance=new FinanceRepository(db,()=>settings.get().firstDayOfWeek),work=new WorkRepository(db,()=>settings.get().firstDayOfWeek),ai=new AIGateway(db,settings,work,new ProfileAIProvider(remoteBackup),()=>!remoteBackup.isGuest()&&settings.get().hasApiKey?settings.getApiKey():''),journal=new JournalService(db,ai,health,finance,work,settings);
   const focusMode=new FocusModeRepository(db,ai);
+  handle('focus:preferences',homePreferencesPatchSchema,input=>focusMode.preferences(input));
   handle('focus:updateConfig',focusConfigPatchSchema,input=>focusMode.updateConfig(input));
   handle('focus:removeFood',removeFocusFoodSchema,input=>focusMode.removeFood(input));
   handle('focus:publish',z.undefined(),()=>focusMode.publish());
@@ -162,7 +206,7 @@ void app.whenReady().then(()=>{
   handle('life:review',z.object({kind:z.enum(['day','week']),start:day,end:day,overrideBudget:z.boolean().optional()}).refine(x=>x.start<=x.end&&(x.kind!=='day'||x.start===x.end)),async input=>{const review=await ai.reviewLife(life.facts(input.start,input.end),input.overrideBudget);life.saveReview(input.kind,input.start,input.end,review);return review;});
   handle('journal:editAnalysis',z.object({id,analysis:journalAnalysisSchema}),input=>journal.editAnalysis(input.id,input.analysis));
   remoteBackup.startAutoUpload();
-  notifyLocalChange=()=>remoteBackup.notifyLocalChange();
+  notifyLocalChange=()=>{remoteBackup.notifyLocalChange();broadcast('nexus:data-changed');};
   const investments=new InvestmentRepository(db);
   handle('investments:list',z.undefined(),()=>investments.list());
   handle('investments:saveAccount',z.object({id:id.optional(),name:nonEmpty,active:boolInt}),input=>investments.saveAccount(input));
@@ -228,9 +272,14 @@ void app.whenReady().then(()=>{
   handle('journal:analyze',z.object({id,overrideBudget:z.boolean().optional()}),input=>journal.analyze(input.id,input.overrideBudget));
   handle('journal:apply',z.object({id,keys:z.array(z.string().max(100)).max(100)}),input=>journal.apply(input.id,input.keys));
   handle('journal:transcribe',z.object({base64:z.string().min(1).max(32_000_000),format:z.enum(['webm','wav','mp3']),overrideBudget:z.boolean().optional()}),input=>ai.transcribe(input.base64,input.format,input.overrideBudget));
-  createWindow();
-  app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow();});
-  app.on('before-quit',()=>{reminders.stop();remoteBackup.stopAutoUpload();db.close();});
-}).catch(error=>{ logError('startup',error); dialog.showErrorBox('NEXUS не запустился',error instanceof Error?error.message:'Неизвестная ошибка'); app.quit(); });
+  createWindow();if(!hiddenTest)createTray();
+  app.on('activate',showMain);
+  app.on('second-instance',()=>showMain());
+  app.on('before-quit',event=>{
+    if(quitReady)return;event.preventDefault();if(quitting)return;quitting=true;
+    void Promise.all(BrowserWindow.getAllWindows().map(flushWindow)).then(results=>{if(results.every(Boolean)){quitReady=true;app.quit();}else{quitting=false;showMain();dialog.showErrorBox('Запись ещё не сохранена','Дождись окончания записи или проверь несохранённые поля.');}});
+  });
+  app.on('will-quit',()=>{reminders.stop();remoteBackup.stopAutoUpload();globalShortcut.unregisterAll();tray?.destroy();db.close();});
+}).catch(error=>{logError('startup',error);dialog.showErrorBox('NEXUS не запустился',error instanceof Error?error.message:'Неизвестная ошибка');quitReady=true;app.quit();});
 
-app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
+app.on('window-all-closed',()=>{if(!tray&&!hiddenTest)app.quit();});

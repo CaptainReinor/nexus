@@ -1,21 +1,14 @@
-import {FocusPage} from './focus-mode';
-import {useFocusMode} from './focus-mode-state';
-import { useEffect,useState } from 'react';
-import {useTheme,useNavigationCopy} from './appearance';
-import {NavIcon} from './nav-icon';
-import {Modal} from './ui';
-import { NavLink, Route, Routes, useLocation } from 'react-router-dom';
-import { moduleRegistry } from './registry';
-import { localDay } from '../shared/domain';
-import { ConnectionGate } from './connection-gate';
-import { ConfirmHost } from './confirm';
+import {lazy,Suspense,useState} from 'react';
+import {ReturnApp,type Extra} from './return/app';
+import {ConnectionGate} from './connection-gate';
+import {ConfirmHost} from './confirm';
+import {DailyProvider} from './components/daily-ui';
+import {GrowthProvider} from './components/growth-ui';
 
-export function App(){
-  const focus=useFocusMode();
-  const theme=useTheme(),navCopy=useNavigationCopy(),[navigationOpen,setNavigationOpen]=useState(false);
-  const location=useLocation(),currentIndex=Math.max(0,moduleRegistry.findIndex(m=>m.path===location.pathname)),current=moduleRegistry[currentIndex];
-  useEffect(()=>{window.scrollTo(0,0);},[location.pathname]);
-  const navigation=(compact=false)=><nav aria-label={compact?'Разделы':'Основная навигация'}>{moduleRegistry.map(m=><NavLink key={m.id} to={m.path} end={m.path==='/'} onClick={()=>setNavigationOpen(false)} aria-label={theme==='dominion'?`${navCopy(m.id,m.label)} — ${m.label}`:m.label} className={({isActive})=>`nav-item ${isActive?'active':''}`}><span className="nav-glyph">{theme==='dominion'?<NavIcon id={m.id}/>:m.glyph}</span><span>{navCopy(m.id,m.label)}</span><span className="nav-chevron">›</span></NavLink>)}</nav>;
-  if(focus)return <><ConfirmHost/><ConnectionGate/><main className="focus-shell"><FocusPage api={window.nexus.focus}/></main></>;
-  return <><ConfirmHost/><ConnectionGate/><div className="app-shell dominion-chassis"><aside className="sidebar"><div className="brand"><div className="brand-emblem">N</div><div><strong>NEXUS</strong>{theme==='dominion'&&<small className="dominion-brand-label">ДОМИНИОН</small>}</div></div><div className="sidebar-section-label">РАЗДЕЛЫ <span>{String(currentIndex+1).padStart(2,'0')} / {String(moduleRegistry.length).padStart(2,'0')}</span></div>{navigation()}</aside><div className="main-area"><header className="topbar"><button className="compact-navigation button ghost" aria-label="Открыть разделы" onClick={()=>setNavigationOpen(true)}>☰</button><div className="breadcrumb">NEXUS <span>/</span> {navCopy(current.id,current.label).toUpperCase()}</div><div className="topbar-right"><span className="topbar-date">{new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).format(new Date(`${localDay()}T12:00:00`))}</span></div></header><main className="page"><Routes>{moduleRegistry.map(m=><Route key={m.id} path={m.path} element={<m.component/>}/>)}</Routes></main></div></div>{navigationOpen&&<Modal title="Разделы" onClose={()=>setNavigationOpen(false)}>{navigation(true)}</Modal>}</>
-}
+const Settings=lazy(()=>import('./modules/settings').then(m=>({default:m.SettingsPage})));
+const Work=lazy(()=>import('./modules/work').then(m=>({default:m.WorkPage})));
+const Health=lazy(()=>import('./modules/health').then(m=>({default:m.HealthPage})));
+const Finance=lazy(()=>import('./modules/finance').then(m=>({default:m.FinancePage})));
+const Investments=lazy(()=>import('./modules/investments').then(m=>({default:m.InvestmentsPanel})));
+function ExtraPage({kind}:{kind:Extra}){const [tab,setTab]=useState<'health'|'finance'>('health');return <GrowthProvider api={window.nexus.growth}><DailyProvider api={window.nexus.daily} reminders={window.nexus.reminders}><Suspense fallback={<p role="status">Загружаю…</p>}>{kind==='work'?<Work/>:kind==='investments'?<Investments/>:<><div className="return-segments">{([['health','Здоровье'],['finance','Финансы']] as const).map(([key,label])=><button key={key} aria-pressed={tab===key} onClick={()=>setTab(key)}>{label}</button>)}</div>{tab==='health'?<Health/>:<Finance/>}</>}</Suspense></DailyProvider></GrowthProvider>;}
+export function App(){const taskAPI={save:window.nexus.life.task,remove:(id:string)=>window.nexus.life.remove({table:'day_tasks',id})};return <><ConfirmHost/><ConnectionGate/><ReturnApp api={window.nexus.focus} social={window.nexus.social} daily={window.nexus.daily} reminders={window.nexus.reminders} createCare={(name,role)=>window.nexus.health.saveHabit({name,role,description:'',kind:'positive',format:'boolean',target:1,period:'daily',active:1})} tasks={taskAPI} desktopQuick={window.nexus.quick} quickActions={window.nexus.quick} settings={<Suspense fallback={<p role="status">Загружаю настройки…</p>}><Settings/></Suspense>} extra={kind=><ExtraPage kind={kind}/>}/></>;}

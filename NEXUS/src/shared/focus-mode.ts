@@ -1,3 +1,4 @@
+import type {saveHomePreferences} from './home';
 import {providerSchema} from './provider-schema';
 import {type LabelDraft,labelRequestSchema} from './focus-label';
 import {z} from './validation';
@@ -80,7 +81,7 @@ export const mentorRequestSchema=z.object({text:z.string().trim().min(1).max(160
 export const focusTurnSchema=z.object({id:identity,day:dateSchema,text:z.string().trim().min(1).max(16000),reply:z.string().max(10000),actions:z.array(focusActionSchema).max(40),replace:z.boolean().default(false),expectedUpdatedAt:z.string().nullable().default(null)}).strict();
 export type FocusTurnInput=z.infer<typeof focusTurnSchema>;
 export type FocusTurn={id:string;day:string;raw_text:string;reply:string;actions_json:string;links_json:string;created_at:string;updated_at:string};
-export interface FocusAPI{scanLabel(input:z.infer<typeof labelRequestSchema>):Promise<LabelDraft>;saveLabel(input:{draft:LabelDraft}):Promise<void>;updateConfig(patch:FocusConfigPatch):Promise<void>;snapshot():Promise<Snapshot>;removeFood(input:{id:string;expectedUpdatedAt:string}):Promise<void>;publish():Promise<{written:number;skipped:number}>;configure(config:FocusConfig,enableAI?:boolean):Promise<void>;send(input:z.infer<typeof mentorRequestSchema>):Promise<MentorReply>;save(input:FocusTurnInput):Promise<void>;transcribe(input:{base64:string;format:'webm'|'wav'|'mp3';overrideBudget?:boolean}):Promise<string>}
+export interface FocusAPI{preferences(input:Parameters<typeof saveHomePreferences>[1]):Promise<void>;scanLabel(input:z.infer<typeof labelRequestSchema>):Promise<LabelDraft>;saveLabel(input:{draft:LabelDraft}):Promise<void>;updateConfig(patch:FocusConfigPatch):Promise<void>;snapshot():Promise<Snapshot>;removeFood(input:{id:string;expectedUpdatedAt:string}):Promise<void>;publish():Promise<{written:number;skipped:number}>;configure(config:FocusConfig,enableAI?:boolean):Promise<void>;send(input:z.infer<typeof mentorRequestSchema>):Promise<MentorReply>;save(input:FocusTurnInput):Promise<void>;transcribe(input:{base64:string;format:'webm'|'wav'|'mp3';overrideBudget?:boolean}):Promise<string>}
 export function focusConfig(s:Snapshot):FocusConfig{
  try{return focusConfigSchema.parse(JSON.parse(String(s.tables.settings?.find(r=>r.key==='focusConfig')?.value)));}catch{return {startDay:localDay(),days:null,targetCents:null,gymPerWeek:null,model:defaultMentorModel,dietNote:''};}
 }

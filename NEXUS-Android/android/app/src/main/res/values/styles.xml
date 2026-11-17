@@ -17,7 +17,7 @@
 
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#182126</item>
+        <item name="windowSplashScreenBackground">#101713</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/nexus_launcher_foreground</item>
         <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>

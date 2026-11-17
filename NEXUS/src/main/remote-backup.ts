@@ -11,6 +11,7 @@ import type { DB } from './database';
 import { importBackupText, openDatabase, serializeBackup } from './database';
 import { decryptBackup, encryptBackup } from './remote-crypto';
 import { watchRevisions } from '../shared/revision-events';
+import {socialStateSchema,socialRoute,socialError,type SocialMutation} from '../shared/social';
 import { mergeSnapshots,rowKey,type Snapshot,type State } from '../shared/snapshot-sync';
 import { remoteProfileSchema,invitationCodeSchema,normalizeInvitationToken,type RemoteProfile,type UserInvitation } from '../shared/accounts';
 import { syncStateSchema } from '../shared/sync-state';
@@ -48,13 +49,21 @@ export class RemoteBackupService {
   private nextBackupAt=0;
   private syncRetryAfter=0;
   private events:AbortController|null=null;
+  private socialEvents:AbortController|null=null;
   private changeTimer:ReturnType<typeof setTimeout>|null=null;
   private fallbackPolling=false;
   private eventRevision=0;
   private changeVersion=0;
   private basePath=join(app.getPath('userData'),'remote-sync-base.json');
   private observed:Snapshot;
-  constructor(private db:DB,private onRemoteApplied:()=>void=()=>{}){this.observed=JSON.parse(serializeBackup(db)) as Snapshot;}
+  constructor(private db:DB,private onRemoteApplied:()=>void=()=>{},private onSocialChanged:()=>void=()=>{}){this.observed=JSON.parse(serializeBackup(db)) as Snapshot;}
+
+  async socialState(){
+    const settings=this.credentials();
+    if(!this.socialEvents){this.socialEvents=new AbortController();void watchRevisions({...settings,path:'/v1/social/events',revision:()=>this.onSocialChanged(),fallback:()=>{}},this.socialEvents.signal,desktopFetch);}
+    return socialStateSchema.parse(JSON.parse(await this.request(settings,'/v1/social',{method:'GET'},1_000_000,15_000)));
+  }
+  async socialChange(input:SocialMutation){const route=socialRoute(input);return socialStateSchema.parse(JSON.parse(await this.request(this.credentials(),route.path,{method:route.method,headers:{'Content-Type':'application/json'},body:JSON.stringify(route.body)},1_000_000,15_000)));}
 
   private credentials():z.infer<typeof configSchema> {
     if(!existsSync(this.credentialsPath))throw new Error('Сначала настройте серверные копии.');
@@ -179,7 +188,7 @@ export class RemoteBackupService {
     this.connectEvents();tick(true);
   }
 
-  stopAutoUpload():void {if(this.timer)clearInterval(this.timer);this.timer=null;this.events?.abort();this.events=null;if(this.changeTimer)clearTimeout(this.changeTimer);this.changeTimer=null;}
+  stopAutoUpload():void {if(this.timer)clearInterval(this.timer);this.timer=null;this.events?.abort();this.events=null;this.socialEvents?.abort();this.socialEvents=null;if(this.changeTimer)clearTimeout(this.changeTimer);this.changeTimer=null;}
 
   private connectEvents():void {
     this.events?.abort();this.events=null;this.fallbackPolling=false;this.eventRevision=0;
@@ -216,9 +225,10 @@ export class RemoteBackupService {
     try {
       response=await desktopFetch(`${settings.endpoint}${path}`,{...options,headers:{Authorization:`Bearer ${settings.token}`,'Cache-Control':'no-store',...options.headers},redirect:'error',signal:AbortSignal.timeout(timeout)});
     } catch {throw new Error('Сервер NEXUS недоступен из этой сети.');}
-    if(response.status===401||response.status===403)throw new Error('Сервер не принял ключ доступа.');
+    if(response.status===401||response.status===403&&!path.startsWith('/v1/social'))throw new Error('Сервер не принял ключ доступа.');
     if(path==='/v1/state'&&response.status===409)throw new RemoteRevisionConflict();
     if(!response.ok){
+      if(path.startsWith('/v1/social')){if(response.status===404&&path==='/v1/social')throw new Error('Для друзей обновите сервер NEXUS.');let code='';try{code=String((await response.json() as {error?:unknown}).error??'');}catch{/* No provider echo. */}throw new Error(socialError(code));}
       if(response.status===402)throw new Error('Исчерпан месячный лимит общего AI.');
       if(response.status===426)throw new Error('Обновите NEXUS: сервер содержит данные более новой версии.');
       if(response.status===429)throw new Error('Предыдущий запрос AI ещё обрабатывается.');

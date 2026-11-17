@@ -57,6 +57,26 @@ class SocialTest(unittest.TestCase):
             self.assertNotIn('ЛИЧНЫЙ СЕКРЕТ', json.dumps(state))
         self.assertNotIn('inviteCode', states[1]['groups'][0])
 
+    def test_cheers_are_member_only_once_per_day_and_do_not_increase_scores(self):
+        guest = self.guests[0]
+        self.join(guest)
+        for _ in range(3):
+            result = self.store.mutation(self.owner, 'POST', self.path + '/cheer', {'userId': guest['id']})
+        member = next(m for m in result['groups'][0]['members'] if m['id'] == guest['id'])
+        self.assertEqual(member['cheers'], 1)
+        self.assertEqual(member['points'], 0)
+        self.assertTrue(member['cheeredByMe'])
+        self.assertFalse(next(m for m in self.store.state(guest)['groups'][0]['members'] if m['self'])['cheeredByMe'])
+        with self.assertRaises(SocialError):
+            self.store.mutation(self.guests[1], 'POST', self.path + '/cheer', {'userId': guest['id']})
+        with self.assertRaises(SocialError):
+            self.store.mutation(self.owner, 'POST', self.path + '/cheer', {'userId': 'owner'})
+        self.today += timedelta(days=1)
+        self.assertEqual(next(m for m in self.store.state(guest)['groups'][0]['members'] if m['self'])['cheers'], 0)
+        self.today -= timedelta(days=1)
+        self.accounts.update(guest['id'], {'active': False})
+        self.assertEqual(len(self.store.state(self.owner)['groups'][0]['members']), 1)
+
     def test_private_weight_is_visible_only_after_consent_and_removed_on_revoke(self):
         guest = self.guests[0]
         self.join(guest)

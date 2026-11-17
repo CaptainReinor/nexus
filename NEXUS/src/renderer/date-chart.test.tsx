@@ -7,6 +7,13 @@ import {MobileChart} from '../../../NEXUS-Android/src/charts';
 import {setTheme} from './appearance';
 afterEach(()=>{cleanup();setTheme('standard');});
 describe('actual dated charts',()=>{
+ it('continues every dated line across absent days without changing source observations',()=>{
+   const points=[{day:'2026-11-01',value:460},{day:'2026-11-02',value:null},{day:'2026-11-04',value:480}];
+   const {container}=render(<DateChart label="Сон" points={points}/>);expect(container.querySelectorAll('polyline')).toHaveLength(1);
+   const chart=screen.getByRole('group');fireEvent.keyDown(chart,{key:'Home'});fireEvent.keyDown(chart,{key:'ArrowRight'});
+   expect(chart.getAttribute('aria-label')).toContain('02.11.2026');expect(container.querySelector('.chart-inspection strong')?.textContent).toBe('460');
+   expect(points).toHaveLength(3);expect(points[1].value).toBeNull();
+ });
  it('carries weight and portfolio values into missing days on both platforms',()=>{
    setTheme('dominion');
    for(const chart of [<LineChart carryForward label="Вес" values={[145,147]} labels={['2026-10-02','2026-10-04']}/>,<MobileChart carryForward label="Инвестиции" points={[{day:'2026-10-02',value:0},{day:'2026-10-04',value:2000}]} formatValue={String}/>]){

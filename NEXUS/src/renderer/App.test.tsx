@@ -1,24 +1,19 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { HashRouter } from 'react-router-dom';
 import { App } from './App';
+import {returnFixture} from './return/fixture.test-utils';
 
 vi.mock('./connection-gate',()=>({ConnectionGate:()=>null}));
 
-vi.mock('./registry',()=>({moduleRegistry:[
-  {id:'today',path:'/',label:'Сегодня',glyph:'◈',component:()=> <div>Главная страница</div>},
-  {id:'health',path:'/health',label:'Здоровье',glyph:'✚',component:()=> <div>Страница здоровья</div>}
-]}));
+afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals();});
 
-afterEach(()=>{cleanup();vi.restoreAllMocks();window.location.hash='';});
-
-it('keeps the app visible when navigating and scrollTo returns a promise',()=>{
-  window.location.hash='';
+it('keeps the unified desktop app visible when scrolling returns a promise',async()=>{
+  const {props}=returnFixture();
+  vi.stubGlobal('nexus',{focus:props.api,social:props.social,daily:props.daily,reminders:props.reminders,life:{task:props.tasks!.save,remove:vi.fn()},health:{saveHabit:vi.fn()},quick:{consume:async()=>null,watch:()=>()=>{},status:async()=>({shortcut:'',available:false})}});
   vi.spyOn(window,'scrollTo').mockImplementation((()=>Promise.resolve()) as typeof window.scrollTo);
-  render(<HashRouter><App/></HashRouter>);
-  expect(screen.getByText('Главная страница')).toBeTruthy();
-  fireEvent.click(screen.getByRole('link',{name:/Здоровье/}));
-  expect(screen.getByText('Страница здоровья')).toBeTruthy();
-  fireEvent.click(screen.getByRole('link',{name:/Сегодня/}));
-  expect(screen.getByText('Главная страница')).toBeTruthy();
+  render(<App/>);await screen.findByLabelText('Вес, кг');
+  fireEvent.click(screen.getByRole('button',{name:'Прогресс'}));
+  await screen.findByRole('heading',{name:'Прогресс'});
+  fireEvent.click(screen.getByRole('navigation',{name:'Разделы'}).querySelector('button')!);
+  expect(await screen.findByRole('heading',{name:'Сегодня'})).toBeTruthy();
 });

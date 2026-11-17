@@ -1,8 +1,12 @@
+import {quickActions} from './quick';
+import {ReturnApp} from '../../NEXUS/src/renderer/return/app';
+import {socialAPI} from './sync';
+import {saveHomePreferences} from '../../NEXUS/src/shared/home';
 import {labelRequestSchema,parsePhotoDraft,labelModel,labelInstructions,foodPhotoInstructions,labelResponseFormat,saveFocusLabel} from '../../NEXUS/src/shared/focus-label';
 import {runFocusMentor} from '../../NEXUS/src/shared/focus-mentor';
 import {recordFocusDiagnostic,focusDiagnostic} from '../../NEXUS/src/shared/focus-diagnostics';
 import {removeJob} from '../../NEXUS/src/shared/work-removal';
-import {FocusPage,FocusSettings} from '../../NEXUS/src/renderer/focus-mode';
+import {FocusPage} from '../../NEXUS/src/renderer/focus-mode';
 import {useFocusMode} from '../../NEXUS/src/renderer/focus-mode-state';
 import {focusSnapshot,publishFocus} from '../../NEXUS/src/shared/focus-isolation';
 import {focusFacts,focusConfig,mentorResponseFormat,configureFocus,updateFocusConfig,saveFocusTurn,removeFocusFood,type FocusAPI} from '../../NEXUS/src/shared/focus-mode';
@@ -24,7 +28,7 @@ import {savePayment,paymentAction} from '../../NEXUS/src/shared/payments';
 import {saveExperiment,markExperiment} from '../../NEXUS/src/shared/experiments';
 import {focusAction} from '../../NEXUS/src/shared/focus';
 import {saveReflection} from '../../NEXUS/src/shared/reflection';
-import {RemindersPanel} from '../../NEXUS/src/renderer/components/reminders-ui';
+
 import {reminders,updateReminders} from './reminders';
 import {PatternsPanel} from '../../NEXUS/src/renderer/components/insights-ui';
 import {useMemo} from 'react';
@@ -47,7 +51,7 @@ import { MobileChart } from './charts';
 import { AIStatus } from './ai-status';
 import { askConfirm,ConfirmHost } from '../../NEXUS/src/renderer/confirm';
 
-import { UpdatePanel } from '../../NEXUS/src/renderer/components/updates';
+
 type Section='today'|'health'|'finance'|'work'|'journal'|'settings';
 const nav:[Section,string][]=[['today','Сегодня'],['health','Здоровье'],['finance','Финансы'],['work','Работа'],['journal','Дневник'],['settings','Настройки']];
 const str=(value:unknown)=>value==null?'':String(value);
@@ -66,11 +70,10 @@ function Card({title,children}:{title:string;children:React.ReactNode}){return <
 function Empty({children}:{children:React.ReactNode}){return <p className="empty">{children}</p>;}
 
 export function App(){
-  const focusMode=useFocusMode();
-  const theme=useTheme(),navCopy=useNavigationCopy();
+  const theme=useTheme();
   const [section,setSection]=useState<Section>('today');
   useEffect(()=>{if(theme!=='dominion')return;const active=document.querySelector<HTMLElement>('.bottom button.active'),bar=active?.parentElement;if(active&&bar){const left=active.offsetLeft,right=left+active.offsetWidth;if(left<bar.scrollLeft)bar.scrollLeft=left;else if(right>bar.scrollLeft+bar.clientWidth)bar.scrollLeft=right-bar.clientWidth;}},[section,theme]);
-  const [visited,setVisited]=useState<Section[]>(['today']);
+  const [,setVisited]=useState<Section[]>(['today']);
   const [state,setState]=useState<State|null>(null);
   const [status,setStatus]=useState<SyncStatus>('loading');
   const [conflicts,setConflicts]=useState<Conflict[]>([]);
@@ -113,26 +116,21 @@ export function App(){
     const read=()=>{const s=engine.current?.state.snapshot;if(!s)throw Error('Данные ещё загружаются.');return s;};
     const change=async(fn:(s:Snapshot)=>void)=>{if(!await commitLatest(fn))throw Error('Не удалось сохранить изменения.');};
     const allowed=(override=false)=>{if(!aiEnabled(read()))throw Error('Включите ИИ в настройках.');if(!override&&needsBudgetConfirmation(read()))throw Error('AI_BUDGET_CONFIRM');};
-    return {scanLabel:async input=>{input=labelRequestSchema.parse(input);allowed(input.overrideBudget);const food=input.mode==='food',feature=food?'focus-food-photo':'focus-label';const reply=await aiComplete(labelModel,food?foodPhotoInstructions:labelInstructions,food?'Оцени видимую порцию еды.':'Прочитай этикетку.',true,labelResponseFormat,input.image);try{const draft=parsePhotoDraft(reply.content);await change(s=>recordUsage(s,reply,feature,labelModel,'ok'));return draft;}catch(error){await change(s=>recordUsage(s,reply,feature,labelModel,'error'));throw error;}},saveLabel:input=>change(s=>saveFocusLabel(s,input.draft)),updateConfig:patch=>change(s=>updateFocusConfig(s,patch)),removeFood:input=>change(s=>removeFocusFood(s,input)),publish:async()=>{let result={written:0,skipped:0};await change(s=>{result=publishFocus(s);});return result;},snapshot:async()=>focusSnapshot(read()),configure:(c,enableAI=false)=>change(s=>configureFocus(s,c,enableAI)),save:async x=>{try{await change(s=>saveFocusTurn(s,x));}catch(error){await change(s=>recordFocusDiagnostic(s,focusDiagnostic({stage:'save',model:focusConfig(s).model,requestId:'',day:x.day,text:x.text,response:JSON.stringify({reply:x.reply,actions:x.actions}),attempt:0},error)));throw error;}},send:async input=>{
+    return {preferences:input=>change(s=>saveHomePreferences(s,input)),scanLabel:async input=>{input=labelRequestSchema.parse(input);allowed(input.overrideBudget);const food=input.mode==='food',feature=food?'focus-food-photo':'focus-label';const reply=await aiComplete(labelModel,food?foodPhotoInstructions:labelInstructions,food?'Оцени видимую порцию еды.':'Прочитай этикетку.',true,labelResponseFormat,input.image);try{const draft=parsePhotoDraft(reply.content);await change(s=>recordUsage(s,reply,feature,labelModel,'ok'));return draft;}catch(error){await change(s=>recordUsage(s,reply,feature,labelModel,'error'));throw error;}},saveLabel:input=>change(s=>saveFocusLabel(s,input.draft)),updateConfig:patch=>change(s=>updateFocusConfig(s,patch)),removeFood:input=>change(s=>removeFocusFood(s,input)),publish:async()=>{let result={written:0,skipped:0};await change(s=>{result=publishFocus(s);});return result;},snapshot:async()=>focusSnapshot(read()),configure:(c,enableAI=false)=>change(s=>configureFocus(s,c,enableAI)),save:async x=>{try{await change(s=>saveFocusTurn(s,x));}catch(error){await change(s=>recordFocusDiagnostic(s,focusDiagnostic({stage:'save',model:focusConfig(s).model,requestId:'',day:x.day,text:x.text,response:JSON.stringify({reply:x.reply,actions:x.actions}),attempt:0},error)));throw error;}},send:async input=>{
       const s=focusSnapshot(read()),model=focusConfig(s).model;
       return runFocusMentor({snapshot:s,facts:focusFacts(s,input.day,input.text),model,beforeAttempt:()=>allowed(input.overrideBudget),complete:(system,user)=>aiComplete(model,system,user,true,mentorResponseFormat),record:async(reply,status)=>{if(reply)await change(s=>recordUsage(s,reply,'focus-mentor',model,status));},diagnostic:value=>change(s=>recordFocusDiagnostic(s,value))});
     },transcribe:async input=>{allowed(input.overrideBudget);try{const result=await transcribeAudio(read(),input.base64,input.format);await change(s=>recordUsage(s,result.reply,'focus-transcription',result.model));return result.text;}catch(error){try{await change(s=>recordFocusDiagnostic(s,focusDiagnostic({stage:'provider',model:transcriptionModel(s),requestId:'',day:localDay(),text:'',response:'',attempt:0},error)));}catch{/* Diagnostics must not replace the original connection error. */}throw error;}}};
   },[commitLatest]);
+  const taskAPI=useMemo(()=>({save:async(input:Parameters<typeof updateTask>[1])=>{if(!await commitLatest(s=>updateTask(s,input)))throw Error('Не удалось сохранить дело.');},remove:async(id:string)=>{if(!await commitLatest(s=>removeTask(s,id)))throw Error('Не удалось удалить дело.');}}),[commitLatest]);
   const snapshot=state?.snapshot;
   useEffect(()=>{updateReminders(snapshot??null);const refresh=()=>updateReminders(engine.current?.state.snapshot??null);window.addEventListener('focus',refresh);return()=>window.removeEventListener('focus',refresh);},[snapshot]);
   const statusLabel:Record<SyncStatus,string>={loading:'Загрузка',saved:'Сохранено',pending:'На телефоне',syncing:'Отправляется',offline:'Без связи',conflict:'Есть различия','storage-error':'Ошибка сохранения'};
-  return <GrowthProvider api={growthAPI} revision={snapshot}><DailyProvider api={dailyAPI} revision={snapshot} reminders={reminders}><ConfirmHost/><div className={`app dominion-chassis ${focusMode?"focus-active":""}`}>
-    <header className="top"><div className="brand"><span className="mark">N</span><div><strong>NEXUS</strong>{theme==='dominion'&&<small className="dominion-brand-label">ДОМИНИОН</small>}</div></div><div className={`status ${message||status==='storage-error'?'bad':status==='saved'?'good':''}`} role="status"><span className="dot"/>{message?'Есть ошибка':statusLabel[status]}</div></header>
-    <main className={focusMode?"main focus-shell":"main"} onTouchStart={event=>{const touch=event.touches[0],target=event.target as HTMLElement;gesture.current=event.touches.length===1&&touch.clientX>24&&touch.clientX<window.innerWidth-24&&!target.closest('input,textarea,select,button,[data-no-swipe]')?{x:touch.clientX,y:touch.clientY}:null;}} onTouchEnd={event=>{const start=gesture.current;gesture.current=null;if(!start)return;const touch=event.changedTouches[0],dx=touch.clientX-start.x,dy=touch.clientY-start.y;if(Math.abs(dx)>75&&Math.abs(dx)>Math.abs(dy)*1.8&&Math.abs(dy)<60){const next=nav[nav.findIndex(([key])=>key===section)+(dx<0?1:-1)];if(next)navigate(next[0]);}}} onTouchCancel={()=>{gesture.current=null;}}>
-      {message&&<div className="notice" role="alert">{message}<button onClick={()=>void refresh()}>Повторить</button></div>}
-      {status==='storage-error'&&<div className="notice" role="alert">{engine.current?.error}</div>}
-      {conflicts.length>0&&<ConflictReview conflicts={conflicts} resolve={choices=>engine.current!.resolve(choices)}/>}
-      {!serverReady?<Connect onConnected={onConnected}/>:
-       !snapshot?<div className="center"><SectionHeading eyebrow="ПОДКЛЮЧЕНИЕ" title={status==='offline'?'Нет связи с сервером':'Ждём данные с компьютера'} detail={status==='offline'?engine.current?.error:'После первого подключения данные сохранятся и на телефоне.'}/><button onClick={()=>void refresh()}>Проверить ещё раз</button><Connect onConnected={onConnected}/></div>:
-       focusMode?<FocusPage api={focusAPI} revision={snapshot} mobile/>:visited.map(key=><div key={key} hidden={section!==key} className="page"><Page section={key} active={section===key} snapshot={snapshot} commit={commit} commitLatest={commitLatest} onConnected={onConnected} onNavigate={navigate} focusAPI={focusAPI}/></div>)}
-    </main>
-    {!focusMode&&<nav className="bottom" aria-label="Разделы" data-no-swipe>{nav.map(([key,label])=><button key={key} className={section===key?'active':''} aria-current={section===key?"page":undefined} onClick={()=>navigate(key)}><span>{navCopy(key,label)}</span></button>)}</nav>}
-  </div></DailyProvider></GrowthProvider>;
+  return <GrowthProvider api={growthAPI} revision={snapshot}><DailyProvider api={dailyAPI} revision={snapshot} reminders={reminders}><ConfirmHost/>
+    {message&&<div className="return-error" role="alert">{message}<button onClick={()=>void refresh()}>Повторить</button></div>}
+    {status==='storage-error'&&<div className="return-error" role="alert">{engine.current?.error}</div>}
+    {conflicts.length>0&&<ConflictReview conflicts={conflicts} resolve={choices=>engine.current!.resolve(choices)}/>}
+    {!serverReady?<Connect onConnected={onConnected}/>:!snapshot?<div className="center"><h1>{status==='offline'?'Нет связи с сервером':'Открываем NEXUS'}</h1><button onClick={()=>void refresh()}>Повторить</button></div>:<ReturnApp mobile quickActions={quickActions} createCare={async(name,role)=>{if(!await commitLatest(s=>{const list=current(s,'habits'),id=nextId(list);list.push({id,name,description:'',kind:'positive',format:'boolean',target:1,period:'daily',active:1,created_at:new Date().toISOString(),sort_order:Math.max(0,...list.map(r=>num(r.sort_order)))+1});saveCareRole(s,{habit_id:id,role});}))throw Error('Не удалось сохранить.');}} api={focusAPI} social={socialAPI} daily={dailyAPI} reminders={reminders} revision={snapshot} status={message?'Ошибка сохранения':statusLabel[status]} tasks={taskAPI} settings={<Settings snapshot={snapshot} commit={commit} commitLatest={commitLatest} onConnected={onConnected} focusAPI={focusAPI}/>} extra={kind=><>{kind==='history'&&<div className="return-segments"><button aria-pressed={section!=='finance'} onClick={()=>navigate('health')}>Здоровье</button><button aria-pressed={section==='finance'} onClick={()=>navigate('finance')}>Финансы</button></div>}<Page section={kind==='work'?'work':kind==='investments'?'finance':section==='finance'?'finance':'health'} active snapshot={snapshot} commit={commit} commitLatest={commitLatest} onConnected={onConnected} onNavigate={navigate} focusAPI={focusAPI}/></>}/>}
+  </DailyProvider></GrowthProvider>;
 }
 
 const Page=memo(function Page(props:PanelProps&{section:Section;active:boolean;onConnected:()=>void;onNavigate:(section:Section)=>void;focusAPI:FocusAPI}){
@@ -213,6 +211,6 @@ function Settings({snapshot,onConnected,focusAPI}:PanelProps&{onConnected:()=>vo
 
   const [profile,setProfile]=useState<Awaited<ReturnType<typeof remoteProfile>>|null>(null);
   useEffect(()=>{void remoteProfile().then(setProfile).catch(()=>{});},[]);
-  return <><SectionHeading eyebrow="06 / НАСТРОЙКИ" title={copy("Настройки")}/><FocusSettings api={focusAPI} revision={snapshot}/><UpdatePanel/><details className="mobile-fold"><summary>Уведомления</summary><RemindersPanel api={reminders} habits={rows(snapshot,'habits').filter(x=>x.active).map(x=>({id:Number(x.id),name:String(x.name)}))}/></details><details className="mobile-fold"><summary>ИИ</summary><AIStatus/></details><details className="mobile-fold"><summary>Подключение</summary>{profile&&<div className="connection-summary"><span className="dot"/>Подключено · {profile.name}</div>}<Connect onConnected={onConnected}/></details></>;
+  return <><SectionHeading eyebrow="06 / НАСТРОЙКИ" title={copy("Настройки")}/><details className="mobile-fold"><summary>ИИ</summary><AIStatus/></details><details className="mobile-fold"><summary>Подключение</summary>{profile&&<div className="connection-summary"><span className="dot"/>Подключено · {profile.name}</div>}<Connect onConnected={onConnected}/></details></>;
 
 }

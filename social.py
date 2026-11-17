@@ -77,7 +77,13 @@ def facts(snapshot, start, end):
     weights = {}
     def in_range(row, key='day'):
         value = row.get(key)
-        return isinstance(value, str) and lower <= value <= end and bool(re.fullmatch(r'\d{4}-\d{2}-\d{2}', value))
+        if not isinstance(value, str) or not lower <= value <= end:
+            return False
+        try:
+            day(value)
+            return True
+        except SocialError:
+            return False
     for row in rows('focus_weights'):
         if in_range(row) and finite(row.get('weight_kg'), 1, 500):
             recorded['weight'].add(row['day'])
@@ -166,6 +172,11 @@ class Social:
                       group_id TEXT NOT NULL, user_id TEXT NOT NULL, joined_day TEXT NOT NULL,
                       PRIMARY KEY(challenge_id,user_id),
                       FOREIGN KEY(group_id,user_id) REFERENCES members(group_id,user_id) ON DELETE CASCADE);
+                    CREATE TABLE IF NOT EXISTS cheers (
+                      group_id TEXT NOT NULL, sender_id TEXT NOT NULL, target_id TEXT NOT NULL, day TEXT NOT NULL,
+                      PRIMARY KEY(group_id,sender_id,target_id,day),
+                      FOREIGN KEY(group_id,sender_id) REFERENCES members(group_id,user_id) ON DELETE CASCADE,
+                      FOREIGN KEY(group_id,target_id) REFERENCES members(group_id,user_id) ON DELETE CASCADE);
                     CREATE INDEX IF NOT EXISTS members_user ON members(user_id);
                     ''')
                     os.chmod(self.path, 0o600)
@@ -290,7 +301,7 @@ class Social:
                     operation = None
                 else:
                     operation = 'group'
-                match = re.fullmatch(r'/v1/social/groups/([0-9a-f-]{36})/(preferences|leave|invite|challenges)', path)
+                match = re.fullmatch(r'/v1/social/groups/([0-9a-f-]{36})/(preferences|leave|invite|challenges|cheer)', path)
                 if operation == 'group' and not match:
                     raise SocialError(404, 'social_not_found')
                 if operation is None:
@@ -311,12 +322,19 @@ class Social:
         changed.update(r[0] for r in db.execute('SELECT user_id FROM members WHERE group_id=?', (identity,)))
         if operation == 'leave' and method == 'POST' and not body:
             if group['owner_id'] == user['id']:
-                successor = db.execute('SELECT user_id FROM members WHERE group_id=? AND user_id<>? ORDER BY joined_day,user_id LIMIT 1', (identity, user['id'])).fetchone()
+                active = self.active_ids()
+                successor = next((row for row in db.execute('SELECT user_id FROM members WHERE group_id=? AND user_id<>? ORDER BY joined_day,user_id', (identity, user['id'])) if row[0] in active), None)
                 if successor:
                     db.execute('UPDATE groups SET owner_id=? WHERE id=?', (successor[0], identity))
                 else:
                     db.execute('DELETE FROM groups WHERE id=?', (identity,))
             db.execute('DELETE FROM members WHERE group_id=? AND user_id=?', (identity, user['id']))
+        elif operation == 'cheer' and method == 'POST':
+            if set(body) != {'userId'} or not isinstance(body['userId'], str) or body['userId'] == user['id'] or body['userId'] not in self.active_ids():
+                raise SocialError(400, 'invalid_social_input')
+            if not db.execute('SELECT 1 FROM members WHERE group_id=? AND user_id=?', (identity, body['userId'])).fetchone():
+                raise SocialError(404, 'group_not_found')
+            db.execute('INSERT OR IGNORE INTO cheers VALUES (?,?,?,?)', (identity, user['id'], body['userId'], self.today(group).isoformat()))
         elif operation == 'invite' and method == 'POST' and not body:
             if group['owner_id'] != user['id']:
                 raise SocialError(403, 'group_owner_required')
@@ -360,6 +378,7 @@ class Social:
                 start = today - timedelta(days=today.weekday())
                 members = []
                 private_facts = {}
+                cheers = [row for row in db.execute('SELECT sender_id,target_id FROM cheers WHERE group_id=? AND day=?', (group['id'], today.isoformat())) if row['sender_id'] in active and row['target_id'] in active]
                 for member in db.execute('SELECT * FROM members WHERE group_id=? ORDER BY joined_day,user_id', (group['id'],)):
                     if member['user_id'] not in active:
                         continue
@@ -370,6 +389,8 @@ class Social:
                     score_start = max(start.isoformat(), member['joined_day'])
                     score = personal_score(recorded, plans, score_start, today.isoformat())
                     public = {'id': identity, 'nickname': member['nickname'], 'points': score['points'], 'completed': score['completed'], 'planned': score['planned'], 'joinedDay': member['joined_day'], 'self': identity == user['id']}
+                    public['cheers'] = sum(row['target_id'] == identity for row in cheers)
+                    public['cheeredByMe'] = any(row['target_id'] == identity and row['sender_id'] == user['id'] for row in cheers)
                     if member['share_training']:
                         public['trainingDays'] = len([d for d in recorded['training'] if d >= start.isoformat()])
                     if weights:

@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
     registerPlugin(NexusUpdatesPlugin.class);
     registerPlugin(NexusRemindersPlugin.class);
     registerPlugin(NexusFeedbackPlugin.class);
+    registerPlugin(NexusQuickPlugin.class);
     super.onCreate(savedInstanceState);
     getOnBackPressedDispatcher().addCallback(this,new OnBackPressedCallback(true){
       @Override public void handleOnBackPressed(){

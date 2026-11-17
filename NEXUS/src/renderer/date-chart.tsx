@@ -1,10 +1,12 @@
 import {chartKeyIndex} from '../shared/chart-keyboard';
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
+import {carryChartValues} from '../shared/chart-series';
 import {displayDay} from '../shared/domain';
 import {chartGeometry,type ChartKind,type ChartPoint} from '../shared/chart-geometry';
 import {useTheme} from './appearance';
 export type SeriesRole='neutral'|'income'|'expense';
-export function DateChart({points,formatValue=String,kind='line',role='neutral',label='Показатель',mobile=false,selectionIndex,onSelect}:{points:ChartPoint[];formatValue?:(value:number)=>string;kind?:ChartKind;role?:SeriesRole;label?:string;mobile?:boolean;selectionIndex?:number|null;onSelect?:(index:number|null)=>void}){
+export function DateChart({points:sourcePoints,formatValue=String,kind='line',role='neutral',label='Показатель',mobile=false,selectionIndex,onSelect}:{points:ChartPoint[];formatValue?:(value:number)=>string;kind?:ChartKind;role?:SeriesRole;label?:string;mobile?:boolean;selectionIndex?:number|null;onSelect?:(index:number|null)=>void}){
+  const points=useMemo(()=>kind==='line'?carryChartValues(sourcePoints):sourcePoints,[sourcePoints,kind]);
   const theme=useTheme(),ref=useRef<SVGSVGElement>(null),[width,setWidth]=useState(mobile?320:600),[selection,setSelection]=useState<{day:string;pinned:boolean}|null>(()=>selectionIndex!=null&&points[selectionIndex]?{day:points[selectionIndex].day,pinned:true}:null),[announcement,setAnnouncement]=useState('');
   const actual=points.map((point,index)=>({point,index})).filter(({point})=>point.value!==null&&Number.isFinite(point.value));
   useEffect(()=>{const svg=ref.current;if(!svg||typeof ResizeObserver==='undefined')return;const observer=new ResizeObserver(entries=>{const next=entries[0]?.contentRect.width;if(next>0)setWidth(Math.max(180,next));});observer.observe(svg);return()=>observer.disconnect();},[actual.length>0]);
@@ -14,7 +16,7 @@ export function DateChart({points,formatValue=String,kind='line',role='neutral',
   const selected=actual.find(item=>item.point.day===selection?.day),chosen=selected??actual.at(-1)!,selectedIndex=actual.indexOf(chosen),pinned=!!selected&&selection?.pinned;
   const pointPosition=positions[chosen.index];
   const nearest=(event:{clientX:number;currentTarget:SVGSVGElement})=>{const bounds=event.currentTarget.getBoundingClientRect(),position=(event.clientX-bounds.left)/bounds.width*width;return actual.reduce((best,item)=>Math.abs(positions[item.index].x-position)<Math.abs(positions[best.index].x-position)?item:best,actual[0]);};
-  const select=(item:typeof chosen,pinned:boolean)=>{setSelection({day:item.point.day,pinned});onSelect?.(item.index);};
+  const select=(item:typeof chosen,pinned:boolean)=>{setSelection({day:item.point.day,pinned});let sourceIndex=-1;for(let i=0;i<sourcePoints.length;i++)if(sourcePoints[i].day<=item.point.day&&sourcePoints[i].value!==null&&(sourceIndex===-1||sourcePoints[i].day>=sourcePoints[sourceIndex].day))sourceIndex=i;onSelect?.(sourceIndex===-1?null:sourceIndex);};
   const clear=()=>{setSelection(null);onSelect?.(null);};
   const announce=(item:typeof chosen)=>setAnnouncement(`${label}, ${displayDay(item.point.day)}, ${formatValue(item.point.value!)}`);
   const dateLabel=(day:string)=>/^\d{4}-\d{2}-\d{2}$/.test(day)?`${day.slice(8)}.${day.slice(5,7)}`:day;

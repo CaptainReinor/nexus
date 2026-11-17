@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 
 export type AutoSaveStatus = { state:'saved'|'saving'|'error'; error?:string };
 const activeQueues=new Set<AutoSaveQueue>();
-export async function flushPendingEdits():Promise<boolean>{return (await Promise.all([...activeQueues].map(queue=>queue.flushAll()))).every(Boolean);}
+const closeGuards=new Set<()=>boolean>();
+export function registerCloseGuard(guard:()=>boolean):()=>void{closeGuards.add(guard);return()=>{closeGuards.delete(guard);};}
+export async function flushPendingEdits():Promise<boolean>{if([...closeGuards].some(guard=>!guard()))return false;return (await Promise.all([...activeQueues].map(queue=>queue.flushAll()))).every(Boolean);}
 
 type Entry = {
   revision:number;

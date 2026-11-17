@@ -1,4 +1,4 @@
-type Options={endpoint:string;token:string;revision:(revision:number)=>void;fallback:()=>void;error?:()=>void};
+type Options={endpoint:string;token:string;path?:'/v1/events'|'/v1/social/events';revision:(revision:number)=>void;fallback:()=>void;error?:()=>void};
 const pause=(ms:number,signal:AbortSignal)=>new Promise<void>(resolve=>{if(signal.aborted){resolve();return;}const done=()=>{clearTimeout(timer);signal.removeEventListener('abort',done);resolve();};const timer=setTimeout(done,ms);signal.addEventListener('abort',done,{once:true});});
 
 /** Authenticated SSE; heartbeat bytes carry no snapshot and do not repaint the UI. */
@@ -10,7 +10,7 @@ export async function watchRevisions(options:Options,signal:AbortSignal,request:
     const alive=()=>{if(watchdog)clearTimeout(watchdog);watchdog=setTimeout(abort,45_000);};
     try{
       alive();
-      const response=await request(`${options.endpoint}/v1/events`,{headers:{Authorization:`Bearer ${options.token}`,Accept:'text/event-stream'},redirect:'error',signal:controller.signal});
+      const response=await request(`${options.endpoint}${options.path??'/v1/events'}`,{headers:{Authorization:`Bearer ${options.token}`,Accept:'text/event-stream'},redirect:'error',signal:controller.signal});
       if(response.status===404||response.status===405){options.fallback();await pause(60_000,signal);continue;}
       if(!response.ok||!response.headers.get('content-type')?.includes('text/event-stream'))throw new Error('Event stream unavailable');
       const reader=response.body?.getReader();if(!reader)throw new Error('Missing stream');
