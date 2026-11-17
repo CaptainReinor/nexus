@@ -151,8 +151,8 @@ body[data-motion=off] .return-app *,body[data-motion=off] .modal *,body[data-mot
 .return-weekdays{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0}
 .return-weekdays button{border:1px solid var(--return-line);background:transparent;color:var(--return-muted);padding:8px 10px;border-radius:8px;font-size:12px;min-height:35px}
 .return-weekdays button[aria-pressed=true]{background:var(--return-accent);color:#102117;border-color:var(--return-accent)}
-.return-enabled .modal-backdrop{background:#07100bcc;backdrop-filter:none;font-family:Inter,"Segoe UI",system-ui,sans-serif;color:var(--return-ink);padding:30px 18px}
-.return-enabled .modal{background:var(--return-surface);border:1px solid var(--return-line);border-radius:20px;clip-path:none;box-shadow:0 20px 75px #0006;max-width:500px;padding:24px;color:var(--return-ink);font:14px/1.5 Inter,"Segoe UI",system-ui,sans-serif}
+.return-enabled .modal-backdrop{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;overflow:auto;overscroll-behavior:contain;box-sizing:border-box;background:#07100bcc;backdrop-filter:none;font-family:Inter,"Segoe UI",system-ui,sans-serif;color:var(--return-ink);padding:30px 18px}
+.return-enabled .modal{width:100%;box-sizing:border-box;max-height:calc(100dvh - 60px);overflow:auto;overscroll-behavior:contain;background:var(--return-surface);border:1px solid var(--return-line);border-radius:20px;clip-path:none;box-shadow:0 20px 75px #0006;max-width:500px;padding:24px;color:var(--return-ink);font:14px/1.5 Inter,"Segoe UI",system-ui,sans-serif}
 .return-enabled .modal.wide{max-width:950px}
 .return-enabled .modal-head{border:0;padding:0;margin:0 0 22px;display:flex;justify-content:space-between;gap:12px;align-items:center}
 .return-enabled .modal-head h2{font:550 20px/1.3 Inter,"Segoe UI",system-ui,sans-serif;color:var(--return-ink)}
@@ -279,6 +279,8 @@ body[data-motion=off] .return-app *,body[data-motion=off] .modal *,body[data-mot
  .return-app .focus-section-header{flex-wrap:wrap;align-items:flex-start;gap:10px}
  .return-app .focus-inline-switch{flex-wrap:wrap}
  .return-app .focus-settings{padding:18px}
+ .return-app .update-panel{flex-direction:column;align-items:stretch;gap:14px}
+ .return-app .update-panel .update-action{width:100%}
  .return-enabled .modal-backdrop{padding:calc(16px + env(safe-area-inset-top,0px)) 12px calc(16px + env(safe-area-inset-bottom,0px))}
  .return-enabled .modal{padding:20px;max-height:calc(100dvh - 35px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
  .return-enabled .modal input:not([type=checkbox]),.return-enabled .modal textarea,.return-enabled .modal select{font-size:16px}
